@@ -1,3 +1,4 @@
+const bcrypt = require('bcrypt');
 const { pool } = require('../config/db');
 const { sendApprovalEmail, sendRejectionEmail } = require('../utils/mailer');
 
@@ -459,7 +460,7 @@ const getAuditLog = async (req, res) => {
   } catch (err) { res.status(500).json({ error: err.message }); }
 };
 
-const bcrypt = require('bcrypt');
+
 
 module.exports = {
   getProgrammes, getCompanies, getTutors,

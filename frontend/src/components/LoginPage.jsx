@@ -56,7 +56,7 @@ function ForgotPasswordFlow({ onBack }) {
     }
     setLoading(true);
     try {
-      const response = await fetch(`${API_BASE}/send-otp`, {
+      const response = await fetch(`${API_BASE}/auth/send-otp`, {
         method: "POST",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({ email: fpEmail }),
@@ -84,7 +84,7 @@ function ForgotPasswordFlow({ onBack }) {
     }
     setLoading(true);
     try {
-      const response = await fetch(`${API_BASE}/verify-otp`, {
+      const response = await fetch(`${API_BASE}/auth/verify-otp`, {
         method: "POST",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({ email: fpEmail, otp: fpOtp }),
@@ -107,7 +107,7 @@ function ForgotPasswordFlow({ onBack }) {
     setError("");
     setOtpTimer(30);
     try {
-      const response = await fetch(`${API_BASE}/send-otp`, {
+      const response = await fetch(`${API_BASE}/auth/send-otp`, {
         method: "POST",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({ email: fpEmail }),
@@ -492,11 +492,11 @@ const handleOtp = async () => {
         method: "POST",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({
-          name: signupData.name,
-          email: signupData.email,
-          password: signupData.password,
-          otp: signupData.otp,
-        }),
+  email: signupData.email,
+  password: signupData.password,
+  full_name: signupData.name || signupData.email.split('@')[0],
+  otp: signupData.otp,          // if you want to keep OTP verification
+}),
       });
       const data = await response.json();
       if (response.ok) {

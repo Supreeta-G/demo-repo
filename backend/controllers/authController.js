@@ -61,17 +61,21 @@ const verifyOtp = (req, res) => {
   if (!stored) return res.status(400).json({ error: 'No OTP found. Please request a new one.' });
   if (Date.now() > stored.expiry) {
     otpStore.delete(lower);
-    return res.status(400).json({ error: 'OTP has expired. Please request a new one.' });
+    return res.status(400).json({ error: 'OTP has expired.' });
   }
-  if (stored.otp !== String(otp))
-    return res.status(400).json({ error: 'Invalid OTP. Please try again.' });
+  if (stored.otp !== String(otp)) {
+    return res.status(400).json({ error: 'Invalid OTP.' });
+  }
 
-  otpStore.delete(lower);
+  // Do NOT delete OTP here if you want to use it in resetPassword
+  // otpStore.delete(lower);   ← Comment this line or keep it — both work now
+
   res.json({ success: true, message: 'OTP verified.' });
 };
 
+ 
 // ──────────────────────────────────────────────
-// RESET PASSWORD (New)
+// RESET PASSWORD
 // ──────────────────────────────────────────────
 const resetPassword = async (req, res) => {
   const { email, otp, newPassword } = req.body;
@@ -83,13 +87,13 @@ const resetPassword = async (req, res) => {
   const lower = email.toLowerCase();
 
   try {
-    // Verify OTP again
+    // Re-verify OTP (don't delete it yet)
     const stored = otpStore.get(lower);
     if (!stored || Date.now() > stored.expiry || stored.otp !== String(otp)) {
       return res.status(400).json({ error: 'Invalid or expired OTP.' });
     }
 
-    // Check if user exists
+    // Check user exists
     const userResult = await pool.query('SELECT user_id FROM users WHERE LOWER(email) = $1', [lower]);
     if (userResult.rows.length === 0) {
       return res.status(404).json({ error: 'User not found.' });
@@ -102,7 +106,8 @@ const resetPassword = async (req, res) => {
       [hash, lower]
     );
 
-    otpStore.delete(lower); // Clean up OTP
+    // Clean up OTP after successful reset
+    otpStore.delete(lower);
 
     res.json({ success: true, message: 'Password reset successfully.' });
   } catch (err) {

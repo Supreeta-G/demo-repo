@@ -1,23 +1,19 @@
 require('dotenv').config();
 const express = require('express');
 const cors = require('cors');
-
-// Import all routes
-const routes = require('./routes/index');     // Main routes file
+const { connectToDb } = require('./config/db');
+const routes = require('./routes/index');
 
 const app = express();
 
 app.use(cors());
 app.use(express.json());
 
-// All API routes
+connectToDb();   // ← Important
+
 app.use('/api', routes);
 
-// Health Check
-app.get('/health', (req, res) => res.json({ status: 'OK' }));
-app.get('/', (req, res) => res.send('PSG Tech Internship Portal Backend Running 🚀'));
+app.get('/', (req, res) => res.send('✅ Backend Running'));
 
 const PORT = process.env.PORT || 5001;
-app.listen(PORT, () => {
-  console.log(`✅ Server running on http://localhost:${PORT}`);
-});
+app.listen(PORT, () => console.log(`🚀 Server running on port ${PORT}`));
