@@ -437,37 +437,40 @@ const handleLogin = async () => {
 };
 
   // ── Send OTP for Signup ──
-  const handleOtp = async () => {
-    setSignupError("");
-    if (!signupData.email) {
-      setSignupError("Please enter your email first.");
-      return;
-    }
-    if (!signupData.email.endsWith("@psgtech.ac.in")) {
-      setSignupError("Please use your PSG college email (@psgtech.ac.in).");
-      return;
-    }
-    setOtpLoading(true);
-    try {
-      const response = await fetch(`${API_BASE}/auth/send-otp`, {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ email: signupData.email }),
-      });
-      const data = await response.json();
-      if (response.ok) {
-        alert("OTP Sent Successfully");
-        setOtpTimer(30);
-      } else {
-        setSignupError(data.error || "Failed to send OTP.");
-      }
-    } catch {
-      setSignupError("Server error. Please try again.");
-    } finally {
-      setOtpLoading(false);
-    }
-  };
+const handleOtp = async () => {
+  setSignupError("");
+  if (!signupData.email) {
+    setSignupError("Please enter your email first.");
+    return;
+  }
+  if (!signupData.email.endsWith("@psgtech.ac.in")) {
+    setSignupError("Please use your PSG college email (@psgtech.ac.in).");
+    return;
+  }
 
+  setOtpLoading(true);
+  try {
+    const response = await fetch(`${API_BASE}/auth/send-otp`, {  // ← FIXED: Added /auth/
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ email: signupData.email }),
+    });
+
+    const data = await response.json();
+
+    if (response.ok) {
+      alert("OTP Sent Successfully! Check your email.");
+      setOtpTimer(30);
+    } else {
+      setSignupError(data.error || "Failed to send OTP.");
+    }
+  } catch (err) {
+    console.error("OTP Error:", err);
+    setSignupError("Server error. Make sure backend is running.");
+  } finally {
+    setOtpLoading(false);
+  }
+};
   // ── Signup submit ──
   const handleSignup = async () => {
     setSignupError("");
