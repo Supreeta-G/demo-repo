@@ -41,32 +41,35 @@ const TutorQueue = ({ filter }) => {
     load();
   }, [filter]); // Re-load when switching between Pending & Reviewed
 
-  const decide = async (appId, decision) => {
-    const key = appId + decision;
-    setActionLoading(key);
-    try {
-      await api.post('/tutor/decision', { 
-        application_id: appId, 
-        decision, 
-        remarks: remarks[appId] || '' 
-      });
-      
-      showToast(
-        `Application ${decision === 'approve' ? '✅ Approved' : '❌ Rejected'}`, 
-        decision === 'approve' ? 'success' : 'error'
-      );
-      
-      // Refresh list immediately
-      load();
-      setExpanded(null);
-      setRemarks(r => ({ ...r, [appId]: '' })); // Clear remarks
-    } catch (err) {
-      showToast(err.response?.data?.error || 'Action failed.', 'error');
-    } finally {
-      setActionLoading(null);
-    }
-  };
+ const decide = async (appId, decision) => {
+  const key = appId + decision;
+  setActionLoading(key);
 
+  // Convert to backend expected values
+  const backendDecision = decision === 'approve' ? 'approved' : 'rejected';
+
+  try {
+    await api.post('/tutor/decision', { 
+      application_id: appId, 
+      decision: backendDecision,           // ← FIXED
+      remarks: remarks[appId] || '' 
+    });
+    
+    showToast(
+      `Application ${backendDecision === 'approved' ? '✅ Approved' : '❌ Rejected'}`, 
+      backendDecision === 'approved' ? 'success' : 'error'
+    );
+    
+    load();                    // Refresh list
+    setExpanded(null);
+    setRemarks(r => ({ ...r, [appId]: '' }));
+  } catch (err) {
+    console.error(err);
+    showToast(err.response?.data?.error || 'Action failed.', 'error');
+  } finally {
+    setActionLoading(null);
+  }
+};
   const handlePDF = async (appId) => {
     setPdfLoading(appId);
     try {
@@ -205,16 +208,17 @@ const TutorQueue = ({ filter }) => {
                           <button 
                             onClick={() => decide(app.application_id, 'approve')}
                             disabled={actionLoading}
-                            className="btn-primary bg-emerald-600 hover:bg-emerald-700"
+                            className="btn-primary bg-emerald-600 hover:bg-emerald-700 flex-1"
                           >
-                            {actionLoading === (app.application_id + 'approve') ? 'Approving...' : 'Approve'}
+                            {actionLoading === (app.application_id + 'approve') ? 'Approving...' : '✅ Approve'}
                           </button>
+
                           <button 
                             onClick={() => decide(app.application_id, 'reject')}
                             disabled={actionLoading}
-                            className="btn-danger"
+                            className="btn-danger flex-1"
                           >
-                            {actionLoading === (app.application_id + 'reject') ? 'Rejecting...' : 'Reject'}
+                            {actionLoading === (app.application_id + 'reject') ? 'Rejecting...' : '❌ Reject'}
                           </button>
                         </>
                       )}

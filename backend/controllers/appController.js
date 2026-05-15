@@ -1,6 +1,7 @@
 const bcrypt = require('bcrypt');
 const { pool } = require('../config/db');
 const { sendApprovalEmail, sendRejectionEmail } = require('../utils/mailer');
+const { sendTutorNotificationEmail } = require('../utils/mailer'); 
 
 // ──── SHARED ────
 
@@ -169,63 +170,59 @@ const saveDraft = async (req, res) => {
 
 const submitForApproval = async (req, res) => {
   const { application_id } = req.body;
+  const student_id = req.user.user_id;
 
   try {
-    const { rows } = await pool.query(
-      `SELECT a.*, 
-              s.full_name AS student_name, 
-              t.full_name AS tutor_name, 
-              t.email AS tutor_email,
-              COALESCE(c.name, a.company_name_manual) AS company_name
-       FROM internship_applications a
-       JOIN users s ON a.student_id = s.user_id
-       JOIN users t ON a.tutor_id = t.user_id
-       LEFT JOIN companies c ON a.company_id = c.company_id
-       WHERE a.application_id=$1 AND a.student_id=$2`,
-      [application_id, req.user.user_id]
-    );
+    const { rows } = await pool.query(`
+      SELECT a.*, 
+             s.full_name AS student_name,
+             s.email AS student_email,
+             COALESCE(a.tutor_email, u.email) AS tutor_email,
+             COALESCE(a.tutor_name, u.full_name) AS tutor_name
+      FROM internship_applications a
+      JOIN users s ON a.student_id = s.user_id
+      LEFT JOIN users u ON a.tutor_id = u.user_id
+      WHERE a.application_id = $1 AND a.student_id = $2
+    `, [application_id, student_id]);
 
-    if (!rows.length) return res.status(404).json({ error: 'Application not found' });
+    if (rows.length === 0) 
+      return res.status(404).json({ error: 'Application not found' });
 
     const app = rows[0];
 
-    if (app.status !== 'draft') 
-      return res.status(400).json({ error: 'Only draft applications can be submitted.' });
-
-    if (!app.tutor_id) 
-      return res.status(400).json({ error: 'Please select a tutor before submitting.' });
-
     // Update status
-    await pool.query(
-      `UPDATE internship_applications 
-       SET status = 'pending_tutor', 
-           submitted_at = NOW(), 
-           updated_at = NOW() 
-       WHERE application_id = $1`,
+    await pool.query(`
+      UPDATE internship_applications 
+      SET status = 'pending_tutor', 
+          submitted_at = NOW(), 
+          updated_at = NOW() 
+      WHERE application_id = $1`, 
       [application_id]
     );
 
-    // Send email to Tutor
-    try {
-      await sendTutorNotificationEmail(
-        app.tutor_email, 
-        app.tutor_name, 
-        app.student_name, 
-        app.company_name, 
-        application_id
-      );
-    } catch (e) {
-      console.error("Tutor email failed:", e.message);
+    // Send email to tutor
+    if (app.tutor_email) {
+      try {
+        await sendTutorNotificationEmail(
+          app.tutor_email,
+          app.tutor_name || 'Respected Tutor',
+          app.student_name,
+          app.company_name || app.company_name_manual || 'Company',
+          application_id
+        );
+        console.log(`✅ Email sent to tutor: ${app.tutor_email}`);
+      } catch (mailErr) {
+        console.error("Mail sending failed:", mailErr.message);
+      }
     }
 
-    res.json({ message: 'Application submitted successfully! Tutor has been notified via email.' });
+    res.json({ success: true, message: 'Application submitted successfully!' });
 
   } catch (err) {
-    console.error(err);
-    res.status(500).json({ error: err.message });
+    console.error("Submit Error:", err);
+    res.status(500).json({ error: 'Server error. Please try again.' });
   }
 };
-
 
 const trackPdfDownload = async (req, res) => {
   const { application_id } = req.body;
@@ -299,52 +296,65 @@ const getTutorQueue = async (req, res) => {
 };
 
 const tutorDecision = async (req, res) => {
-  const { application_id, decision, remarks } = req.body;
-  if (!['approve', 'reject'].includes(decision))
+  const { application_id, decision, remarks = '' } = req.body;
+  const tutor_id = req.user.user_id;
+
+  if (!['approved', 'rejected'].includes(decision)) {
     return res.status(400).json({ error: 'Invalid decision' });
+  }
 
   try {
-    const { rows } = await pool.query(
-      "SELECT a.*, s.full_name AS student_name, s.email AS student_email, COALESCE(c.name, a.company_name_manual) AS company_name FROM internship_applications a JOIN users s ON a.student_id=s.user_id LEFT JOIN companies c ON a.company_id=c.company_id WHERE a.application_id=$1 AND a.tutor_id=$2 AND a.status='pending_tutor'",
-      [application_id, req.user.user_id]
-    );
-    if (!rows.length) return res.status(404).json({ error: 'Application not found or not pending.' });
+    const { rows } = await pool.query(`
+      SELECT a.application_id,
+             a.company_name_manual,
+             s.full_name AS student_name, 
+             s.email AS student_email
+      FROM internship_applications a
+      JOIN users s ON a.student_id = s.user_id
+      WHERE a.application_id = $1 AND a.tutor_id = $2
+    `, [application_id, tutor_id]);
 
-    const app = rows[0];
-    const newStatus = decision === 'approve' ? 'approved' : 'rejected';
-    const nowField = decision === 'approve' ? ', approved_at=NOW()' : ', rejected_at=NOW()';
-
-    await pool.query(
-      `UPDATE internship_applications SET status=$1, tutor_remarks=$2, tutor_reviewed_at=NOW(), updated_at=NOW()${nowField} WHERE application_id=$3`,
-      [newStatus, remarks || null, application_id]
-    );
-
-    // Audit
-    await pool.query(
-      `INSERT INTO audit_log (application_id, user_id, action, details) VALUES ($1,$2,$3,$4)`,
-      [application_id, req.user.user_id, `tutor_${newStatus}`, JSON.stringify({ remarks })]
-    );
-
-    // Email notification to student
-    try {
-      if (decision === 'approve') {
-        await sendApprovalEmail(app.student_email, app.student_name, application_id, app.company_name, remarks);
-      } else {
-        await sendRejectionEmail(app.student_email, app.student_name, application_id, app.company_name, remarks);
-      }
-      // Log email
-      await pool.query(
-        `INSERT INTO email_notifications (application_id, recipient_email, subject, status) VALUES ($1,$2,$3,'sent')`,
-        [application_id, app.student_email, `Application ${newStatus} – ${app.company_name}`]
-      );
-    } catch (mailErr) {
-      console.error('Email send error:', mailErr.message);
+    if (rows.length === 0) {
+      return res.status(404).json({ error: 'Application not found or not assigned to you' });
     }
 
-    res.json({ message: `Application ${newStatus}.` });
-  } catch (err) { res.status(500).json({ error: err.message }); }
-};
+    const app = rows[0];
+    const companyName = app.company_name_manual || 'Company';
+    const newStatus = decision === 'approved' ? 'approved' : 'rejected';
 
+    // Update using correct column name 'tutor_remarks'
+    await pool.query(`
+      UPDATE internship_applications 
+      SET status = $1, 
+          tutor_remarks = $2, 
+          ${decision === 'approved' ? 'approved_at = NOW()' : 'rejected_at = NOW()'},
+          updated_at = NOW()
+      WHERE application_id = $3
+    `, [newStatus, remarks, application_id]);
+
+    // Send email to student
+    if (app.student_email) {
+      try {
+        if (decision === 'approved') {
+          await sendApprovalEmail(app.student_email, app.student_name, companyName, application_id);
+        } else {
+          await sendRejectionEmail(app.student_email, app.student_name, companyName, remarks || 'No remarks provided', application_id);
+        }
+      } catch (mailErr) {
+        console.error("Email sending failed:", mailErr.message);
+      }
+    }
+
+    res.json({ 
+      success: true, 
+      message: `Application ${decision} successfully. Student has been notified.` 
+    });
+
+  } catch (err) {
+    console.error("Tutor Decision Error:", err);
+    res.status(500).json({ error: 'Server error. Please try again.' });
+  }
+};
 // ──── ADMIN ────
 
 const getAdminStats = async (req, res) => {

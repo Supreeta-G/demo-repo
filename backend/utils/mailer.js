@@ -53,49 +53,36 @@ const htmlWrap = (title, body) => `
 
 // ====================== Existing Emails ======================
 
-const sendApprovalEmail = async (studentEmail, studentName, appId, companyName, remarks) => {
+const sendApprovalEmail = async (studentEmail, studentName, companyName, appId) => {
   const body = `
-    <p style="color:#555;line-height:1.7;">Dear <strong style="color:#344E41;">${studentName}</strong>,</p>
-    <p style="color:#555;line-height:1.7;">
-      Great news! Your internship application (ID: <strong>#${appId}</strong>) for
-      <strong style="color:#588157;">${companyName}</strong> has been
-      <span style="color:#22c55e;font-weight:700;">approved</span> by your tutor.
-    </p>
-    ${remarks ? `<div style="background:#f0fdf4;border-left:4px solid #588157;padding:12px 16px;border-radius:4px;margin:16px 0;">
-      <p style="margin:0;color:#344E41;font-size:14px;"><strong>Tutor Remarks:</strong> ${remarks}</p>
-    </div>` : ''}
-    <p style="color:#555;line-height:1.7;">
-      You can now log in to the portal and download your official approval letter PDF.
-    </p>
+    Dear ${studentName},<br><br>
+    Good news! Your internship application for <strong>${companyName}</strong> has been <strong>APPROVED</strong> by your tutor.<br><br>
+    <strong>Application ID:</strong> #${appId}<br><br>
+    You can now download the permission letter from your portal.
   `;
+
   await transporter.sendMail({
-    from: process.env.EMAIL_FROM || 'PSG Tech Portal <noreply@psgtech.ac.in>',
+    from: process.env.EMAIL_FROM,
     to: studentEmail,
-    subject: `✅ Internship Application Approved – ${companyName} | PSG Tech Portal`,
-    html: htmlWrap('Application Approved 🎉', body),
+    subject: `Application Approved - #${appId}`,
+    html: htmlWrap('Application Approved', body),
   });
 };
 
-const sendRejectionEmail = async (studentEmail, studentName, appId, companyName, remarks) => {
+const sendRejectionEmail = async (studentEmail, studentName, companyName, remarks, appId) => {
   const body = `
-    <p style="color:#555;line-height:1.7;">Dear <strong style="color:#344E41;">${studentName}</strong>,</p>
-    <p style="color:#555;line-height:1.7;">
-      Your internship application (ID: <strong>#${appId}</strong>) for
-      <strong>${companyName}</strong> has been
-      <span style="color:#ef4444;font-weight:700;">rejected</span>.
-    </p>
-    ${remarks ? `<div style="background:#fff5f5;border-left:4px solid #ef4444;padding:12px 16px;border-radius:4px;margin:16px 0;">
-      <p style="margin:0;color:#7f1d1d;font-size:14px;"><strong>Tutor Remarks:</strong> ${remarks}</p>
-    </div>` : ''}
-    <p style="color:#555;line-height:1.7;">
-      Please contact your tutor or the department for further guidance.
-    </p>
+    Dear ${studentName},<br><br>
+    Your internship application for <strong>${companyName}</strong> has been <strong>REJECTED</strong>.<br><br>
+    <strong>Application ID:</strong> #${appId}<br>
+    <strong>Remarks:</strong> ${remarks || 'No remarks provided'}<br><br>
+    Please contact your tutor for more details.
   `;
+
   await transporter.sendMail({
-    from: process.env.EMAIL_FROM || 'PSG Tech Portal <noreply@psgtech.ac.in>',
+    from: process.env.EMAIL_FROM,
     to: studentEmail,
-    subject: `Application Update – ${companyName} | PSG Tech Portal`,
-    html: htmlWrap('Application Decision', body),
+    subject: `Application Rejected - #${appId}`,
+    html: htmlWrap('Application Rejected', body),
   });
 };
 
