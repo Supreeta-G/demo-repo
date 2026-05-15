@@ -2,7 +2,8 @@ import React, { useState } from 'react';
 import { Routes, Route, NavLink, useNavigate, Navigate } from 'react-router-dom';
 import { Home, FileText, ClipboardList, LogOut, Leaf, Menu, X, ChevronRight, User } from 'lucide-react';
 import StudentHome from './StudentHome.jsx';
-import InternshipForm from './InternshipForm.jsx';
+import SummerInternshipForm from './SummerInternshipForm.jsx';
+import SixMonthInternshipForm from './SixMonthInternshipForm.jsx';
 import MyApplications from './MyApplications.jsx';
 
 const StudentLayout = () => {

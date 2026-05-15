@@ -437,6 +437,7 @@ const handleLogin = async () => {
 };
 
   // ── Send OTP for Signup ──
+// ── Send OTP for Signup ──
 const handleOtp = async () => {
   setSignupError("");
   if (!signupData.email) {
@@ -450,7 +451,7 @@ const handleOtp = async () => {
 
   setOtpLoading(true);
   try {
-    const response = await fetch(`${API_BASE}/auth/send-otp`, {  // ← FIXED: Added /auth/
+    const response = await fetch(`${API_BASE}/auth/send-otp`, {
       method: "POST",
       headers: { "Content-Type": "application/json" },
       body: JSON.stringify({ email: signupData.email }),
@@ -459,60 +460,65 @@ const handleOtp = async () => {
     const data = await response.json();
 
     if (response.ok) {
-      alert("OTP Sent Successfully! Check your email.");
+      alert("✅ OTP Sent! Check your email.");
       setOtpTimer(30);
     } else {
       setSignupError(data.error || "Failed to send OTP.");
     }
   } catch (err) {
-    console.error("OTP Error:", err);
-    setSignupError("Server error. Make sure backend is running.");
+    console.error(err);
+    setSignupError("Server error. Is backend running?");
   } finally {
     setOtpLoading(false);
   }
 };
-  // ── Signup submit ──
-  const handleSignup = async () => {
-    setSignupError("");
-    if (!signupData.name || !signupData.email || !signupData.password || !signupData.otp) {
-      setSignupError("Please fill all fields and verify OTP.");
-      return;
-    }
-    if (!signupData.email.endsWith("@psgtech.ac.in")) {
-      setSignupError("Please use your PSG college email (@psgtech.ac.in).");
-      return;
-    }
-    if (signupData.password.length < 8) {
-      setSignupError("Password must be at least 8 characters.");
-      return;
-    }
-    setSignupLoading(true);
-    try {
-      const response = await fetch(`${API_BASE}/register`, {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({
-  email: signupData.email,
-  password: signupData.password,
-  full_name: signupData.name || signupData.email.split('@')[0],
-  otp: signupData.otp,          // if you want to keep OTP verification
-}),
-      });
-      const data = await response.json();
-      if (response.ok) {
-        alert("Account created successfully! Please login.");
-        setIsSignup(false);
-        setSignupData({ name: "", email: "", password: "", otp: "" });
-      } else {
-        setSignupError(data.error || "Registration failed. Please try again.");
-      }
-    } catch {
-      setSignupError("Server error. Please try again.");
-    } finally {
-      setSignupLoading(false);
-    }
-  };
 
+// ── Signup submit ──
+const handleSignup = async () => {
+  setSignupError("");
+  if (!signupData.name || !signupData.email || !signupData.password || !signupData.otp) {
+    setSignupError("Please fill all fields and verify OTP.");
+    return;
+  }
+  if (!signupData.email.endsWith("@psgtech.ac.in")) {
+    setSignupError("Please use your PSG college email.");
+    return;
+  }
+  if (signupData.password.length < 8) {
+    setSignupError("Password must be at least 8 characters.");
+    return;
+  }
+
+  setSignupLoading(true);
+  try {
+    const response = await fetch(`${API_BASE}/auth/signup`, {   // ← Correct endpoint
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({
+        full_name: signupData.name,
+        email: signupData.email,
+        password: signupData.password,
+      }),
+    });
+
+    const data = await response.json();
+
+    if (response.ok) {
+      alert("✅ Account created successfully! Please login.");
+      setIsSignup(false);
+      setSignupData({ name: "", email: "", password: "", otp: "" });
+    } else {
+      setSignupError(data.error || "Registration failed.");
+    }
+  } catch (err) {
+    console.error(err);
+    setSignupError("Server error. Please check if backend is running.");
+  } finally {
+    setSignupLoading(false);
+  }
+};
+  // ── Signup submit ──
+ 
   return (
     <div className="min-h-screen bg-gradient-to-br from-forest via-hunter to-fern flex items-center justify-center overflow-hidden relative px-4 py-6">
 
@@ -669,7 +675,7 @@ const handleOtp = async () => {
                       </div>
                     )}
 
-                    {/* <div>
+                     <div>
                       <label className="text-sm font-semibold text-forest/80 block mb-2">Full Name</label>
                       <input
                         type="text"
@@ -678,7 +684,7 @@ const handleOtp = async () => {
                         onChange={(e) => setSignupData({ ...signupData, name: e.target.value })}
                         className="w-full px-5 py-4 rounded-2xl border border-sage/30 bg-white focus:outline-none focus:ring-4 focus:ring-sage/20 focus:border-fern transition-all duration-300"
                       />
-                    </div> */}
+                    </div> 
 
                     <div>
                       <label className="text-sm font-semibold text-forest/80 block mb-2">College Email</label>

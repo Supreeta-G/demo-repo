@@ -19,13 +19,17 @@ const StudentHome = () => {
     }).catch(console.error).finally(() => setLoading(false));
   }, []);
 
-  const user = (() => { try { return JSON.parse(localStorage.getItem('user') || '{}'); } catch { return {}; } })();
+  const user = (() => { 
+    try { 
+      return JSON.parse(localStorage.getItem('user') || '{}'); 
+    } catch { 
+      return {}; 
+    } 
+  })();
 
-  // Extract display name from email like 24pw35@psgtech.ac.in → "24pw35"
-  // Combined with full_name: "24pw35 - Subhaharini P"
   const rollNumber = user.email?.split('@')[0] || '';
-  const displayName = profile?.full_name
-    ? `${rollNumber} – ${profile.full_name}`
+  const displayName = profile?.full_name 
+    ? `${rollNumber} – ${profile.full_name}` 
     : rollNumber;
 
   const statusCount = (s) => apps.filter(a => a.status === s).length;
@@ -107,15 +111,16 @@ const StudentHome = () => {
         ))}
       </div>
 
-      {/* Internship type selection */}
+      {/* Internship Type Selection */}
       <div className="mb-6">
         <h2 className="text-lg font-bold text-forest mb-1">Start Your Application</h2>
         <p className="text-sm text-sage/80 mb-4">Choose your internship type to begin</p>
+        
         <div className="grid sm:grid-cols-2 gap-4">
           {internTypes.map((type, i) => (
             <button
               key={type.id}
-              onClick={() => navigate('/student/apply', { state: { duration_type: type.id } })}
+              onClick={() => navigate(`/student/apply/${type.id}`)}   // ← Updated Navigation
               className={`card-hover text-left bg-gradient-to-br ${type.color} border-2 ${type.border} group animate-slide-up`}
               style={{ animationDelay: `${i * 0.1}s` }}
             >
@@ -140,13 +145,15 @@ const StudentHome = () => {
         </div>
       </div>
 
-      {/* Recent applications */}
+      {/* Recent Applications */}
       {apps.length > 0 && (
         <div>
           <div className="flex items-center justify-between mb-4">
             <h2 className="text-lg font-bold text-forest">Recent Applications</h2>
-            <button onClick={() => navigate('/student/applications')}
-              className="text-fern hover:text-hunter text-sm font-semibold flex items-center gap-1 transition-colors">
+            <button 
+              onClick={() => navigate('/student/applications')}
+              className="text-fern hover:text-hunter text-sm font-semibold flex items-center gap-1 transition-colors"
+            >
               View All <ArrowRight className="w-3.5 h-3.5" />
             </button>
           </div>

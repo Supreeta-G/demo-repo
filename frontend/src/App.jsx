@@ -1,9 +1,13 @@
 import React from 'react';
 import { BrowserRouter, Routes, Route, Navigate } from 'react-router-dom';
 
-// Import Pages
-import LoginPage from './components/LoginPage.jsx';     // ← New Login Page (with Signup tab + Forgot Password)
-import SignupPage from './components/SignupPage.jsx';   // ← Keep your old separate signup if needed
+// Import Pages & Layouts
+import LoginPage from './components/LoginPage.jsx';
+import SignupPage from './components/SignupPage.jsx';
+
+// Student Forms
+import SummerInternshipForm from './components/student/SummerInternshipForm.jsx';
+import SixMonthInternshipForm from './components/student/SixMonthInternshipForm.jsx';
 
 import StudentLayout from './components/student/StudentLayout.jsx';
 import TutorLayout from './components/tutor/TutorLayout.jsx';
@@ -36,13 +40,20 @@ const ProtectedRoute = ({ allowedRoles, element }) => {
 const App = () => (
   <BrowserRouter>
     <Routes>
-      {/* Main Login Page (includes Login, Signup Tab, and Forgot Password) */}
+      {/* Public Routes */}
       <Route path="/" element={<LoginPage />} />
-
-      {/* Keep separate signup route (optional - you can remove if not needed) */}
       <Route path="/signup" element={<SignupPage />} />
 
-      {/* Protected Routes */}
+      {/* Student Application Routes */}
+      {/* <Route path="/student/apply/summer" element={
+        <ProtectedRoute allowedRoles={['student']} element={<SummerInternshipForm />} />
+      } />
+      
+      <Route path="/student/apply/six-month" element={
+        <ProtectedRoute allowedRoles={['student']} element={<SixMonthInternshipForm />} />
+      } /> */}
+
+      {/* Protected Layout Routes */}
       <Route 
         path="/student/*" 
         element={
@@ -52,7 +63,7 @@ const App = () => (
           />
         } 
       />
-
+      
       <Route 
         path="/tutor/*" 
         element={
@@ -62,7 +73,7 @@ const App = () => (
           />
         } 
       />
-
+      
       <Route 
         path="/admin/*" 
         element={
