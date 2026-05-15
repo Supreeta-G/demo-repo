@@ -1,3 +1,74 @@
+ =============================================
+-- SAFE MIGRATION FOR CUSTOM APPLICATION ID
+-- =============================================
+ALTER TABLE internship_applications 
+ADD PRIMARY KEY (application_id);
+ALTER TABLE internship_applications DROP COLUMN IF EXISTS application_id;
+
+
+
+ALTER TABLE internship_applications ADD COLUMN application_id VARCHAR(50);
+
+-- 1. Drop old constraints
+ALTER TABLE audit_log DROP CONSTRAINT IF EXISTS audit_log_application_id_fkey;
+ALTER TABLE email_notifications DROP CONSTRAINT IF EXISTS email_notifications_application_id_fkey;
+
+-- 2. Drop old application_id if exists
+ALTER TABLE internship_applications DROP COLUMN IF EXISTS application_id;
+
+-- 3. Add new column
+ALTER TABLE internship_applications ADD COLUMN application_id VARCHAR(50);
+
+-- 4. Update existing rows with custom ID (Simple & Safe)
+[5:15 pm, 15/05/2026] Subhaharini: Character: 264
+[5:16 pm, 15/05/2026] Supreetha Psg: UPDATE internship_applications
+SET application_id = 
+    CONCAT(
+        COALESCE((SELECT roll_number FROM users WHERE user_id = internship_applications.student_id), 'UNKNOWN'),
+        '/',
+        EXTRACT(YEAR FROM created_at)::TEXT,
+        '/',
+        LPAD(application_id::TEXT, 3, '0')     -- using the serial id
+    )
+WHERE application_id IS NULL;
+
+UPDATE internship_applications a
+SET application_id = 
+    CONCAT(
+        COALESCE((SELECT roll_number FROM users WHERE user_id = a.student_id), 'UNKNOWN'),
+        '/',
+        EXTRACT(YEAR FROM a.created_at)::TEXT,
+        '/',
+        LPAD(
+            ((SELECT COUNT(*) + 1 
+              FROM internship_applications b 
+              WHERE b.student_id = a.student_id 
+                AND b.created_at <= a.created_at))::TEXT, 
+            3, '0'
+        )
+    )
+WHERE application_id IS NULL;
+
+ALTER TABLE internship_applications 
+ADD PRIMARY KEY (application_id);
+
+
+ALTER TABLE internship_applications 
+ADD COLUMN IF NOT EXISTS tutor_email VARCHAR(255);
+
+ALTER TABLE internship_applications 
+ADD COLUMN IF NOT EXISTS tutor_name VARCHAR(255);
+
+-- Drop existing table (if you can) or add new column
+ALTER TABLE internship_applications 
+DROP COLUMN IF EXISTS application_id;
+
+ALTER TABLE internship_applications 
+ADD COLUMN application_id VARCHAR(50) PRIMARY KEY;
+
+-- Also add index
+CREATE INDEX idx_apps_custom_id ON internship_applications(application_id);
+
 -- ============================================================
 -- PSG TECH INTERNSHIP PORTAL - FULL SCHEMA v2.0
 -- ============================================================
