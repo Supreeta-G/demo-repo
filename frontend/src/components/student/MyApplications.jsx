@@ -2,16 +2,19 @@ import React, { useEffect, useState } from 'react';
 import { FileText, Clock, CheckCircle, XCircle, FileDown, Lock, Unlock, Building2 } from 'lucide-react';
 import api from '../../api.js';
 import { generateInternshipPDF } from './pdfGenerator.js';
+import { useNavigate } from 'react-router-dom';   // ← Added for navigation
 
 const statusConfig = {
-  draft:         { label: 'Draft',           cls: 'badge-draft',    Icon: FileText, emoji: '📝' },
-  pending_tutor: { label: 'Pending Tutor',   cls: 'badge-pending',  Icon: Clock,    emoji: '⏳' },
-  approved:      { label: 'Approved',        cls: 'badge-approved', Icon: CheckCircle, emoji: '✅' },
-  rejected:      { label: 'Rejected',        cls: 'badge-rejected', Icon: XCircle,  emoji: '❌' },
-  cancelled:     { label: 'Cancelled',       cls: 'badge-draft',    Icon: XCircle,  emoji: '🚫' },
+  draft: { label: 'Draft', cls: 'badge-draft', Icon: FileText, emoji: '📝' },
+  pending_tutor: { label: 'Pending Tutor', cls: 'badge-pending', Icon: Clock, emoji: '⏳' },
+  approved: { label: 'Approved', cls: 'badge-approved', Icon: CheckCircle, emoji: '✅' },
+  rejected: { label: 'Rejected', cls: 'badge-rejected', Icon: XCircle, emoji: '❌' },
+  cancelled: { label: 'Cancelled', cls: 'badge-draft', Icon: XCircle, emoji: '🚫' },
 };
 
 const MyApplications = () => {
+  const navigate = useNavigate();   // ← Added
+
   const [apps, setApps] = useState([]);
   const [loading, setLoading] = useState(true);
   const [pdfLoading, setPdfLoading] = useState(null);
@@ -36,7 +39,6 @@ const MyApplications = () => {
     }
     setPdfLoading(app.application_id);
     try {
-      // Track download in backend
       await api.post('/applications/pdf-download', { application_id: app.application_id });
       const { data } = await api.get(`/applications/${app.application_id}`);
       await generateInternshipPDF(data, true);
@@ -44,6 +46,13 @@ const MyApplications = () => {
     } catch (e) {
       showToast(e.response?.data?.error || 'Failed to generate PDF.', 'error');
     } finally { setPdfLoading(null); }
+  };
+
+  // ==================== NEW: Edit Rejected Application ====================
+  const handleEdit = (app) => {
+    if (app.status === 'rejected') {
+      navigate(`/student/apply/summer?edit=${app.application_id}`);
+    }
   };
 
   if (loading) return (
@@ -94,7 +103,7 @@ const MyApplications = () => {
                       <div>
                         <div className="flex items-center gap-2 flex-wrap mb-1">
                           <Building2 className="w-4 h-4 text-fern flex-shrink-0" />
-                          <h3 className="font-bold text-forest text-base">{app.company_name || 'Draft Application'}</h3>
+                          <h3 className="font-bold text-forest text-base">{app.company_name || app.company_name_manual || 'Draft Application'}</h3>
                           <span className={`badge ${cfg.cls}`}>
                             {cfg.emoji} {cfg.label}
                           </span>
@@ -117,6 +126,16 @@ const MyApplications = () => {
                         {canDownload ? 'Download PDF' : 'PDF Locked'}
                       </button>
                     </div>
+
+                    {/* NEW: Edit Button for Rejected Applications */}
+                    {app.status === 'rejected' && (
+                      <button
+                        onClick={() => handleEdit(app)}
+                        className="ml-6 mb-3 px-5 py-2 bg-blue-600 hover:bg-blue-700 text-white text-sm font-medium rounded-xl flex items-center gap-2 transition-all"
+                      >
+                        ✏️ Edit Application
+                      </button>
+                    )}
 
                     {/* Meta chips */}
                     <div className="flex flex-wrap gap-2 ml-6 mb-3">
@@ -164,6 +183,7 @@ const MyApplications = () => {
                         Your PDF approval letter is ready for download!
                       </div>
                     )}
+
                     {app.status === 'pending_tutor' && (
                       <div className="ml-6 mt-2 flex items-center gap-2 text-xs text-amber-600">
                         <Clock className="w-3.5 h-3.5" />

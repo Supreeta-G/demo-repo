@@ -91,6 +91,7 @@ const getApplicationById = async (req, res) => {
   } catch (err) { res.status(500).json({ error: err.message }); }
 };
 
+// ==================== SAVE DRAFT ====================
 const saveDraft = async (req, res) => {
   const {
     company_id, company_name_manual, role_title, intern_type,
@@ -104,33 +105,48 @@ const saveDraft = async (req, res) => {
   } = req.body;
 
   try {
+    const year = new Date().getFullYear();
+
+    // Check limit: Max 2 applications per year
+    const countRes = await pool.query(`
+      SELECT COUNT(*) as total
+      FROM internship_applications
+      WHERE student_id = $1 AND EXTRACT(YEAR FROM created_at) = $2
+    `, [req.user.user_id, year]);
+
+    if (parseInt(countRes.rows[0].total) >= 2) {
+      return res.status(400).json({ 
+        error: "You can only apply for maximum 2 internships per year." 
+      });
+    }
+
+    // Check if student has any pending application
+    const pendingRes = await pool.query(`
+      SELECT application_id FROM internship_applications
+      WHERE student_id = $1 AND status = 'pending_tutor'
+    `, [req.user.user_id]);
+
+    if (pendingRes.rows.length > 0) {
+      return res.status(400).json({ 
+        error: "You already have a pending application. Please wait for tutor decision." 
+      });
+    }
+
     // Get student roll number
-    const studentRes = await pool.query(
+    const rollRes = await pool.query(
       "SELECT roll_number FROM users WHERE user_id = $1", 
       [req.user.user_id]
     );
 
-    if (!studentRes.rows.length) 
+    if (!rollRes.rows.length) 
       return res.status(404).json({ error: "Student not found" });
 
-    const rollNumber = studentRes.rows[0].roll_number || "UNKNOWN";
-    const year = new Date().getFullYear();
+    const rollNumber = rollRes.rows[0].roll_number || "UNKNOWN";
+    const totalApplications = parseInt(countRes.rows[0].total) + 1;
+    const seq = String(totalApplications).padStart(2, '0');
+    const application_id = `${rollNumber}/${year}/${seq}/${seq}`;
 
-    // Get total applications by this student in this year
-    const totalRes = await pool.query(`
-      SELECT COUNT(*) as total 
-      FROM internship_applications 
-      WHERE student_id = $1 
-        AND created_at >= date_trunc('year', CURRENT_DATE)
-    `, [req.user.user_id]);
-
-    const totalApplications = parseInt(totalRes.rows[0].total) + 1;  // +1 for current one
-
-    // Generate ID: ROLLNO/YEAR/SEQUENCE/TOTAL
-    const sequence = String(totalApplications).padStart(2, '0');   // 01, 02, 03...
-    const application_id = `${rollNumber}/${year}/${sequence}/${String(totalApplications).padStart(2, '0')}`;
-
-    // Insert new draft
+    // Insert new draft (unlocked)
     const { rows } = await pool.query(`
       INSERT INTO internship_applications (
         application_id, student_id, company_id, company_name_manual, role_title, intern_type,
@@ -139,8 +155,8 @@ const saveDraft = async (req, res) => {
         guide_name_industry, guide_department, guide_contact,
         cgpa, semester_completed, ra_courses, pending_courses,
         has_declined_other, declined_company_details, stipend_amount, student_note,
-        tutor_id, tutor_email, status
-      ) VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $12, $13, $14, $15, $16, $17, $18, $19, $20, $21, $22, $23, $24, $25, $26, $27, $28, $29, $30, 'draft')
+        tutor_id, tutor_email, status, locked
+      ) VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $12, $13, $14, $15, $16, $17, $18, $19, $20, $21, $22, $23, $24, $25, $26, $27, $28, $29, $30, 'draft', FALSE)
       RETURNING application_id
     `, [
       application_id, req.user.user_id, company_id || null, company_name_manual || null,
@@ -158,7 +174,7 @@ const saveDraft = async (req, res) => {
     ]);
 
     res.json({ 
-      message: 'Draft saved successfully', 
+      message: "Draft saved successfully", 
       application_id: rows[0].application_id 
     });
 
@@ -168,13 +184,15 @@ const saveDraft = async (req, res) => {
   }
 };
 
+// ==================== SUBMIT FOR APPROVAL ====================
 const submitForApproval = async (req, res) => {
   const { application_id } = req.body;
   const student_id = req.user.user_id;
 
   try {
+    // Fetch application with necessary details
     const { rows } = await pool.query(`
-      SELECT a.*, 
+      SELECT a.*,
              s.full_name AS student_name,
              s.email AS student_email,
              COALESCE(a.tutor_email, u.email) AS tutor_email,
@@ -185,45 +203,47 @@ const submitForApproval = async (req, res) => {
       WHERE a.application_id = $1 AND a.student_id = $2
     `, [application_id, student_id]);
 
-    if (rows.length === 0) 
+    if (rows.length === 0) {
       return res.status(404).json({ error: 'Application not found' });
+    }
 
     const app = rows[0];
 
-    // Update status
+    // Lock and submit
     await pool.query(`
       UPDATE internship_applications 
-      SET status = 'pending_tutor', 
-          submitted_at = NOW(), 
-          updated_at = NOW() 
-      WHERE application_id = $1`, 
-      [application_id]
-    );
+      SET status = 'pending_tutor',
+          locked = TRUE,
+          submitted_at = NOW(),
+          updated_at = NOW()
+      WHERE application_id = $1
+    `, [application_id]);
 
-    // Send email to tutor
+    // Send tutor notification
     if (app.tutor_email) {
       try {
         await sendTutorNotificationEmail(
           app.tutor_email,
-          app.tutor_name || 'Respected Tutor',
+          app.tutor_name || 'Tutor',
           app.student_name,
-          app.company_name || app.company_name_manual || 'Company',
+          app.company_name_manual || 'Company',
           application_id
         );
-        console.log(`✅ Email sent to tutor: ${app.tutor_email}`);
       } catch (mailErr) {
-        console.error("Mail sending failed:", mailErr.message);
+        console.error("Tutor email failed:", mailErr.message);
       }
     }
 
-    res.json({ success: true, message: 'Application submitted successfully!' });
+    res.json({ 
+      success: true, 
+      message: 'Application submitted successfully! Form is now locked.' 
+    });
 
   } catch (err) {
     console.error("Submit Error:", err);
-    res.status(500).json({ error: 'Server error. Please try again.' });
+    res.status(500).json({ error: err.message || 'Failed to submit application' });
   }
 };
-
 const trackPdfDownload = async (req, res) => {
   const { application_id } = req.body;
   try {
@@ -295,59 +315,58 @@ const getTutorQueue = async (req, res) => {
   }
 };
 
+// ==================== TUTOR DECISION (Approve / Reject) ====================
+// ==================== TUTOR DECISION (Approve / Reject) ====================
 const tutorDecision = async (req, res) => {
-  const { application_id, decision, remarks = '' } = req.body;
-  const tutor_id = req.user.user_id;
-
-  if (!['approved', 'rejected'].includes(decision)) {
-    return res.status(400).json({ error: 'Invalid decision' });
-  }
+  const { application_id, decision, remarks } = req.body;
 
   try {
+    if (!['approve', 'reject'].includes(decision)) {
+      return res.status(400).json({ error: "Invalid decision. Use 'approve' or 'reject'" });
+    }
+
+    const newStatus = decision === 'approve' ? 'approved' : 'rejected';
+
+    // Update status + locking logic
     const { rows } = await pool.query(`
-      SELECT a.application_id,
-             a.company_name_manual,
-             s.full_name AS student_name, 
-             s.email AS student_email
-      FROM internship_applications a
-      JOIN users s ON a.student_id = s.user_id
-      WHERE a.application_id = $1 AND a.tutor_id = $2
-    `, [application_id, tutor_id]);
+      UPDATE internship_applications 
+      SET 
+        status = $1,
+        tutor_remarks = $2,
+        decided_at = NOW(),
+        updated_at = NOW(),
+        locked = $3,                    -- TRUE only if approved
+        edit_requested = FALSE,
+        admin_unlocked = FALSE
+      WHERE application_id = $4
+      RETURNING *
+    `, [newStatus, remarks || null, decision === 'approve', application_id]);
 
     if (rows.length === 0) {
-      return res.status(404).json({ error: 'Application not found or not assigned to you' });
+      return res.status(404).json({ error: 'Application not found' });
     }
 
     const app = rows[0];
-    const companyName = app.company_name_manual || 'Company';
-    const newStatus = decision === 'approved' ? 'approved' : 'rejected';
 
-    // Update using correct column name 'tutor_remarks'
-    await pool.query(`
-      UPDATE internship_applications 
-      SET status = $1, 
-          tutor_remarks = $2, 
-          ${decision === 'approved' ? 'approved_at = NOW()' : 'rejected_at = NOW()'},
-          updated_at = NOW()
-      WHERE application_id = $3
-    `, [newStatus, remarks, application_id]);
-
-    // Send email to student
-    if (app.student_email) {
+    // Send email notification to student
+    const studentEmail = app.student_email || app.email;
+    if (studentEmail) {
       try {
-        if (decision === 'approved') {
-          await sendApprovalEmail(app.student_email, app.student_name, companyName, application_id);
+        if (decision === 'approve') {
+          await sendApprovalEmail(studentEmail, app.student_name || 'Student', application_id);
         } else {
-          await sendRejectionEmail(app.student_email, app.student_name, companyName, remarks || 'No remarks provided', application_id);
+          await sendRejectionEmail(studentEmail, app.student_name || 'Student', application_id, remarks);
         }
       } catch (mailErr) {
-        console.error("Email sending failed:", mailErr.message);
+        console.error("Student notification failed:", mailErr.message);
       }
     }
 
-    res.json({ 
-      success: true, 
-      message: `Application ${decision} successfully. Student has been notified.` 
+    res.json({
+      success: true,
+      message: `Application ${newStatus.toUpperCase()} successfully.`,
+      status: newStatus,
+      unlocked: decision === 'reject'   // Tell frontend it can be edited again
     });
 
   } catch (err) {
