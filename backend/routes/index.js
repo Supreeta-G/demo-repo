@@ -35,5 +35,10 @@ router.get('/admin/users', authenticateToken, requireRole('admin'), ctrl.getAdmi
 router.post('/admin/users', authenticateToken, requireRole('admin'), ctrl.createUser);
 router.get('/admin/companies', authenticateToken, requireRole('admin'), ctrl.getCompaniesAdmin);
 router.post('/admin/companies', authenticateToken, requireRole('admin'), ctrl.addCompany);
-
+router.post('/applications/request-delete', authenticateToken, requireRole('student'), ctrl.requestDelete);
+router.delete('/admin/applications/:id', authenticateToken, requireRole('admin'), ctrl.deleteApplication);
+// Admin Delete & Unlock
+router.get('/admin/delete-requests', authenticateToken, requireRole('admin'), ctrl.getDeleteRequests);
+router.delete('/admin/applications/:id', authenticateToken, requireRole('admin'), ctrl.deleteApplication);
+router.post('/admin/unlock-form', authenticateToken, requireRole('admin'), ctrl.unlockForm);
 module.exports = router;

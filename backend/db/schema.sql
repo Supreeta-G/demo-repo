@@ -310,3 +310,9 @@ CREATE TABLE IF NOT EXISTS email_notifications (
     status          VARCHAR(20)     DEFAULT 'sent',
     sent_at         TIMESTAMPTZ     NOT NULL DEFAULT NOW()
 );
+-- Add column for delete request
+ALTER TABLE internship_applications 
+ADD COLUMN IF NOT EXISTS delete_requested BOOLEAN DEFAULT FALSE,
+ADD COLUMN IF NOT EXISTS delete_reason TEXT;
+
+SELECT '✅ Delete request columns added!' AS status;

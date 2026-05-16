@@ -31,7 +31,20 @@ const MyApplications = () => {
       .catch(console.error)
       .finally(() => setLoading(false));
   }, []);
+    const handleDeleteRequest = async (app) => {
+      const reason = prompt("Why do you want to delete this application? (Optional)");
+      if (reason === null) return; // User cancelled
 
+      try {
+        await api.post('/applications/request-delete', {
+          application_id: app.application_id,
+          reason: reason || 'No reason provided'
+        });
+        showToast("Delete request sent to Admin successfully.", "success");
+      } catch (err) {
+        showToast(err.response?.data?.error || "Failed to send delete request", "error");
+      }
+    };
   const handlePDF = async (app) => {
     if (app.status !== 'approved') {
       showToast('PDF download is only available after tutor approval.', 'error');
@@ -136,7 +149,17 @@ const MyApplications = () => {
                         ✏️ Edit Application
                       </button>
                     )}
-
+                    
+                    {/* Inside the map function, after the Edit button */}
+                    { (app.status === 'rejected' || app.status === 'draft') && (
+                      <button
+                        onClick={() => handleDeleteRequest(app)}
+                        className="ml-6 px-5 py-2 bg-red-600 hover:bg-red-700 text-white text-sm font-medium rounded-xl flex items-center gap-2 transition-all"
+                      >
+                        🗑 Request Delete
+                      </button>
+                    )}
+                    
                     {/* Meta chips */}
                     <div className="flex flex-wrap gap-2 ml-6 mb-3">
                       <span className="bg-fern/10 text-fern text-xs px-2.5 py-1 rounded-full font-medium">

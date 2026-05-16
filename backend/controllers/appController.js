@@ -90,7 +90,36 @@ const getApplicationById = async (req, res) => {
     res.json(app);
   } catch (err) { res.status(500).json({ error: err.message }); }
 };
+// Student requests deletion
+const requestDelete = async (req, res) => {
+  const { application_id, reason } = req.body;
 
+  try {
+    await pool.query(`
+      UPDATE internship_applications 
+      SET delete_requested = TRUE, 
+          delete_reason = $1,
+          updated_at = NOW()
+      WHERE application_id = $2 AND student_id = $3
+    `, [reason, application_id, req.user.user_id]);
+
+    res.json({ message: "Delete request sent to Admin successfully." });
+  } catch (err) {
+    res.status(500).json({ error: err.message });
+  }
+};
+
+// Admin deletes application
+const deleteApplication = async (req, res) => {
+  const { id } = req.params;
+
+  try {
+    await pool.query("DELETE FROM internship_applications WHERE application_id = $1", [id]);
+    res.json({ message: "Application deleted successfully." });
+  } catch (err) {
+    res.status(500).json({ error: err.message });
+  }
+};
 // ==================== SAVE DRAFT ====================
 const saveDraft = async (req, res) => {
   const {
@@ -488,14 +517,80 @@ const getAuditLog = async (req, res) => {
     res.json(rows);
   } catch (err) { res.status(500).json({ error: err.message }); }
 };
+// ==================== ADMIN: REQUEST DELETE ====================
+const getDeleteRequests = async (req, res) => {
+  try {
+    const { rows } = await pool.query(`
+      SELECT a.application_id, a.delete_reason, a.status,
+             s.full_name AS student_name, s.roll_number,
+             COALESCE(c.name, a.company_name_manual) AS company_name
+      FROM internship_applications a
+      JOIN users s ON a.student_id = s.user_id
+      LEFT JOIN companies c ON a.company_id = c.company_id
+      WHERE a.delete_requested = TRUE
+      ORDER BY a.updated_at DESC
+    `);
+    res.json(rows);
+  } catch (err) {
+    res.status(500).json({ error: err.message });
+  }
+};
 
+const deleteApplication = async (req, res) => {
+  const { id } = req.params;
+
+  try {
+    await pool.query("DELETE FROM internship_applications WHERE application_id = $1", [id]);
+    res.json({ success: true, message: "Application deleted successfully" });
+  } catch (err) {
+    res.status(500).json({ error: err.message });
+  }
+};
+
+// ==================== ADMIN: UNLOCK FORM ====================
+const unlockForm = async (req, res) => {
+  const { application_id } = req.body;
+
+  try {
+    await pool.query(`
+      UPDATE internship_applications 
+      SET locked = FALSE, 
+          admin_unlocked = TRUE,
+          updated_at = NOW()
+      WHERE application_id = $1
+    `, [application_id]);
+
+    res.json({ success: true, message: "Form unlocked successfully" });
+  } catch (err) {
+    res.status(500).json({ error: err.message });
+  }
+};
 
 
 module.exports = {
-  getProgrammes, getCompanies, getTutors,
-  getStudentProfile, getMyApplications, getApplicationById,
-  saveDraft, submitForApproval, trackPdfDownload,
-  getTutorQueue, tutorDecision,
-  getAdminStats, getAllApplications, getAdminUsers, createUser,
-  getCompaniesAdmin, addCompany, getAuditLog,
+  getDeleteRequests,
+  deleteApplication,
+  unlockForm,
+  getProgrammes, 
+  getCompanies, 
+  getTutors,
+  getStudentProfile, 
+  getMyApplications, 
+  getApplicationById,
+  saveDraft, 
+  submitForApproval, 
+  trackPdfDownload,
+  getTutorQueue, 
+  tutorDecision,
+  getAdminStats, 
+  getAllApplications, 
+  getAdminUsers, 
+  createUser,
+  getCompaniesAdmin, 
+  addCompany, 
+  getAuditLog,
+
+  // NEW FUNCTIONS - Add these two lines
+  requestDelete,
+  deleteApplication
 };
