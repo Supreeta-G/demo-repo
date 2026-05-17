@@ -128,7 +128,7 @@ useEffect(() => {
     }
   }, [form.start_date, form.end_date]);
 
-  const handleSaveDraft = async () => {
+ const handleSaveDraft = async () => {
   if (isLocked && !isEditing) return alert("This form is locked.");
 
   if (!form.company_id && !form.company_name_manual) {
