@@ -86,7 +86,6 @@ useEffect(() => {
           role_title: data.role_title || '',
 
           intern_type: data.intern_type || 'industry',
-
           how_obtained: data.how_obtained || '',
 
           company_address: data.company_address || data.co_address || '',
@@ -105,13 +104,14 @@ useEffect(() => {
           guide_name_industry: data.guide_name_industry || '',
           guide_contact: data.guide_contact || '',
 
-          // ✅ FIXED - Priority to application data
+          // ✅ CORRECTED MAPPING
           cgpa: data.cgpa || data.student_cgpa || '',
           semester_completed: data.semester_completed || '',
           stipend: data.stipend_amount || '',
 
           tutor_id: data.tutor_id || '',
           tutor_email: data.tutor_email || '',
+          offer_letter_url: data.offer_letter_url || '',
         });
       })
       .catch(err => {
@@ -128,32 +128,35 @@ useEffect(() => {
     }
   }, [form.start_date, form.end_date]);
 
-    const handleSaveDraft = async () => {
-    if (isLocked && !isEditing) return alert("This form is locked.");
+  const handleSaveDraft = async () => {
+  if (isLocked && !isEditing) return alert("This form is locked.");
 
-    if (!form.company_id && !form.company_name_manual) {
-      return alert("Please select a company or enter company name manually");
-    }
-    if (!form.tutor_email) {
-      return alert("Please enter tutor email");
-    }
+  if (!form.company_id && !form.company_name_manual) {
+    return alert("Please select a company or enter company name manually");
+  }
+  if (!form.tutor_email) {
+    return alert("Please enter tutor email");
+  }
 
-    setLoading(true);
-    try {
-      const payload = { ...form };
+  setLoading(true);
+  try {
+    const payload = { 
+      ...form, 
+      application_id: savedId || editId   // ← This is the most important line
+    };
 
-      const { data } = await api.post('/applications/draft', payload);
-      
-      setSavedId(data.application_id);
-      alert(`✅ Draft ${isEditing ? 'Updated' : 'Saved'} Successfully!\n\nApplication ID: ${data.application_id}`);
-      
-    } catch (err) {
-      console.error(err);
-      alert(err.response?.data?.error || "Failed to save draft. Check console (F12).");
-    } finally {
-      setLoading(false);
-    }
-  };
+    const { data } = await api.post('/applications/draft', payload);
+    
+    setSavedId(data.application_id);   // Keep the same ID
+    alert(`✅ Draft ${isEditing ? 'Updated' : 'Saved'} Successfully!\n\nApplication ID: ${data.application_id}`);
+    
+  } catch (err) {
+    console.error(err);
+    alert(err.response?.data?.error || "Failed to save draft. Check console (F12).");
+  } finally {
+    setLoading(false);
+  }
+};
 
   const handleSubmit = async () => {
   if (isLocked && !isEditing) return alert("This form is locked.");

@@ -185,8 +185,8 @@ const decide = async (appId, decision) => {
           <p><strong>Name:</strong> {app.student_name}</p>
           <p><strong>Roll No:</strong> {app.roll_number}</p>
           <p><strong>Email:</strong> {app.student_email}</p>
-          <p><strong>CGPA:</strong> {app.cgpa || '—'}</p>
-          <p><strong>Semesters Completed:</strong> {app.semester_completed || '—'}</p>
+          <p><strong>CGPA:</strong> {app.cgpa || app.student_cgpa || '—'}</p>       
+          <p><strong>Semesters Completed:</strong> {app.semester_completed || '—'}</p>  
         </div>
       </div>
 
@@ -201,9 +201,7 @@ const decide = async (appId, decision) => {
           <p><strong>Type:</strong> {app.duration_type === 'summer' ? 'Summer Internship' : '6-Month Internship'}</p>
           <p><strong>Period:</strong> {app.start_date?.split('T')[0]} — {app.end_date?.split('T')[0]}</p>
           <p><strong>Work Mode:</strong> {app.work_mode}</p>
-          <p><strong>Stipend:</strong> {app.stipend_amount ? `₹${app.stipend_amount}` : 'Not Mentioned'}</p>
-          <p><strong>How Obtained:</strong> {app.how_obtained || '—'}</p>
-        </div>
+        <p><strong>Stipend:</strong> {app.stipend_amount || app.stipend ? `₹${app.stipend_amount || app.stipend}` : 'Not Mentioned'}</p>        </div>
       </div>
 
       {/* Company Address */}

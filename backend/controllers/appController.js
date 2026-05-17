@@ -103,6 +103,7 @@ const getApplicationById = async (req, res) => {
 // ==================== SAVE DRAFT ====================
 const saveDraft = async (req, res) => {
   const {
+    application_id,   // ← This will be sent when editing
     company_id, company_name_manual, role_title, intern_type,
     company_address, company_city, company_state, company_country, company_phone,
     duration_type, work_mode, how_obtained,
@@ -114,48 +115,87 @@ const saveDraft = async (req, res) => {
   } = req.body;
 
   try {
+    // ==================== UPDATE EXISTING APPLICATION ====================
+    if (application_id) {
+      const { rowCount } = await pool.query(`
+        UPDATE internship_applications 
+        SET 
+          company_id = $1,
+          company_name_manual = $2,
+          role_title = $3,
+          intern_type = $4,
+          company_address = $5,
+          company_city = $6,
+          company_state = $7,
+          company_country = $8,
+          company_phone = $9,
+          duration_type = $10,
+          work_mode = $11,
+          how_obtained = $12,
+          start_date = $13,
+          end_date = $14,
+          attendance_days = $15,
+          guide_name_industry = $16,
+          guide_department = $17,
+          guide_contact = $18,
+          cgpa = $19,
+          semester_completed = $20,
+          ra_courses = $21,
+          pending_courses = $22,
+          has_declined_other = $23,
+          declined_company_details = $24,
+          stipend_amount = $25,
+          student_note = $26,
+          tutor_id = $27,
+          tutor_email = $28,
+          updated_at = NOW(),
+          status = 'draft'
+        WHERE application_id = $29
+      `, [
+        company_id || null, company_name_manual || null, role_title || null,
+        intern_type || 'industry',
+        company_address || null, company_city || null, company_state || null,
+        company_country || 'India', company_phone || null,
+        duration_type || 'summer', work_mode || 'on_site', how_obtained || null,
+        start_date || null, end_date || null, attendance_days || null,
+        guide_name_industry || null, guide_department || null, guide_contact || null,
+        cgpa || null, semester_completed || null,
+        ra_courses || null, pending_courses || null,
+        has_declined_other || false, declined_company_details || null,
+        stipend_amount || null, student_note || null,
+        tutor_id || null, tutor_email || null,
+        application_id
+      ]);
+
+      if (rowCount === 0) {
+        return res.status(404).json({ error: "Application not found" });
+      }
+
+      return res.json({ 
+        success: true,
+        message: "Draft updated successfully",
+        application_id: application_id 
+      });
+    }
+
+    // ==================== CREATE NEW DRAFT ====================
+    // (Your existing insert logic remains here)
     const year = new Date().getFullYear();
 
-    // Check limit: Max 2 applications per year
     const countRes = await pool.query(`
-      SELECT COUNT(*) as total
-      FROM internship_applications
+      SELECT COUNT(*) as total FROM internship_applications 
       WHERE student_id = $1 AND EXTRACT(YEAR FROM created_at) = $2
     `, [req.user.user_id, year]);
 
     if (parseInt(countRes.rows[0].total) >= 2) {
-      return res.status(400).json({ 
-        error: "You can only apply for maximum 2 internships per year." 
-      });
+      return res.status(400).json({ error: "You can only apply for maximum 2 internships per year." });
     }
 
-    // Check if student has any pending application
-    const pendingRes = await pool.query(`
-      SELECT application_id FROM internship_applications
-      WHERE student_id = $1 AND status = 'pending_tutor'
-    `, [req.user.user_id]);
+    const rollRes = await pool.query("SELECT roll_number FROM users WHERE user_id = $1", [req.user.user_id]);
+    const rollNumber = rollRes.rows[0]?.roll_number || "UNKNOWN";
+    const seq = String(parseInt(countRes.rows[0].total) + 1).padStart(2, '0');
+    const new_application_id = `${rollNumber}/${year}/${seq}/${seq}`;
 
-    if (pendingRes.rows.length > 0) {
-      return res.status(400).json({ 
-        error: "You already have a pending application. Please wait for tutor decision." 
-      });
-    }
-
-    // Get student roll number
-    const rollRes = await pool.query(
-      "SELECT roll_number FROM users WHERE user_id = $1", 
-      [req.user.user_id]
-    );
-
-    if (!rollRes.rows.length) 
-      return res.status(404).json({ error: "Student not found" });
-
-    const rollNumber = rollRes.rows[0].roll_number || "UNKNOWN";
-    const totalApplications = parseInt(countRes.rows[0].total) + 1;
-    const seq = String(totalApplications).padStart(2, '0');
-    const application_id = `${rollNumber}/${year}/${seq}/${seq}`;
-
-    // Insert new draft (unlocked)
     const { rows } = await pool.query(`
       INSERT INTO internship_applications (
         application_id, student_id, company_id, company_name_manual, role_title, intern_type,
@@ -168,7 +208,7 @@ const saveDraft = async (req, res) => {
       ) VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $12, $13, $14, $15, $16, $17, $18, $19, $20, $21, $22, $23, $24, $25, $26, $27, $28, $29, $30, 'draft', FALSE)
       RETURNING application_id
     `, [
-      application_id, req.user.user_id, company_id || null, company_name_manual || null,
+      new_application_id, req.user.user_id, company_id || null, company_name_manual || null,
       role_title || null, intern_type || 'industry',
       company_address || null, company_city || null, company_state || null,
       company_country || 'India', company_phone || null,
@@ -188,7 +228,7 @@ const saveDraft = async (req, res) => {
     });
 
   } catch (err) {
-    console.error(err);
+    console.error("Save Draft Error:", err);
     res.status(500).json({ error: err.message || 'Failed to save draft' });
   }
 };
