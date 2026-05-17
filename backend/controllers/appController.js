@@ -324,17 +324,11 @@ const getTutorQueue = async (req, res) => {
   }
 };
 
-// ==================== TUTOR DECISION (Approve / Reject) ====================
-// ==================== TUTOR DECISION (Approve / Reject) ====================
 const tutorDecision = async (req, res) => {
   const { application_id, decision, remarks } = req.body;
 
   try {
-    // Accept both string and the old format
-    let finalDecision = decision;
-
-    if (decision === 'approved') finalDecision = 'approve';
-    if (decision === 'rejected') finalDecision = 'reject';
+    let finalDecision = decision?.toLowerCase();
 
     if (!['approve', 'reject'].includes(finalDecision)) {
       return res.status(400).json({ error: "Invalid decision. Use 'approve' or 'reject'" });
@@ -349,11 +343,11 @@ const tutorDecision = async (req, res) => {
         tutor_remarks = $2,
         decided_at = NOW(),
         updated_at = NOW(),
-        locked = $3,
-        edit_requested = FALSE,
-        admin_unlocked = FALSE
+        locked = $3
       WHERE application_id = $4
-      RETURNING *
+      RETURNING *, 
+                (SELECT email FROM users WHERE user_id = student_id) as student_email,
+                (SELECT full_name FROM users WHERE user_id = student_id) as student_name
     `, [newStatus, remarks || null, finalDecision === 'approve', application_id]);
 
     if (rows.length === 0) {
@@ -362,24 +356,29 @@ const tutorDecision = async (req, res) => {
 
     const app = rows[0];
 
-    const studentEmail = app.student_email || app.email;
-    if (studentEmail) {
+    // Send Email Notification to Student
+    if (app.student_email) {
       try {
+        console.log(`📧 Attempting to send ${finalDecision} email to: ${app.student_email}`);
+
         if (finalDecision === 'approve') {
-          await sendApprovalEmail(studentEmail, app.student_name || 'Student', application_id);
+          await sendApprovalEmail(app.student_email, app.student_name || 'Student', application_id);
+          console.log(`✅ Approval email sent successfully to ${app.student_email}`);
         } else {
-          await sendRejectionEmail(studentEmail, app.student_name || 'Student', application_id, remarks);
+          await sendRejectionEmail(app.student_email, app.student_name || 'Student', application_id, remarks);
+          console.log(`✅ Rejection email sent successfully to ${app.student_email}`);
         }
       } catch (mailErr) {
-        console.error("Email failed:", mailErr.message);
+        console.error("❌ Email sending failed:", mailErr.message);
       }
+    } else {
+      console.log("⚠️ No student email found");
     }
 
     res.json({
       success: true,
       message: `Application ${newStatus.toUpperCase()} successfully.`,
-      status: newStatus,
-      unlocked: finalDecision === 'reject'
+      status: newStatus
     });
 
   } catch (err) {

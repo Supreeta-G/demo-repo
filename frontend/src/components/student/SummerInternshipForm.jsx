@@ -46,22 +46,26 @@ const SummerInternshipForm = () => {
 
   const setField = (key, value) => setForm(prev => ({ ...prev, [key]: value }));
 
-  // Load Companies, Tutors, Profile
-  useEffect(() => {
-    Promise.all([
-      api.get('/companies'),
-      api.get('/tutors'),
-      api.get('/student/profile')
-    ]).then(([cRes, tRes, pRes]) => {
-      setCompanies(cRes.data.map(co => ({
-        value: co.company_id,
-        label: co.name
-      })));
-      setTutors(tRes.data.map(tu => ({ value: tu.user_id, label: tu.full_name })));
-      setProfile(pRes.data);
+// Load Companies, Tutors, Profile
+useEffect(() => {
+  Promise.all([
+    api.get('/companies'),
+    api.get('/tutors'),
+    api.get('/student/profile')
+  ]).then(([cRes, tRes, pRes]) => {
+    setCompanies(cRes.data.map(co => ({
+      value: co.company_id,
+      label: co.name
+    })));
+    setTutors(tRes.data.map(tu => ({ value: tu.user_id, label: tu.full_name })));
+    setProfile(pRes.data);
+
+    // ✅ Only set CGPA from profile if NOT in edit mode
+    if (!editId) {
       setField('cgpa', pRes.data?.cgpa || '');
-    }).catch(err => console.error(err));
-  }, []);
+    }
+  }).catch(err => console.error(err));
+}, [editId]);   // ← Also added editId as dependency
 
 // Load Existing Application when editing
 useEffect(() => {
@@ -70,7 +74,7 @@ useEffect(() => {
     
     api.get(`/applications/${editId}`)
       .then(({ data }) => {
-        console.log("✅ Loaded edit data:", data);   // ← Check this in console
+        console.log("✅ Loaded edit data:", data);
 
         setSavedId(data.application_id);
         setIsLocked(data.locked || false);
@@ -80,25 +84,30 @@ useEffect(() => {
           company_name_manual: data.company_name_manual || data.company_display_name || data.company_name || '',
           role_title: data.role_title || '',
 
-         how_obtained: data.how_obtained || data.howyougot || '',
-          company_address: data.company_address || data.address || '',
-          company_city: data.company_city || '',
-          company_state: data.company_state || '',
-          company_country: data.company_country || 'India',
-          company_phone: data.company_phone || data.phone || '',
           intern_type: data.intern_type || 'industry',
+
+          how_obtained: data.how_obtained || '',
+
+          company_address: data.company_address || data.co_address || '',
+          company_city: data.company_city || data.co_city || '',
+          company_state: data.company_state || data.co_state || '',
+          company_country: data.company_country || 'India',
+          company_phone: data.company_phone || '',
+
           duration_type: data.duration_type || 'summer',
           work_mode: data.work_mode || 'on_site',
 
           start_date: data.start_date ? data.start_date.split('T')[0] : '',
           end_date: data.end_date ? data.end_date.split('T')[0] : '',
           attendance_days: data.attendance_days || '',
-          stipend: data.stipend_amount || data.stipend || '',
+
           guide_name_industry: data.guide_name_industry || '',
           guide_contact: data.guide_contact || '',
 
-          cgpa: data.cgpa || '',
+          // ✅ FIXED - Priority to application data
+          cgpa: data.cgpa || data.student_cgpa || '',
           semester_completed: data.semester_completed || '',
+          stipend: data.stipend_amount || '',
 
           tutor_id: data.tutor_id || '',
           tutor_email: data.tutor_email || '',
@@ -110,7 +119,6 @@ useEffect(() => {
       });
   }
 }, [editId]);
-
   // Auto attendance calculation
   useEffect(() => {
     if (form.start_date && form.end_date) {
@@ -119,10 +127,59 @@ useEffect(() => {
     }
   }, [form.start_date, form.end_date]);
 
-  const handleSaveDraft = async () => { /* ... your existing code ... */ };
-  const handleSubmit = async () => { /* ... your existing code ... */ };
-  const requestNewCompany = () => { /* ... your existing code ... */ };
+    const handleSaveDraft = async () => {
+    if (isLocked && !isEditing) return alert("This form is locked.");
 
+    if (!form.company_id && !form.company_name_manual) {
+      return alert("Please select a company or enter company name manually");
+    }
+    if (!form.tutor_email) {
+      return alert("Please enter tutor email");
+    }
+
+    setLoading(true);
+    try {
+      const payload = { ...form };
+
+      const { data } = await api.post('/applications/draft', payload);
+      
+      setSavedId(data.application_id);
+      alert(`✅ Draft ${isEditing ? 'Updated' : 'Saved'} Successfully!\n\nApplication ID: ${data.application_id}`);
+      
+    } catch (err) {
+      console.error(err);
+      alert(err.response?.data?.error || "Failed to save draft. Check console (F12).");
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  const handleSubmit = async () => {
+  if (isLocked && !isEditing) return alert("This form is locked.");
+  if (!savedId) return alert("❌ Please click 'Save Draft' first!");
+  if (!form.tutor_email) return alert("❌ Please enter Tutor Email");
+
+  setSubmitLoading(true);
+  try {
+    await api.post('/applications/submit', { 
+      application_id: savedId || editId   // ← Keep same ID
+    });
+    
+    alert("✅ Application Submitted Successfully!\nTutor has been notified.");
+    navigate('/student/applications');
+  } catch (err) {
+    alert(err.response?.data?.error || "Submission failed.");
+  } finally {
+    setSubmitLoading(false);
+  }
+};
+
+  const requestNewCompany = () => {
+    const name = prompt("Enter the new company name to request from Admin:");
+    if (name) {
+      alert(`✅ Request for "${name}" has been sent to Admin.`);
+    }
+  };
   return (
     <div className="p-6 max-w-4xl mx-auto">
       <button onClick={() => navigate('/student/home')} className="flex items-center gap-2 text-fern mb-6 hover:underline">
