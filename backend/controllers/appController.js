@@ -62,6 +62,9 @@ const getMyApplications = async (req, res) => {
 };
 
 const getApplicationById = async (req, res) => {
+  // Capture full ID with slashes (e.g. 24pw33/2026/003)
+  const application_id = req.params[0];
+
   try {
     const { rows } = await pool.query(
       `SELECT a.*,
@@ -77,61 +80,26 @@ const getApplicationById = async (req, res) => {
        LEFT JOIN users u ON a.tutor_id = u.user_id
        JOIN users s ON a.student_id = s.user_id
        LEFT JOIN programmes p ON s.prog_id = p.prog_id
-       WHERE a.application_id=$1`, [req.params.id]
+       WHERE a.application_id = $1`, [application_id]
     );
+
     if (!rows.length) return res.status(404).json({ error: 'Application not found' });
+
     const app = rows[0];
 
+    // Permission check
     if (req.user.role === 'student' && app.student_id !== req.user.user_id)
       return res.status(403).json({ error: 'Forbidden' });
     if (req.user.role === 'tutor' && app.tutor_id !== req.user.user_id)
       return res.status(403).json({ error: 'Forbidden' });
 
     res.json(app);
-  } catch (err) { res.status(500).json({ error: err.message }); }
-};
-// ==================== STUDENT: REQUEST DELETE ====================
-const requestDelete = async (req, res) => {
-  const { application_id, reason } = req.body;
-
-  try {
-    await pool.query(`
-      UPDATE internship_applications 
-      SET delete_requested = TRUE, 
-          delete_reason = $1,
-          updated_at = NOW()
-      WHERE application_id = $2 AND student_id = $3
-    `, [reason, application_id, req.user.user_id]);
-
-    res.json({ message: "Delete request sent to Admin successfully." });
   } catch (err) {
+    console.error(err);
     res.status(500).json({ error: err.message });
   }
 };
 
-// ==================== ADMIN: DELETE APPLICATION ====================
-// ==================== ADMIN: DELETE APPLICATION ====================
-
-// ==================== ADMIN: DELETE APPLICATION ====================
-const adminDeleteApplication = async (req, res) => {
-  const { id } = req.params;
-
-  try {
-    const result = await pool.query(
-      "DELETE FROM internship_applications WHERE application_id = $1", 
-      [id]
-    );
-
-    if (result.rowCount === 0) {
-      return res.status(404).json({ error: "Application not found" });
-    }
-
-    res.json({ success: true, message: "Application deleted successfully" });
-  } catch (err) {
-    console.error("Delete Error:", err);
-    res.status(500).json({ error: err.message || "Failed to delete" });
-  }
-};
 // ==================== SAVE DRAFT ====================
 const saveDraft = async (req, res) => {
   const {
@@ -362,13 +330,18 @@ const tutorDecision = async (req, res) => {
   const { application_id, decision, remarks } = req.body;
 
   try {
-    if (!['approve', 'reject'].includes(decision)) {
+    // Accept both string and the old format
+    let finalDecision = decision;
+
+    if (decision === 'approved') finalDecision = 'approve';
+    if (decision === 'rejected') finalDecision = 'reject';
+
+    if (!['approve', 'reject'].includes(finalDecision)) {
       return res.status(400).json({ error: "Invalid decision. Use 'approve' or 'reject'" });
     }
 
-    const newStatus = decision === 'approve' ? 'approved' : 'rejected';
+    const newStatus = finalDecision === 'approve' ? 'approved' : 'rejected';
 
-    // Update status + locking logic
     const { rows } = await pool.query(`
       UPDATE internship_applications 
       SET 
@@ -376,12 +349,12 @@ const tutorDecision = async (req, res) => {
         tutor_remarks = $2,
         decided_at = NOW(),
         updated_at = NOW(),
-        locked = $3,                    -- TRUE only if approved
+        locked = $3,
         edit_requested = FALSE,
         admin_unlocked = FALSE
       WHERE application_id = $4
       RETURNING *
-    `, [newStatus, remarks || null, decision === 'approve', application_id]);
+    `, [newStatus, remarks || null, finalDecision === 'approve', application_id]);
 
     if (rows.length === 0) {
       return res.status(404).json({ error: 'Application not found' });
@@ -389,17 +362,16 @@ const tutorDecision = async (req, res) => {
 
     const app = rows[0];
 
-    // Send email notification to student
     const studentEmail = app.student_email || app.email;
     if (studentEmail) {
       try {
-        if (decision === 'approve') {
+        if (finalDecision === 'approve') {
           await sendApprovalEmail(studentEmail, app.student_name || 'Student', application_id);
         } else {
           await sendRejectionEmail(studentEmail, app.student_name || 'Student', application_id, remarks);
         }
       } catch (mailErr) {
-        console.error("Student notification failed:", mailErr.message);
+        console.error("Email failed:", mailErr.message);
       }
     }
 
@@ -407,7 +379,7 @@ const tutorDecision = async (req, res) => {
       success: true,
       message: `Application ${newStatus.toUpperCase()} successfully.`,
       status: newStatus,
-      unlocked: decision === 'reject'   // Tell frontend it can be edited again
+      unlocked: finalDecision === 'reject'
     });
 
   } catch (err) {
@@ -529,7 +501,7 @@ const getAuditLog = async (req, res) => {
     res.json(rows);
   } catch (err) { res.status(500).json({ error: err.message }); }
 };
-// ==================== ADMIN: REQUEST DELETE ====================
+// ==================== ADMIN: GET DELETE REQUESTS ====================
 const getDeleteRequests = async (req, res) => {
   try {
     const { rows } = await pool.query(`
@@ -548,14 +520,45 @@ const getDeleteRequests = async (req, res) => {
   }
 };
 
-const deleteApplication = async (req, res) => {
-  const { id } = req.params;
+// ==================== STUDENT: REQUEST DELETE ====================
+const requestDelete = async (req, res) => {
+  const { application_id, reason } = req.body;
 
   try {
-    await pool.query("DELETE FROM internship_applications WHERE application_id = $1", [id]);
-    res.json({ success: true, message: "Application deleted successfully" });
+    await pool.query(`
+      UPDATE internship_applications 
+      SET delete_requested = TRUE, 
+          delete_reason = $1,
+          updated_at = NOW()
+      WHERE application_id = $2 AND student_id = $3
+    `, [reason || 'No reason provided', application_id, req.user.user_id]);
+
+    res.json({ message: "Delete request sent to Admin successfully." });
   } catch (err) {
     res.status(500).json({ error: err.message });
+  }
+};
+
+// ==================== ADMIN: DELETE APPLICATION ====================
+const adminDeleteApplication = async (req, res) => {
+  // Handle ID with slashes (24pw33/2026/006)
+  let id = req.params[0];   // This captures the full path after /applications/
+
+  try {
+    const result = await pool.query(
+      "DELETE FROM internship_applications WHERE application_id = $1", 
+      [id]
+    );
+
+    if (result.rowCount === 0) {
+      return res.status(404).json({ error: "Application not found" });
+    }
+
+    console.log("✅ Deleted:", id);
+    res.json({ success: true, message: "Application deleted successfully" });
+  } catch (err) {
+    console.error("Delete Error:", err);
+    res.status(500).json({ error: err.message || "Failed to delete application" });
   }
 };
 
@@ -578,7 +581,7 @@ const unlockForm = async (req, res) => {
   }
 };
 
-
+// ==================== FINAL EXPORTS ====================
 module.exports = {
   getProgrammes, 
   getCompanies, 
@@ -600,8 +603,7 @@ module.exports = {
   getAuditLog,
   getDeleteRequests,
   
-  // Delete & Unlock
   requestDelete,
-  adminDeleteApplication,     // ← Must be this name
+  adminDeleteApplication,
   unlockForm,
 };

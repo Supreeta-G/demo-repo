@@ -41,26 +41,23 @@ const TutorQueue = ({ filter }) => {
     load();
   }, [filter]); // Re-load when switching between Pending & Reviewed
 
- const decide = async (appId, decision) => {
+const decide = async (appId, decision) => {
   const key = appId + decision;
   setActionLoading(key);
-
-  // Convert to backend expected values
-  const backendDecision = decision === 'approve' ? 'approved' : 'rejected';
 
   try {
     await api.post('/tutor/decision', { 
       application_id: appId, 
-      decision: backendDecision,           // ← FIXED
+      decision: decision,           // 'approve' or 'reject'
       remarks: remarks[appId] || '' 
     });
     
     showToast(
-      `Application ${backendDecision === 'approved' ? '✅ Approved' : '❌ Rejected'}`, 
-      backendDecision === 'approved' ? 'success' : 'error'
+      `Application ${decision === 'approve' ? '✅ Approved' : '❌ Rejected'}`, 
+      decision === 'approve' ? 'success' : 'error'
     );
     
-    load();                    // Refresh list
+    load();                    
     setExpanded(null);
     setRemarks(r => ({ ...r, [appId]: '' }));
   } catch (err) {
@@ -155,12 +152,21 @@ const TutorQueue = ({ filter }) => {
                   </div>
 
                   <button 
-                    onClick={() => setExpanded(isExpanded ? null : app.application_id)}
-                    className="btn-secondary py-2 px-3 text-xs flex-shrink-0"
-                  >
-                    {isExpanded ? <ChevronUp className="w-4 h-4" /> : <ChevronDown className="w-4 h-4" />}
-                    {isExpanded ? 'Hide' : 'Review'}
-                  </button>
+  onClick={() => setExpanded(isExpanded ? null : app.application_id)}
+  className="btn-secondary py-2 px-3 text-xs flex-shrink-0 flex items-center gap-1"
+>
+  {isExpanded ? (
+    <>
+      <ChevronUp className="w-4 h-4" />
+      Hide
+    </>
+  ) : (
+    <>
+      <ChevronDown className="w-4 h-4" />
+      Review
+    </>
+  )}
+</button>
                 </div>
 
                 {/* Expanded Content */}

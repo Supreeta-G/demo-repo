@@ -23,24 +23,21 @@ const AdminDeleteRequests = () => {
       setLoading(false);
     }
   };
-
 const handleDelete = async (application_id) => {
-  if (!confirm("⚠️ Permanently delete this application? This action cannot be undone.")) 
-    return;
+  if (!confirm("⚠️ Permanently delete this application? This cannot be undone.")) return;
 
   try {
-    // Correct endpoint
     await api.delete(`/admin/applications/${application_id}`);
     alert("✅ Application deleted successfully!");
-    loadRequests();           // Refresh the list
+    loadRequests();
   } catch (err) {
     console.error(err);
-    alert(err.response?.data?.error || "Failed to delete application. Please check console.");
+    alert(err.response?.data?.error || "Failed to delete application");
   }
 };
 
- const handleUnlock = async (application_id) => {
-  if (!confirm("Unlock this form for student editing?")) return;
+const handleUnlock = async (application_id) => {
+  if (!confirm("Unlock this form for editing?")) return;
 
   try {
     await api.post('/admin/unlock', { application_id });

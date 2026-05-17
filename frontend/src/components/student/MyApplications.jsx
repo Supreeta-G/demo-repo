@@ -63,10 +63,10 @@ const MyApplications = () => {
 
   // ==================== NEW: Edit Rejected Application ====================
   const handleEdit = (app) => {
-    if (app.status === 'rejected') {
-      navigate(`/student/apply/summer?edit=${app.application_id}`);
-    }
-  };
+  if (app.status === 'rejected') {
+    navigate(`/student/apply/summer?edit=${app.application_id}`);
+  }
+};
 
   if (loading) return (
     <div className="flex items-center justify-center h-64">

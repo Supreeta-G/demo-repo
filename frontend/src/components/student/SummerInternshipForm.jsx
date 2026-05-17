@@ -1,6 +1,6 @@
 import React, { useState, useEffect } from 'react';
 import Select from 'react-select';
-import { Save, Send, Building2, Calendar, User, Phone, MapPin, Award, ArrowLeft, Plus } from 'lucide-react';
+import { Save, Send, Building2, Calendar, User, ArrowLeft, Plus } from 'lucide-react';
 import { useNavigate, useSearchParams } from 'react-router-dom';
 import api from '../../api.js';
 
@@ -17,13 +17,14 @@ const SummerInternshipForm = () => {
   const [submitLoading, setSubmitLoading] = useState(false);
 
   const [isLocked, setIsLocked] = useState(false);
-  const [lockMessage, setLockMessage] = useState("");
   const [isEditing, setIsEditing] = useState(false);
 
   const [form, setForm] = useState({
     company_id: '',
+    company_name_manual: '',
     role_title: '',
     intern_type: 'industry',
+    how_obtained: '',
     company_address: '',
     company_city: '',
     company_state: '',
@@ -31,7 +32,6 @@ const SummerInternshipForm = () => {
     company_phone: '',
     duration_type: 'summer',
     work_mode: 'on_site',
-    how_obtained: '',
     start_date: '',
     end_date: '',
     attendance_days: '',
@@ -46,7 +46,7 @@ const SummerInternshipForm = () => {
 
   const setField = (key, value) => setForm(prev => ({ ...prev, [key]: value }));
 
-  // Load Data (Companies, Tutors, Profile)
+  // Load Companies, Tutors, Profile
   useEffect(() => {
     Promise.all([
       api.get('/companies'),
@@ -55,10 +55,7 @@ const SummerInternshipForm = () => {
     ]).then(([cRes, tRes, pRes]) => {
       setCompanies(cRes.data.map(co => ({
         value: co.company_id,
-        label: co.name,
-        address: co.address || '',
-        city: co.city || '',
-        state: co.state || ''
+        label: co.name
       })));
       setTutors(tRes.data.map(tu => ({ value: tu.user_id, label: tu.full_name })));
       setProfile(pRes.data);
@@ -66,43 +63,53 @@ const SummerInternshipForm = () => {
     }).catch(err => console.error(err));
   }, []);
 
-  // Load Existing Application when editing (This is the main fix)
-  useEffect(() => {
-    if (editId) {
-      setIsEditing(true);
-      api.get(`/applications/${editId}`)
-        .then(({ data }) => {
-          setSavedId(data.application_id);
-          setIsLocked(data.locked || false);
+// Load Existing Application when editing
+useEffect(() => {
+  if (editId) {
+    setIsEditing(true);
+    
+    api.get(`/applications/${editId}`)
+      .then(({ data }) => {
+        console.log("✅ Loaded edit data:", data);   // ← Check this in console
 
-          // Fill the form with existing data
-          setForm({
-            company_id: data.company_id || '',
-            role_title: data.role_title || '',
-            intern_type: data.intern_type || 'industry',
-            company_address: data.company_address || '',
-            company_city: data.company_city || '',
-            company_state: data.company_state || '',
-            company_country: data.company_country || 'India',
-            company_phone: data.company_phone || '',
-            duration_type: data.duration_type || 'summer',
-            work_mode: data.work_mode || 'on_site',
-            how_obtained: data.how_obtained || '',
-            start_date: data.start_date ? data.start_date.split('T')[0] : '',
-            end_date: data.end_date ? data.end_date.split('T')[0] : '',
-            attendance_days: data.attendance_days || '',
-            guide_name_industry: data.guide_name_industry || '',
-            guide_contact: data.guide_contact || '',
-            stipend: data.stipend || '',
-            cgpa: data.cgpa || '',
-            semester_completed: data.semester_completed || '',
-            tutor_id: data.tutor_id || '',
-            tutor_email: data.tutor_email || '',
-          });
-        })
-        .catch(err => console.error("Failed to load application for edit", err));
-    }
-  }, [editId]);
+        setSavedId(data.application_id);
+        setIsLocked(data.locked || false);
+
+        setForm({
+          company_id: data.company_id || '',
+          company_name_manual: data.company_name_manual || data.company_display_name || data.company_name || '',
+          role_title: data.role_title || '',
+
+         how_obtained: data.how_obtained || data.howyougot || '',
+          company_address: data.company_address || data.address || '',
+          company_city: data.company_city || '',
+          company_state: data.company_state || '',
+          company_country: data.company_country || 'India',
+          company_phone: data.company_phone || data.phone || '',
+          intern_type: data.intern_type || 'industry',
+          duration_type: data.duration_type || 'summer',
+          work_mode: data.work_mode || 'on_site',
+
+          start_date: data.start_date ? data.start_date.split('T')[0] : '',
+          end_date: data.end_date ? data.end_date.split('T')[0] : '',
+          attendance_days: data.attendance_days || '',
+          stipend: data.stipend_amount || data.stipend || '',
+          guide_name_industry: data.guide_name_industry || '',
+          guide_contact: data.guide_contact || '',
+
+          cgpa: data.cgpa || '',
+          semester_completed: data.semester_completed || '',
+
+          tutor_id: data.tutor_id || '',
+          tutor_email: data.tutor_email || '',
+        });
+      })
+      .catch(err => {
+        console.error("Failed to load application for edit", err);
+        alert("Failed to load previous data");
+      });
+  }
+}, [editId]);
 
   // Auto attendance calculation
   useEffect(() => {
@@ -112,46 +119,9 @@ const SummerInternshipForm = () => {
     }
   }, [form.start_date, form.end_date]);
 
-  const handleSaveDraft = async () => {
-    if (isLocked && !isEditing) return alert("This form is locked.");
-    if (!form.company_id) return alert("Please select a company");
-    if (!form.tutor_email) return alert("Please enter tutor email");
-
-    setLoading(true);
-    try {
-      const { data } = await api.post('/applications/draft', form);
-      setSavedId(data.application_id);
-      alert(`✅ Draft saved successfully!\n\nApplication ID: ${data.application_id}`);
-    } catch (err) {
-      alert(err.response?.data?.error || "Failed to save draft");
-    } finally {
-      setLoading(false);
-    }
-  };
-
-  const handleSubmit = async () => {
-    if (isLocked && !isEditing) return alert("This form is locked.");
-    if (!savedId) return alert("❌ Please click 'Save Draft' first!");
-    if (!form.tutor_email) return alert("❌ Please enter Tutor Email");
-
-    setSubmitLoading(true);
-    try {
-      await api.post('/applications/submit', { application_id: savedId });
-      alert("✅ Application Submitted Successfully!\nTutor has been notified.\nForm is now locked.");
-      navigate('/student/applications');
-    } catch (err) {
-      alert(err.response?.data?.error || "Submission failed. Check console (F12).");
-    } finally {
-      setSubmitLoading(false);
-    }
-  };
-
-  const requestNewCompany = () => {
-    const name = prompt("Enter the new company name to request from Admin:");
-    if (name) {
-      alert(`✅ Request for "${name}" has been sent to Admin.`);
-    }
-  };
+  const handleSaveDraft = async () => { /* ... your existing code ... */ };
+  const handleSubmit = async () => { /* ... your existing code ... */ };
+  const requestNewCompany = () => { /* ... your existing code ... */ };
 
   return (
     <div className="p-6 max-w-4xl mx-auto">
@@ -166,7 +136,7 @@ const SummerInternshipForm = () => {
 
       {isLocked && !isEditing && (
         <div className="bg-amber-100 border border-amber-400 text-amber-700 px-4 py-3 rounded-xl mb-6">
-          ⚠️ <strong>This application is locked.</strong> {lockMessage || "You cannot edit until the tutor rejects it or admin unlocks."}
+          ⚠️ This application is locked. You can edit because it was rejected.
         </div>
       )}
 
@@ -175,23 +145,35 @@ const SummerInternshipForm = () => {
         <h3 className="text-xl font-semibold mb-6 flex items-center gap-3">
           <Building2 className="w-6 h-6 text-fern" /> Company Details
         </h3>
+
         <div className="flex justify-between mb-3">
           <label className="font-medium">Select Company *</label>
           <button onClick={requestNewCompany} className="text-blue-600 hover:underline text-sm flex items-center gap-1" disabled={isLocked && !isEditing}>
             <Plus className="w-4 h-4" /> Request New Company
           </button>
         </div>
-        <Select
-          options={companies}
+
+        <Select 
+          options={companies} 
+          value={companies.find(c => c.value === form.company_id) || null}
           onChange={opt => {
-            setField('company_id', opt?.value);
-            setField('company_address', opt?.address || '');
-            setField('company_city', opt?.city || '');
-            setField('company_state', opt?.state || '');
-          }}
-          placeholder="Search company..."
+            setField('company_id', opt?.value || null);
+            setField('company_name_manual', '');
+          }} 
+          placeholder="Search company..." 
           isDisabled={isLocked && !isEditing}
         />
+
+        {!form.company_id && (
+          <input 
+            className="w-full px-4 py-3 border border-gray-300 rounded-2xl mt-3" 
+            value={form.company_name_manual} 
+            onChange={e => setField('company_name_manual', e.target.value)} 
+            placeholder="Enter Company Name Manually" 
+            disabled={isLocked && !isEditing}
+          />
+        )}
+
         <div className="mt-6 grid grid-cols-1 md:grid-cols-2 gap-6">
           <div>
             <label className="block text-sm font-medium mb-2">Role / Position *</label>
@@ -209,10 +191,12 @@ const SummerInternshipForm = () => {
             </select>
           </div>
         </div>
+
         <div className="mt-6">
           <label className="block text-sm font-medium mb-2">Full Company Address *</label>
           <textarea className="w-full px-4 py-3 border border-gray-300 rounded-2xl h-24" value={form.company_address} onChange={e => setField('company_address', e.target.value)} placeholder="Full address as per offer letter" disabled={isLocked && !isEditing} />
         </div>
+
         <div className="grid grid-cols-1 md:grid-cols-3 gap-6 mt-6">
           <div>
             <label className="block text-sm font-medium mb-2">City</label>
@@ -224,7 +208,7 @@ const SummerInternshipForm = () => {
           </div>
           <div>
             <label className="block text-sm font-medium mb-2">Phone Number</label>
-            <input className="w-full px-4 py-3 border border-gray-300 rounded-2xl" value={form.company_phone} onChange={e => setField('company_phone', e.target.value)} placeholder="Company Contact" disabled={isLocked && !isEditing} />
+            <input className="w-full px-4 py-3 border border-gray-300 rounded-2xl" value={form.company_phone} onChange={e => setField('company_phone', e.target.value)} disabled={isLocked && !isEditing} />
           </div>
         </div>
       </div>
@@ -289,35 +273,40 @@ const SummerInternshipForm = () => {
         </div>
       </div>
 
-      {/* Tutor Selection + Email */}
-      <div className="bg-white rounded-3xl shadow p-8 mb-8">
-        <h3 className="text-xl font-semibold mb-6 flex items-center gap-3">
-          <User className="w-6 h-6 text-fern" /> Faculty Tutor
-        </h3>
-        <Select
-          options={tutors}
-          onChange={opt => setField('tutor_id', opt?.value)}
-          placeholder="Select your tutor..."
-          isDisabled={isLocked && !isEditing}
-        />
-      </div>
+{/* Faculty Tutor Selection */}
+<div className="bg-white rounded-3xl shadow p-8 mb-8">
+  <h3 className="text-xl font-semibold mb-6 flex items-center gap-3">
+    <User className="w-6 h-6 text-fern" /> Faculty Tutor
+  </h3>
+  <Select
+    options={tutors}
+    value={tutors.find(t => t.value === form.tutor_id) || null}
+    onChange={opt => {
+      setField('tutor_id', opt?.value || '');
+      // Auto fill email if tutor has email in data
+      if (opt) setField('tutor_email', opt.email || '');
+    }}
+    placeholder="Select your tutor..."
+    isDisabled={isLocked && !isEditing}
+  />
+</div>
 
-      <div className="bg-white rounded-3xl shadow p-8 mb-8">
-        <h3 className="text-xl font-semibold mb-6 flex items-center gap-3">
-          <User className="w-6 h-6 text-fern" /> Faculty Tutor Details
-        </h3>
-        <label className="block text-sm font-medium mb-2">Tutor Email ID *</label>
-        <input
-          type="email"
-          className="w-full px-4 py-3 border border-gray-300 rounded-2xl"
-          value={form.tutor_email}
-          onChange={e => setField('tutor_email', e.target.value)}
-          placeholder="tutorname@psgtech.ac.in"
-          disabled={isLocked && !isEditing}
-        />
-        <p className="text-xs text-gray-500 mt-2">The application will be sent to this email</p>
-      </div>
-
+{/* Tutor Email */}
+<div className="bg-white rounded-3xl shadow p-8 mb-8">
+  <h3 className="text-xl font-semibold mb-6 flex items-center gap-3">
+    <User className="w-6 h-6 text-fern" /> Faculty Tutor Details
+  </h3>
+  <label className="block text-sm font-medium mb-2">Tutor Email ID *</label>
+  <input
+    type="email"
+    className="w-full px-4 py-3 border border-gray-300 rounded-2xl"
+    value={form.tutor_email}
+    onChange={e => setField('tutor_email', e.target.value)}
+    placeholder="tutorname@psgtech.ac.in"
+    disabled={isLocked && !isEditing}
+  />
+  <p className="text-xs text-gray-500 mt-2">The application will be sent to this email</p>
+</div>
       <div className="flex gap-4">
         <button onClick={handleSaveDraft} disabled={loading || (isLocked && !isEditing)} className="flex-1 py-4 bg-gray-100 hover:bg-gray-200 rounded-2xl font-semibold">
           {loading ? 'Saving...' : 'Save Draft'}

@@ -5,6 +5,8 @@ const { authenticateToken, requireRole } = require('../middleware/auth');
 const authCtrl = require('../controllers/authController');
 const appCtrl = require('../controllers/appController');
 
+console.log("✅ Routes file loaded successfully");
+
 // ====================== PUBLIC ROUTES ======================
 router.post('/auth/send-otp', authCtrl.sendOtp);
 router.post('/auth/verify-otp', authCtrl.verifyOtp);
@@ -19,7 +21,7 @@ router.use(authenticateToken);
 router.get('/programmes', appCtrl.getProgrammes);
 router.get('/companies', appCtrl.getCompanies);
 router.get('/tutors', appCtrl.getTutors);
-router.get('/applications/:id', appCtrl.getApplicationById);
+router.get('/applications/*', appCtrl.getApplicationById);
 
 // Student
 router.get('/student/profile', requireRole('student'), appCtrl.getStudentProfile);
@@ -31,7 +33,7 @@ router.post('/applications/request-delete', requireRole('student'), appCtrl.requ
 
 // Tutor
 router.get('/tutor/queue', requireRole('tutor'), appCtrl.getTutorQueue);
-router.post('/tutor/decision', requireRole('tutor'), appCtrl.tutorDecision);
+router.post('/tutor/decision', requireRole('tutor'), appCtrl.tutorDecision);   // ← Important
 
 // Admin
 router.get('/admin/stats', requireRole('admin'), appCtrl.getAdminStats);
@@ -42,8 +44,8 @@ router.get('/admin/companies', requireRole('admin'), appCtrl.getCompaniesAdmin);
 router.post('/admin/companies', requireRole('admin'), appCtrl.addCompany);
 router.get('/admin/delete-requests', requireRole('admin'), appCtrl.getDeleteRequests);
 
-// Critical Admin Actions
-router.delete('/admin/applications/:id', requireRole('admin'), appCtrl.adminDeleteApplication);
+// Admin Actions
+router.delete('/admin/applications/*', requireRole('admin'), appCtrl.adminDeleteApplication);  // Wildcard for ID with slashes
 router.post('/admin/unlock', requireRole('admin'), appCtrl.unlockForm);
 
 module.exports = router;
