@@ -170,67 +170,96 @@ const decide = async (appId, decision) => {
                 </div>
 
                 {/* Expanded Content */}
-                {isExpanded && (
-                  <div className="px-4 pb-4 pt-2 border-t border-sage/20 animate-slide-in">
-                    {/* ... (rest of your expanded content remains same) ... */}
-                    {/* I'll keep it short here - you can keep your existing expanded panel */}
+                {/* Expanded Content - Detailed Review */}
+{/* Expanded Content - Full Verification View */}
+{isExpanded && (
+  <div className="px-6 pb-8 pt-4 border-t border-sage/20 bg-white">
+    <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
 
-                    <div className="grid sm:grid-cols-2 gap-4 mb-4">
-                      <div className="p-3 bg-bone rounded-xl">
-                        <p className="text-xs font-semibold text-hunter/60 mb-2">STUDENT</p>
-                        <p>{app.student_name}</p>
-                        <p className="text-sm text-sage/70">{app.student_email}</p>
-                      </div>
-                      <div className="p-3 bg-bone rounded-xl">
-                        <p className="text-xs font-semibold text-hunter/60 mb-2">INTERNSHIP</p>
-                        <p>{app.company_name}</p>
-                        <p className="text-sm text-sage/70">{app.role_title}</p>
-                      </div>
-                    </div>
+      {/* Student Information */}
+      <div className="bg-bone p-6 rounded-3xl">
+        <h4 className="font-semibold mb-4 flex items-center gap-2 text-forest">
+          👤 Student Information
+        </h4>
+        <div className="space-y-3 text-sm">
+          <p><strong>Name:</strong> {app.student_name}</p>
+          <p><strong>Roll No:</strong> {app.roll_number}</p>
+          <p><strong>Email:</strong> {app.student_email}</p>
+          <p><strong>CGPA:</strong> {app.cgpa || '—'}</p>
+          <p><strong>Semesters Completed:</strong> {app.semester_completed || '—'}</p>
+        </div>
+      </div>
 
-                    {/* Remarks */}
-                    <div className="mb-4">
-                      <label className="block text-xs font-semibold text-hunter/60 mb-1">
-                        {isPending ? 'Your Remarks (Optional)' : 'Remarks'}
-                      </label>
-                      <textarea
-                        className="form-input resize-none"
-                        rows={3}
-                        disabled={!isPending}
-                        value={isPending ? (remarks[app.application_id] || '') : (app.tutor_remarks || '')}
-                        onChange={e => setRemarks(r => ({ ...r, [app.application_id]: e.target.value }))}
-                        placeholder="Add your comments here..."
-                      />
-                    </div>
+      {/* Internship Details */}
+      <div className="bg-bone p-6 rounded-3xl">
+        <h4 className="font-semibold mb-4 flex items-center gap-2 text-forest">
+          <Building2 className="w-5 h-5" /> Internship Details
+        </h4>
+        <div className="space-y-3 text-sm">
+          <p><strong>Company:</strong> {app.company_name || app.company_name_manual || '—'}</p>
+          <p><strong>Role / Position:</strong> {app.role_title}</p>
+          <p><strong>Type:</strong> {app.duration_type === 'summer' ? 'Summer Internship' : '6-Month Internship'}</p>
+          <p><strong>Period:</strong> {app.start_date?.split('T')[0]} — {app.end_date?.split('T')[0]}</p>
+          <p><strong>Work Mode:</strong> {app.work_mode}</p>
+          <p><strong>Stipend:</strong> {app.stipend_amount ? `₹${app.stipend_amount}` : 'Not Mentioned'}</p>
+          <p><strong>How Obtained:</strong> {app.how_obtained || '—'}</p>
+        </div>
+      </div>
 
-                    {/* Action Buttons */}
-                    <div className="flex flex-wrap gap-3">
-                      <button onClick={() => handlePDF(app.application_id)} disabled={pdfLoading === app.application_id} className="btn-secondary">
-                        {pdfLoading === app.application_id ? 'Generating...' : 'Preview PDF'}
-                      </button>
+      {/* Company Address */}
+      <div className="lg:col-span-2 bg-bone p-6 rounded-3xl">
+        <h4 className="font-semibold mb-3">📍 Company Address</h4>
+        <p className="text-sm leading-relaxed whitespace-pre-wrap">
+          {app.company_address || app.co_address || 'No address provided'}
+        </p>
+        <p className="mt-2 text-sm">
+          {app.company_city}, {app.company_state}, {app.company_country}
+        </p>
+      </div>
 
-                      {isPending && (
-                        <>
-                          <button 
-                            onClick={() => decide(app.application_id, 'approve')}
-                            disabled={actionLoading}
-                            className="btn-primary bg-emerald-600 hover:bg-emerald-700 flex-1"
-                          >
-                            {actionLoading === (app.application_id + 'approve') ? 'Approving...' : '✅ Approve'}
-                          </button>
+      {/* Remarks */}
+      <div className="lg:col-span-2">
+        <label className="block text-sm font-medium mb-2 text-hunter/70">
+          Tutor Remarks / Verification Notes (Optional)
+        </label>
+        <textarea
+          className="w-full px-5 py-4 border border-gray-300 rounded-3xl h-32 resize-y focus:outline-none focus:border-fern"
+          placeholder="Write your verification comments, concerns, or approval notes here..."
+          value={remarks[app.application_id] || ''}
+          onChange={(e) => setRemarks(prev => ({ ...prev, [app.application_id]: e.target.value }))}
+        />
+      </div>
 
-                          <button 
-                            onClick={() => decide(app.application_id, 'reject')}
-                            disabled={actionLoading}
-                            className="btn-danger flex-1"
-                          >
-                            {actionLoading === (app.application_id + 'reject') ? 'Rejecting...' : '❌ Reject'}
-                          </button>
-                        </>
-                      )}
-                    </div>
-                  </div>
-                )}
+      {/* Actions */}
+      <div className="lg:col-span-2 flex flex-wrap gap-4 pt-6">
+        <button 
+          onClick={() => handlePDF(app.application_id)}
+          disabled={pdfLoading === app.application_id}
+          className="flex-1 py-4 border border-gray-400 hover:bg-gray-100 rounded-2xl font-medium flex items-center justify-center gap-2"
+        >
+          <FileDown className="w-5 h-5" />
+          {pdfLoading === app.application_id ? 'Generating...' : 'Preview PDF'}
+        </button>
+
+        <button 
+          onClick={() => decide(app.application_id, 'approve')}
+          disabled={actionLoading}
+          className="flex-1 bg-emerald-600 hover:bg-emerald-700 text-white py-4 rounded-2xl font-semibold flex items-center justify-center gap-2 text-lg"
+        >
+          ✅ Approve & Send to Student
+        </button>
+
+        <button 
+          onClick={() => decide(app.application_id, 'reject')}
+          disabled={actionLoading}
+          className="flex-1 bg-red-600 hover:bg-red-700 text-white py-4 rounded-2xl font-semibold flex items-center justify-center gap-2 text-lg"
+        >
+          ❌ Reject Application
+        </button>
+      </div>
+    </div>
+  </div>
+)}
               </div>
             );
           })}

@@ -1,6 +1,6 @@
 import React, { useState, useEffect } from 'react';
 import Select from 'react-select';
-import { Save, Send, Building2, Calendar, User, ArrowLeft, Plus } from 'lucide-react';
+import { Save, Send, Building2, Calendar, User, ArrowLeft, Plus, FileDown } from 'lucide-react';
 import { useNavigate, useSearchParams } from 'react-router-dom';
 import api from '../../api.js';
 
@@ -22,6 +22,7 @@ const SummerInternshipForm = () => {
   const [form, setForm] = useState({
     company_id: '',
     company_name_manual: '',
+    offer_letter_url: '',
     role_title: '',
     intern_type: 'industry',
     how_obtained: '',
@@ -180,6 +181,27 @@ useEffect(() => {
       alert(`✅ Request for "${name}" has been sent to Admin.`);
     }
   };
+  const handleOfferLetterUpload = async (e) => {
+    const file = e.target.files[0];
+    if (!file) return;
+    if (file.size > 5 * 1024 * 1024) return alert("File size must be less than 5MB");
+
+    const formData = new FormData();
+    formData.append('offer_letter', file);
+    if (savedId) formData.append('application_id', savedId);
+
+    try {
+      const { data } = await api.post('/applications/upload-offer', formData, {
+        headers: { 'Content-Type': 'multipart/form-data' }
+      });
+      
+      setForm(prev => ({ ...prev, offer_letter_url: data.url }));
+      alert("✅ Offer Letter uploaded successfully!");
+    } catch (err) {
+      console.error(err);
+      alert("Failed to upload offer letter");
+    }
+  };
   return (
     <div className="p-6 max-w-4xl mx-auto">
       <button onClick={() => navigate('/student/home')} className="flex items-center gap-2 text-fern mb-6 hover:underline">
@@ -269,7 +291,33 @@ useEffect(() => {
           </div>
         </div>
       </div>
+        {/* Offer Letter Upload */}
+      {/* Offer Letter Upload */}
+      <div className="bg-white rounded-3xl shadow p-8 mb-6">
+        <h3 className="text-xl font-semibold mb-6 flex items-center gap-3">
+          <FileDown className="w-6 h-6 text-fern" /> Offer Letter
+        </h3>
+        <p className="text-sm text-gray-600 mb-4">Upload your official offer letter (PDF, max 5MB)</p>
 
+        <input 
+          type="file" 
+          accept=".pdf" 
+          onChange={handleOfferLetterUpload}
+          disabled={isLocked && !isEditing}
+          className="block w-full text-sm text-gray-500 
+                     file:mr-4 file:py-3 file:px-6 file:rounded-2xl 
+                     file:border-0 file:text-sm file:font-semibold 
+                     file:bg-fern file:text-white hover:file:bg-hunter cursor-pointer"
+        />
+
+        {form.offer_letter_url && (
+          <div className="mt-4 p-3 bg-green-50 border border-green-200 rounded-2xl flex items-center gap-3">
+            <FileDown className="w-5 h-5 text-green-600" />
+            <span className="text-sm">Offer Letter Uploaded</span>
+            <a href={form.offer_letter_url} target="_blank" className="text-fern underline text-sm ml-auto">View File</a>
+          </div>
+        )}
+      </div>
       {/* Internship Type & Period */}
       <div className="bg-white rounded-3xl shadow p-8 mb-6">
         <h3 className="text-xl font-semibold mb-6 flex items-center gap-3">
