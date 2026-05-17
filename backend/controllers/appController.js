@@ -239,13 +239,13 @@ const submitForApproval = async (req, res) => {
   const student_id = req.user.user_id;
 
   try {
-    // Fetch application with necessary details
+    // Fetch application with tutor details
     const { rows } = await pool.query(`
       SELECT a.*,
              s.full_name AS student_name,
              s.email AS student_email,
-             COALESCE(a.tutor_email, u.email) AS tutor_email,
-             COALESCE(a.tutor_name, u.full_name) AS tutor_name
+             u.full_name AS tutor_name,
+             u.email AS tutor_email
       FROM internship_applications a
       JOIN users s ON a.student_id = s.user_id
       LEFT JOIN users u ON a.tutor_id = u.user_id
@@ -258,17 +258,25 @@ const submitForApproval = async (req, res) => {
 
     const app = rows[0];
 
-    // Lock and submit
+    // Check if tutor is selected
+    if (!app.tutor_id && !app.tutor_email) {
+      return res.status(400).json({ 
+        error: 'Please select a Faculty Tutor before submitting the application.' 
+      });
+    }
+
+    // Update status to pending_tutor
     await pool.query(`
       UPDATE internship_applications 
-      SET status = 'pending_tutor',
-          locked = TRUE,
-          submitted_at = NOW(),
-          updated_at = NOW()
+      SET 
+        status = 'pending_tutor',
+        locked = TRUE,
+        submitted_at = NOW(),
+        updated_at = NOW()
       WHERE application_id = $1
     `, [application_id]);
 
-    // Send tutor notification
+    // Send notification email to tutor
     if (app.tutor_email) {
       try {
         await sendTutorNotificationEmail(
@@ -278,6 +286,7 @@ const submitForApproval = async (req, res) => {
           app.company_name_manual || 'Company',
           application_id
         );
+        console.log(`✅ Tutor notification sent to ${app.tutor_email}`);
       } catch (mailErr) {
         console.error("Tutor email failed:", mailErr.message);
       }
@@ -285,7 +294,7 @@ const submitForApproval = async (req, res) => {
 
     res.json({ 
       success: true, 
-      message: 'Application submitted successfully! Form is now locked.' 
+      message: 'Application submitted successfully for tutor approval!' 
     });
 
   } catch (err) {
@@ -325,37 +334,39 @@ const trackPdfDownload = async (req, res) => {
 
 // ──── TUTOR ────
 
-// ──── TUTOR ────
-
+// ──── TUTOR QUEUE ────
 const getTutorQueue = async (req, res) => {
   try {
-    const { filter } = req.query;   // Optional: ?filter=pending_tutor
+    const { filter } = req.query;
 
     let statusCondition = "a.status IN ('pending_tutor','approved','rejected')";
 
-    if (filter === 'pending_tutor') {
+    if (filter === 'pending_tutor' || !filter) {
       statusCondition = "a.status = 'pending_tutor'";
     } else if (filter === 'reviewed') {
       statusCondition = "a.status IN ('approved','rejected')";
     }
 
-    const { rows } = await pool.query(
-      `SELECT a.*,
-              COALESCE(c.name, a.company_name_manual) AS company_name,
-              s.full_name AS student_name, 
-              s.roll_number, 
-              s.email AS student_email,
-              p.programme, 
-              p.department
-       FROM internship_applications a
-       LEFT JOIN companies c ON a.company_id = c.company_id
-       JOIN users s ON a.student_id = s.user_id
-       LEFT JOIN programmes p ON s.prog_id = p.prog_id
-       WHERE a.tutor_id = $1 
-         AND ${statusCondition}
-       ORDER BY a.submitted_at DESC NULLS LAST, a.created_at DESC`, 
+    const { rows } = await pool.query(`
+      SELECT 
+        a.*,
+        COALESCE(c.name, a.company_name_manual) AS company_name,
+        s.full_name AS student_name, 
+        s.roll_number, 
+        s.email AS student_email,
+        p.programme, 
+        p.department
+      FROM internship_applications a
+      LEFT JOIN companies c ON a.company_id = c.company_id
+      JOIN users s ON a.student_id = s.user_id
+      LEFT JOIN programmes p ON s.prog_id = p.prog_id
+      WHERE a.tutor_id = $1 
+        AND ${statusCondition}
+      ORDER BY a.submitted_at DESC NULLS LAST, a.created_at DESC`, 
       [req.user.user_id]
     );
+
+    console.log(`✅ Tutor Queue: ${rows.length} applications found (Filter: ${filter || 'pending'})`);
 
     res.json(rows);
   } catch (err) { 
@@ -620,6 +631,69 @@ const unlockForm = async (req, res) => {
   }
 };
 
+// ==================== UPLOAD OFFER LETTER ====================
+const multer = require('multer');
+const path = require('path');
+
+const storage = multer.diskStorage({
+  destination: (req, file, cb) => {
+    cb(null, 'uploads/offer-letters/');
+  },
+  filename: (req, file, cb) => {
+    const uniqueSuffix = `${Date.now()}-${req.user.user_id}`;
+    cb(null, uniqueSuffix + path.extname(file.originalname));
+  }
+});
+
+const upload = multer({
+  storage: storage,
+  limits: { fileSize: 5 * 1024 * 1024 },
+  fileFilter: (req, file, cb) => {
+    if (file.mimetype === 'application/pdf') {
+      cb(null, true);
+    } else {
+      cb(new Error('Only PDF files are allowed'), false);
+    }
+  }
+});
+
+const uploadOfferLetter = async (req, res) => {
+  try {
+    if (!req.file) return res.status(400).json({ error: "No file uploaded" });
+
+    const { application_id } = req.body;
+    if (!application_id) return res.status(400).json({ error: "Application ID required" });
+
+    const { rows } = await pool.query(
+      `SELECT 1 FROM internship_applications 
+       WHERE application_id = $1 AND student_id = $2`,
+      [application_id, req.user.user_id]
+    );
+
+    if (rows.length === 0) {
+      return res.status(403).json({ error: "Not your application" });
+    }
+
+    const fileUrl = `/uploads/offer-letters/${req.file.filename}`;
+
+    await pool.query(
+      `UPDATE internship_applications 
+       SET offer_letter_url = $1, updated_at = NOW() 
+       WHERE application_id = $2`,
+      [fileUrl, application_id]
+    );
+
+    res.json({ 
+      success: true, 
+      url: fileUrl, 
+      message: "Offer letter uploaded successfully" 
+    });
+
+  } catch (err) {
+    console.error("Upload Error:", err);
+    res.status(500).json({ error: "Upload failed" });
+  }
+};
 // ==================== FINAL EXPORTS ====================
 module.exports = {
   getProgrammes, 
@@ -645,4 +719,6 @@ module.exports = {
   requestDelete,
   adminDeleteApplication,
   unlockForm,
+  upload,                    
+  uploadOfferLetter,
 };

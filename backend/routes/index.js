@@ -30,6 +30,13 @@ router.post('/applications/draft', requireRole('student'), appCtrl.saveDraft);
 router.post('/applications/submit', requireRole('student'), appCtrl.submitForApproval);
 router.post('/applications/pdf-download', appCtrl.trackPdfDownload);
 router.post('/applications/request-delete', requireRole('student'), appCtrl.requestDelete);
+// Offer Letter Upload with Multer
+
+router.post('/applications/upload-offer', 
+  requireRole('student'), 
+  appCtrl.upload.single('offerLetter'),
+  appCtrl.uploadOfferLetter
+);
 
 // Tutor
 router.get('/tutor/queue', requireRole('tutor'), appCtrl.getTutorQueue);

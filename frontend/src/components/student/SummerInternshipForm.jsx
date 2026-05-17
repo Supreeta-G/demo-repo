@@ -185,26 +185,26 @@ useEffect(() => {
     }
   };
   const handleOfferLetterUpload = async (e) => {
-    const file = e.target.files[0];
-    if (!file) return;
-    if (file.size > 5 * 1024 * 1024) return alert("File size must be less than 5MB");
+  const file = e.target.files[0];
+  if (!file) return;
+  if (file.size > 5 * 1024 * 1024) return alert("File too large (max 5MB)");
 
-    const formData = new FormData();
-    formData.append('offer_letter', file);
-    if (savedId) formData.append('application_id', savedId);
+  const formData = new FormData();
+  formData.append('offerLetter', file);        // ← Must match multer
+  if (savedId) formData.append('application_id', savedId);
 
-    try {
-      const { data } = await api.post('/applications/upload-offer', formData, {
-        headers: { 'Content-Type': 'multipart/form-data' }
-      });
-      
-      setForm(prev => ({ ...prev, offer_letter_url: data.url }));
-      alert("✅ Offer Letter uploaded successfully!");
-    } catch (err) {
-      console.error(err);
-      alert("Failed to upload offer letter");
-    }
-  };
+  try {
+    const { data } = await api.post('/applications/upload-offer', formData, {
+      headers: { 'Content-Type': 'multipart/form-data' }
+    });
+
+    setForm(prev => ({ ...prev, offer_letter_url: data.url }));
+    alert("✅ Offer Letter uploaded successfully!");
+  } catch (err) {
+    console.error(err);
+    alert(err.response?.data?.error || "Upload failed");
+  }
+};
   return (
     <div className="p-6 max-w-4xl mx-auto">
       <button onClick={() => navigate('/student/home')} className="flex items-center gap-2 text-fern mb-6 hover:underline">

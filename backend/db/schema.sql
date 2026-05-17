@@ -1,74 +1,3 @@
- =============================================
--- SAFE MIGRATION FOR CUSTOM APPLICATION ID
--- =============================================
-ALTER TABLE internship_applications 
-ADD PRIMARY KEY (application_id);
-ALTER TABLE internship_applications DROP COLUMN IF EXISTS application_id;
-
-
-
-ALTER TABLE internship_applications ADD COLUMN application_id VARCHAR(50);
-
--- 1. Drop old constraints
-ALTER TABLE audit_log DROP CONSTRAINT IF EXISTS audit_log_application_id_fkey;
-ALTER TABLE email_notifications DROP CONSTRAINT IF EXISTS email_notifications_application_id_fkey;
-
--- 2. Drop old application_id if exists
-ALTER TABLE internship_applications DROP COLUMN IF EXISTS application_id;
-
--- 3. Add new column
-ALTER TABLE internship_applications ADD COLUMN application_id VARCHAR(50);
-
--- 4. Update existing rows with custom ID (Simple & Safe)
-[5:15 pm, 15/05/2026] Subhaharini: Character: 264
-[5:16 pm, 15/05/2026] Supreetha Psg: UPDATE internship_applications
-SET application_id = 
-    CONCAT(
-        COALESCE((SELECT roll_number FROM users WHERE user_id = internship_applications.student_id), 'UNKNOWN'),
-        '/',
-        EXTRACT(YEAR FROM created_at)::TEXT,
-        '/',
-        LPAD(application_id::TEXT, 3, '0')     -- using the serial id
-    )
-WHERE application_id IS NULL;
-
-UPDATE internship_applications a
-SET application_id = 
-    CONCAT(
-        COALESCE((SELECT roll_number FROM users WHERE user_id = a.student_id), 'UNKNOWN'),
-        '/',
-        EXTRACT(YEAR FROM a.created_at)::TEXT,
-        '/',
-        LPAD(
-            ((SELECT COUNT(*) + 1 
-              FROM internship_applications b 
-              WHERE b.student_id = a.student_id 
-                AND b.created_at <= a.created_at))::TEXT, 
-            3, '0'
-        )
-    )
-WHERE application_id IS NULL;
-
-ALTER TABLE internship_applications 
-ADD PRIMARY KEY (application_id);
-
-
-ALTER TABLE internship_applications 
-ADD COLUMN IF NOT EXISTS tutor_email VARCHAR(255);
-
-ALTER TABLE internship_applications 
-ADD COLUMN IF NOT EXISTS tutor_name VARCHAR(255);
-
--- Drop existing table (if you can) or add new column
-ALTER TABLE internship_applications 
-DROP COLUMN IF EXISTS application_id;
-
-ALTER TABLE internship_applications 
-ADD COLUMN application_id VARCHAR(50) PRIMARY KEY;
-
--- Also add index
-CREATE INDEX idx_apps_custom_id ON internship_applications(application_id);
-
 -- ============================================================
 -- PSG TECH INTERNSHIP PORTAL - FULL SCHEMA v2.0
 -- ============================================================
@@ -316,3 +245,50 @@ ADD COLUMN IF NOT EXISTS delete_requested BOOLEAN DEFAULT FALSE,
 ADD COLUMN IF NOT EXISTS delete_reason TEXT;
 
 SELECT '✅ Delete request columns added!' AS status;
+-- Create Tutor
+INSERT INTO users (email, password_hash, full_name, role)
+VALUES ('24pw35@psgtech.ac.in', '$2b$10$92IXUNpkjO0rOQ5byMi.Ye4oKoEa3Ro9llC/.og/at2.uheWG/igi', 'Dr. VSK', 'tutor')
+ON CONFLICT (email) DO NOTHING;
+
+ALTER TABLE internship_applications
+ADD COLUMN IF NOT EXISTS tutor_email VARCHAR(255);
+
+ALTER TABLE internship_applications
+ADD COLUMN IF NOT EXISTS tutor_name VARCHAR(255);
+
+ALTER TABLE internship_applications 
+ADD COLUMN IF NOT EXISTS locked BOOLEAN DEFAULT FALSE,
+ADD COLUMN IF NOT EXISTS decided_at TIMESTAMPTZ,
+ADD COLUMN IF NOT EXISTS tutor_remarks TEXT,
+ADD COLUMN IF NOT EXISTS edit_requested BOOLEAN DEFAULT FALSE,
+ADD COLUMN IF NOT EXISTS admin_unlocked BOOLEAN DEFAULT FALSE,
+ADD COLUMN IF NOT EXISTS offer_letter_url TEXT;
+
+-- 1. Drop all problematic foreign key constraints
+ALTER TABLE audit_log 
+DROP CONSTRAINT IF EXISTS audit_log_application_id_fkey;
+
+ALTER TABLE email_notifications 
+DROP CONSTRAINT IF EXISTS email_notifications_application_id_fkey;
+
+-- 2. Change main table column type
+ALTER TABLE internship_applications 
+ALTER COLUMN application_id TYPE TEXT;
+
+-- 3. Change referencing tables
+ALTER TABLE audit_log 
+ALTER COLUMN application_id TYPE TEXT;
+
+ALTER TABLE email_notifications 
+ALTER COLUMN application_id TYPE TEXT;
+
+-- 4. Re-add the foreign key constraints
+ALTER TABLE audit_log 
+ADD CONSTRAINT audit_log_application_id_fkey 
+FOREIGN KEY (application_id) REFERENCES internship_applications(application_id);
+
+ALTER TABLE email_notifications 
+ADD CONSTRAINT email_notifications_application_id_fkey 
+FOREIGN KEY (application_id) REFERENCES internship_applications(application_id);
+
+
