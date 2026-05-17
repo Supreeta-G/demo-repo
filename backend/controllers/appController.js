@@ -366,9 +366,19 @@ const getTutorQueue = async (req, res) => {
       [req.user.user_id]
     );
 
+    // === ADD FULL URL FOR OFFER LETTER ===
+    const backendUrl = process.env.BACKEND_URL || 'http://localhost:5001';
+
+    const processedRows = rows.map(app => ({
+      ...app,
+      offer_letter_full_url: app.offer_letter_url 
+        ? `${backendUrl}${app.offer_letter_url}` 
+        : null
+    }));
+
     console.log(`✅ Tutor Queue: ${rows.length} applications found (Filter: ${filter || 'pending'})`);
 
-    res.json(rows);
+    res.json(processedRows);
   } catch (err) { 
     console.error('getTutorQueue Error:', err);
     res.status(500).json({ error: 'Failed to fetch applications' }); 

@@ -196,7 +196,7 @@ const TutorQueue = ({ filter }) => {
                             <p className="flex items-center gap-2 pt-2 border-t border-gray-200">
                               <strong>Offer Letter:</strong>
                               <a 
-                                href={app.offer_letter_url} 
+                                href={app.offer_letter_full_url} 
                                 target="_blank" 
                                 rel="noopener noreferrer"
                                 className="text-fern hover:underline flex items-center gap-1 font-medium"
