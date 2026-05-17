@@ -1,44 +1,49 @@
 const express = require('express');
 const router = express.Router();
-const { authenticateToken, requireRole } = require('../middleware/auth');
-const { sendOtp, verifyOtp, signup, login, resetPassword } = require('../controllers/authController');
-const ctrl = require('../controllers/appController');
 
-// ====================== AUTH ROUTES ======================
-router.post('/auth/send-otp', sendOtp);
-router.post('/auth/verify-otp', verifyOtp);
-router.post('/auth/signup', signup);
-router.post('/auth/login', login);
-router.post('/reset-password', resetPassword);   // Forgot Password
+const { authenticateToken, requireRole } = require('../middleware/auth');
+const authCtrl = require('../controllers/authController');
+const appCtrl = require('../controllers/appController');
+
+// ====================== PUBLIC ROUTES ======================
+router.post('/auth/send-otp', authCtrl.sendOtp);
+router.post('/auth/verify-otp', authCtrl.verifyOtp);
+router.post('/auth/signup', authCtrl.signup);
+router.post('/auth/login', authCtrl.login);
+router.post('/auth/reset-password', authCtrl.resetPassword);
 
 // ====================== PROTECTED ROUTES ======================
-router.get('/programmes', authenticateToken, ctrl.getProgrammes);
-router.get('/companies', authenticateToken, ctrl.getCompanies);
-router.get('/tutors', authenticateToken, ctrl.getTutors);
+router.use(authenticateToken);
+
+// Shared
+router.get('/programmes', appCtrl.getProgrammes);
+router.get('/companies', appCtrl.getCompanies);
+router.get('/tutors', appCtrl.getTutors);
+router.get('/applications/:id', appCtrl.getApplicationById);
 
 // Student
-router.get('/student/profile', authenticateToken, requireRole('student'), ctrl.getStudentProfile);
-router.get('/student/applications', authenticateToken, requireRole('student'), ctrl.getMyApplications);
-router.get('/applications/:id', authenticateToken, ctrl.getApplicationById);
-router.post('/applications/draft', authenticateToken, requireRole('student'), ctrl.saveDraft);
-router.post('/applications/submit', authenticateToken, requireRole('student'), ctrl.submitForApproval);
-router.post('/applications/pdf-download', authenticateToken, ctrl.trackPdfDownload);
+router.get('/student/profile', requireRole('student'), appCtrl.getStudentProfile);
+router.get('/student/applications', requireRole('student'), appCtrl.getMyApplications);
+router.post('/applications/draft', requireRole('student'), appCtrl.saveDraft);
+router.post('/applications/submit', requireRole('student'), appCtrl.submitForApproval);
+router.post('/applications/pdf-download', appCtrl.trackPdfDownload);
+router.post('/applications/request-delete', requireRole('student'), appCtrl.requestDelete);
 
 // Tutor
-router.get('/tutor/queue', authenticateToken, requireRole('tutor'), ctrl.getTutorQueue);
-router.post('/tutor/decision', authenticateToken, requireRole('tutor'), ctrl.tutorDecision);
+router.get('/tutor/queue', requireRole('tutor'), appCtrl.getTutorQueue);
+router.post('/tutor/decision', requireRole('tutor'), appCtrl.tutorDecision);
 
 // Admin
-router.get('/admin/stats', authenticateToken, requireRole('admin'), ctrl.getAdminStats);
-router.get('/admin/applications', authenticateToken, requireRole('admin'), ctrl.getAllApplications);
-router.get('/admin/users', authenticateToken, requireRole('admin'), ctrl.getAdminUsers);
-router.post('/admin/users', authenticateToken, requireRole('admin'), ctrl.createUser);
-router.get('/admin/companies', authenticateToken, requireRole('admin'), ctrl.getCompaniesAdmin);
-router.post('/admin/companies', authenticateToken, requireRole('admin'), ctrl.addCompany);
-router.post('/applications/request-delete', authenticateToken, requireRole('student'), ctrl.requestDelete);
-router.delete('/admin/applications/:id', authenticateToken, requireRole('admin'), ctrl.deleteApplication);
-// Admin Delete & Unlock
-router.get('/admin/delete-requests', authenticateToken, requireRole('admin'), ctrl.getDeleteRequests);
-router.delete('/admin/applications/:id', authenticateToken, requireRole('admin'), ctrl.deleteApplication);
-router.post('/admin/unlock-form', authenticateToken, requireRole('admin'), ctrl.unlockForm);
+router.get('/admin/stats', requireRole('admin'), appCtrl.getAdminStats);
+router.get('/admin/applications', requireRole('admin'), appCtrl.getAllApplications);
+router.get('/admin/users', requireRole('admin'), appCtrl.getAdminUsers);
+router.post('/admin/users', requireRole('admin'), appCtrl.createUser);
+router.get('/admin/companies', requireRole('admin'), appCtrl.getCompaniesAdmin);
+router.post('/admin/companies', requireRole('admin'), appCtrl.addCompany);
+router.get('/admin/delete-requests', requireRole('admin'), appCtrl.getDeleteRequests);
+
+// Critical Admin Actions
+router.delete('/admin/applications/:id', requireRole('admin'), appCtrl.adminDeleteApplication);
+router.post('/admin/unlock', requireRole('admin'), appCtrl.unlockForm);
+
 module.exports = router;

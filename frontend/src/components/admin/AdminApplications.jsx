@@ -1,135 +1,188 @@
 import React, { useState, useEffect } from 'react';
-import { Search, Filter, FileDown, CheckCircle, XCircle, Clock, FileText } from 'lucide-react';
+import { Search, Download, Unlock, Trash2, Eye } from 'lucide-react';
 import api from '../../api.js';
 import { generateInternshipPDF } from '../student/pdfGenerator.js';
 
-const STATUSES = ['all', 'draft', 'pending_tutor', 'approved', 'rejected'];
-
 const AdminApplications = () => {
-  const [apps, setApps] = useState([]);
+  const [applications, setApplications] = useState([]);
   const [loading, setLoading] = useState(true);
   const [search, setSearch] = useState('');
-  const [statusFilter, setStatusFilter] = useState('all');
-  const [pdfLoading, setPdfLoading] = useState(null);
+  const [statusFilter, setStatusFilter] = useState('');
+  const [actionLoading, setActionLoading] = useState(null);
 
-  const load = () => {
+  const fetchApplications = async () => {
     setLoading(true);
-    const params = {};
-    if (search) params.search = search;
-    if (statusFilter !== 'all') params.status = statusFilter;
-    api.get('/admin/applications', { params })
-      .then(({ data }) => setApps(data))
-      .finally(() => setLoading(false));
+    try {
+      const params = {};
+      if (search) params.search = search;
+      if (statusFilter) params.status = statusFilter;
+
+      const { data } = await api.get('/admin/applications', { params });
+      setApplications(data);
+    } catch (err) {
+      console.error(err);
+    } finally {
+      setLoading(false);
+    }
   };
 
-  useEffect(() => { load(); }, [statusFilter]);
-  const handleSearch = (e) => { e.preventDefault(); load(); };
+  useEffect(() => {
+    fetchApplications();
+  }, [search, statusFilter]);
 
-  const handlePDF = async (appId) => {
-    setPdfLoading(appId);
+  const handleUnlock = async (id) => {
+    if (!confirm("Unlock this application for student editing?")) return;
+    setActionLoading(id);
     try {
-      const { data } = await api.get(`/applications/${appId}`);
+      await api.post('/admin/unlock', { application_id: id });
+      alert("✅ Application unlocked successfully");
+      fetchApplications();
+    } catch (err) {
+      alert("Failed to unlock");
+    } finally {
+      setActionLoading(null);
+    }
+  };
+
+  const handleDelete = async (id) => {
+    if (!confirm("Permanently delete this application?")) return;
+    setActionLoading(id);
+    try {
+      await api.delete(`/admin/applications/${id}`);
+      alert("✅ Application deleted");
+      fetchApplications();
+    } catch (err) {
+      alert("Failed to delete");
+    } finally {
+      setActionLoading(null);
+    }
+  };
+
+  const handlePDF = async (app) => {
+    try {
+      const { data } = await api.get(`/applications/${app.application_id}`);
       await generateInternshipPDF(data, true);
-    } catch (e) { console.error(e); }
-    finally { setPdfLoading(null); }
+    } catch (e) {
+      alert("Failed to generate PDF");
+    }
   };
 
   return (
-    <div className="p-4 md:p-6 max-w-6xl mx-auto page-enter">
-      <div className="mb-6">
-        <h1 className="text-2xl font-bold font-display text-forest">All Applications</h1>
-        <p className="text-sage/80 text-sm mt-1">{apps.length} applications{statusFilter !== 'all' ? ` · ${statusFilter}` : ''}</p>
-      </div>
+    <div className="p-4 md:p-6 max-w-6xl mx-auto">
+      <div className="flex flex-col md:flex-row justify-between items-start md:items-center mb-6 gap-4">
+        <div>
+          <h1 className="text-2xl font-bold text-forest">All Applications</h1>
+          <p className="text-sage/70">Manage & monitor student internship applications</p>
+        </div>
 
-      {/* Filters */}
-      <div className="card mb-5">
-        <form onSubmit={handleSearch} className="flex flex-wrap gap-3 items-end">
-          <div className="flex-1 min-w-48">
-            <label className="form-label">Search</label>
-            <div className="relative">
-              <Search className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-sage/60" />
-              <input className="form-input pl-9" value={search} onChange={e => setSearch(e.target.value)}
-                placeholder="Student name, roll no, company..." />
-            </div>
+        <div className="flex flex-col sm:flex-row gap-3 w-full md:w-auto">
+          <div className="relative flex-1">
+            <Search className="absolute left-3 top-3 w-4 h-4 text-sage" />
+            <input
+              type="text"
+              placeholder="Search student or company..."
+              value={search}
+              onChange={(e) => setSearch(e.target.value)}
+              className="form-input pl-10 w-full"
+            />
           </div>
-          <div className="min-w-40">
-            <label className="form-label">Status</label>
-            <select className="form-input" value={statusFilter} onChange={e => setStatusFilter(e.target.value)}>
-              {STATUSES.map(s => <option key={s} value={s}>{s === 'all' ? 'All' : s.replace('_', ' ')}</option>)}
-            </select>
-          </div>
-          <button type="submit" className="btn-primary py-2.5">
-            <Search className="w-4 h-4" /> Search
-          </button>
-        </form>
+          <select
+            value={statusFilter}
+            onChange={(e) => setStatusFilter(e.target.value)}
+            className="form-input w-full sm:w-48"
+          >
+            <option value="">All Status</option>
+            <option value="draft">Draft</option>
+            <option value="pending_tutor">Pending Tutor</option>
+            <option value="approved">Approved</option>
+            <option value="rejected">Rejected</option>
+          </select>
+        </div>
       </div>
 
       {loading ? (
-        <div className="flex items-center justify-center h-48">
+        <div className="flex justify-center py-20">
           <span className="w-9 h-9 border-2 border-sage/30 border-t-fern rounded-full animate-spin" />
         </div>
-      ) : apps.length === 0 ? (
-        <div className="card flex flex-col items-center justify-center py-16 text-center">
-          <FileText className="w-14 h-14 text-sage/30 mb-4" />
-          <p className="text-forest font-bold">No applications found</p>
-        </div>
       ) : (
-        <div className="card overflow-hidden p-0">
+        <div className="card">
           <div className="overflow-x-auto">
-            <table className="w-full text-sm">
+            <table className="w-full">
               <thead>
-                <tr className="bg-forest/5 border-b border-sage/20">
-                  {['#', 'Student', 'Company', 'Programme', 'Type', 'Status', 'Submitted', 'Actions'].map(h => (
-                    <th key={h} className="text-left px-4 py-3 text-xs font-semibold text-hunter/60 uppercase tracking-wider">{h}</th>
-                  ))}
+                <tr className="border-b border-sage/20 text-left text-xs uppercase tracking-widest text-hunter/70">
+                  <th className="p-4">Student</th>
+                  <th className="p-4">Company</th>
+                  <th className="p-4">Type</th>
+                  <th className="p-4">Status</th>
+                  <th className="p-4">Actions</th>
                 </tr>
               </thead>
-              <tbody className="divide-y divide-sage/10">
-                {apps.map((app, i) => (
-                  <tr key={app.application_id} className="hover:bg-fern/5 transition-colors animate-slide-in"
-                    style={{ animationDelay: `${i * 0.03}s` }}>
-                    <td className="px-4 py-3 text-sage/60 font-mono text-xs">#{app.application_id}</td>
-                    <td className="px-4 py-3">
-                      <p className="font-semibold text-forest">{app.student_name}</p>
-                      <p className="text-xs text-sage/60">{app.roll_number}</p>
+              <tbody>
+                {applications.map((app) => (
+                  <tr key={app.application_id} className="border-b border-sage/10 hover:bg-bone/50">
+                    <td className="p-4">
+                      <div>
+                        <p className="font-medium">{app.student_name}</p>
+                        <p className="text-xs text-sage/70">{app.roll_number}</p>
+                      </div>
                     </td>
-                    <td className="px-4 py-3">
-                      <p className="font-medium text-hunter">{app.company_name}</p>
-                      {app.tutor_name && <p className="text-xs text-sage/60">Tutor: {app.tutor_name}</p>}
+                    <td className="p-4">
+                      <p className="font-medium">{app.company_name || app.company_name_manual}</p>
                     </td>
-                    <td className="px-4 py-3 text-xs text-hunter/70">{app.programme}</td>
-                    <td className="px-4 py-3">
-                      <span className="text-xs px-2 py-1 bg-fern/10 text-fern rounded-full">
-                        {app.duration_type === 'summer' ? '☀️' : '🎓'} {app.duration_type === 'summer' ? 'Summer' : '6-Month'}
+                    <td className="p-4">
+                      <span className="text-xs px-3 py-1 rounded-full bg-fern/10 text-fern">
+                        {app.duration_type === 'summer' ? '☀️ Summer' : '🎓 6-Month'}
                       </span>
                     </td>
-                    <td className="px-4 py-3">
-                      <span className={`badge text-xs ${
+                    <td className="p-4">
+                      <span className={`badge ${
                         app.status === 'approved' ? 'badge-approved' :
-                        app.status === 'rejected' ? 'badge-rejected' :
-                        app.status === 'pending_tutor' ? 'badge-pending' : 'badge-draft'
+                        app.status === 'rejected' ? 'badge-rejected' : 'badge-pending'
                       }`}>
-                        {app.status === 'approved' ? '✅' : app.status === 'rejected' ? '❌' : app.status === 'pending_tutor' ? '⏳' : '📝'}
-                        &nbsp;{app.status?.replace('_', ' ')}
+                        {app.status.replace('_', ' ')}
                       </span>
                     </td>
-                    <td className="px-4 py-3 text-xs text-sage/60">
-                      {app.submitted_at ? new Date(app.submitted_at).toLocaleDateString('en-IN') : '—'}
-                    </td>
-                    <td className="px-4 py-3">
-                      <button onClick={() => handlePDF(app.application_id)}
-                        disabled={pdfLoading === app.application_id}
-                        className="btn-ghost py-1.5 px-2.5 text-xs">
-                        {pdfLoading === app.application_id
-                          ? <span className="w-3.5 h-3.5 border-2 border-fern/30 border-t-fern rounded-full animate-spin" />
-                          : <FileDown className="w-3.5 h-3.5" />}
-                        PDF
-                      </button>
+                    <td className="p-4">
+                      <div className="flex gap-2">
+                        <button
+                          onClick={() => handlePDF(app)}
+                          className="btn-secondary text-xs px-3 py-1.5"
+                          title="Download PDF"
+                        >
+                          <Download className="w-4 h-4" />
+                        </button>
+
+                        {app.status !== 'approved' && (
+                          <button
+                            onClick={() => handleUnlock(app.application_id)}
+                            disabled={actionLoading === app.application_id}
+                            className="btn-secondary text-xs px-3 py-1.5 text-amber-600 hover:text-amber-700"
+                            title="Unlock for editing"
+                          >
+                            <Unlock className="w-4 h-4" />
+                          </button>
+                        )}
+
+                        <button
+                          onClick={() => handleDelete(app.application_id)}
+                          disabled={actionLoading === app.application_id}
+                          className="btn-secondary text-xs px-3 py-1.5 text-red-600 hover:text-red-700"
+                          title="Delete Application"
+                        >
+                          <Trash2 className="w-4 h-4" />
+                        </button>
+                      </div>
                     </td>
                   </tr>
                 ))}
               </tbody>
             </table>
+
+            {applications.length === 0 && (
+              <div className="text-center py-12 text-sage/70">
+                No applications found
+              </div>
+            )}
           </div>
         </div>
       )}

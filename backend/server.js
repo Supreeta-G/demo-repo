@@ -6,14 +6,36 @@ const routes = require('./routes/index');
 
 const app = express();
 
-app.use(cors());
+// Middleware
+app.use(cors({
+  origin: process.env.FRONTEND_URL || 'http://localhost:5173',
+  credentials: true
+}));
 app.use(express.json());
 
-connectToDb();   // ← Important
+// Database Connection + Start Server
+const startServer = async () => {
+  try {
+    await connectToDb();
+    
+    // Mount all API routes under /api
+    app.use('/api', routes);
 
-app.use('/api', routes);
+    // Health check
+    app.get('/', (req, res) => {
+      res.send('✅ PSG Tech Internship Portal Backend is Running');
+    });
 
-app.get('/', (req, res) => res.send('✅ Backend Running'));
+    const PORT = process.env.PORT || 5001;
+    app.listen(PORT, () => {
+      console.log(`🚀 Server running on http://localhost:${PORT}`);
+      console.log(`📡 API available at http://localhost:${PORT}/api`);
+    });
 
-const PORT = process.env.PORT || 5001;
-app.listen(PORT, () => console.log(`🚀 Server running on port ${PORT}`));
+  } catch (err) {
+    console.error('❌ Failed to start server:', err.message);
+    process.exit(1);
+  }
+};
+
+startServer();

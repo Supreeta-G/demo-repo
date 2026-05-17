@@ -90,7 +90,7 @@ const getApplicationById = async (req, res) => {
     res.json(app);
   } catch (err) { res.status(500).json({ error: err.message }); }
 };
-// Student requests deletion
+// ==================== STUDENT: REQUEST DELETE ====================
 const requestDelete = async (req, res) => {
   const { application_id, reason } = req.body;
 
@@ -109,15 +109,27 @@ const requestDelete = async (req, res) => {
   }
 };
 
-// Admin deletes application
-const deleteApplication = async (req, res) => {
+// ==================== ADMIN: DELETE APPLICATION ====================
+// ==================== ADMIN: DELETE APPLICATION ====================
+
+// ==================== ADMIN: DELETE APPLICATION ====================
+const adminDeleteApplication = async (req, res) => {
   const { id } = req.params;
 
   try {
-    await pool.query("DELETE FROM internship_applications WHERE application_id = $1", [id]);
-    res.json({ message: "Application deleted successfully." });
+    const result = await pool.query(
+      "DELETE FROM internship_applications WHERE application_id = $1", 
+      [id]
+    );
+
+    if (result.rowCount === 0) {
+      return res.status(404).json({ error: "Application not found" });
+    }
+
+    res.json({ success: true, message: "Application deleted successfully" });
   } catch (err) {
-    res.status(500).json({ error: err.message });
+    console.error("Delete Error:", err);
+    res.status(500).json({ error: err.message || "Failed to delete" });
   }
 };
 // ==================== SAVE DRAFT ====================
@@ -568,9 +580,6 @@ const unlockForm = async (req, res) => {
 
 
 module.exports = {
-  getDeleteRequests,
-  deleteApplication,
-  unlockForm,
   getProgrammes, 
   getCompanies, 
   getTutors,
@@ -589,8 +598,10 @@ module.exports = {
   getCompaniesAdmin, 
   addCompany, 
   getAuditLog,
-
-  // NEW FUNCTIONS - Add these two lines
+  getDeleteRequests,
+  
+  // Delete & Unlock
   requestDelete,
-  deleteApplication
+  adminDeleteApplication,     // ← Must be this name
+  unlockForm,
 };
