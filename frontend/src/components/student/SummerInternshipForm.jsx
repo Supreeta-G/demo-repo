@@ -294,7 +294,7 @@ useEffect(() => {
           </div>
         </div>
       </div>
-        {/* Offer Letter Upload */}
+      {/* Offer Letter Upload */}
       {/* Offer Letter Upload */}
       <div className="bg-white rounded-3xl shadow p-8 mb-6">
         <h3 className="text-xl font-semibold mb-6 flex items-center gap-3">
@@ -313,11 +313,18 @@ useEffect(() => {
                      file:bg-fern file:text-white hover:file:bg-hunter cursor-pointer"
         />
 
-        {form.offer_letter_url && (
-          <div className="mt-4 p-3 bg-green-50 border border-green-200 rounded-2xl flex items-center gap-3">
-            <FileDown className="w-5 h-5 text-green-600" />
-            <span className="text-sm">Offer Letter Uploaded</span>
-            <a href={form.offer_letter_url} target="_blank" className="text-fern underline text-sm ml-auto">View File</a>
+                {form.offer_letter_url && (
+                  <div className="mt-4 p-3 bg-green-50 border border-green-200 rounded-2xl flex items-center gap-3">
+                    <FileDown className="w-5 h-5 text-green-600" />
+                    <span className="text-sm">Offer Letter Uploaded</span>
+                    <a 
+                      href={`http://localhost:5001${form.offer_letter_url}`} 
+                      target="_blank" 
+                      rel="noopener noreferrer"
+                      className="text-fern underline text-sm ml-auto flex items-center gap-1"
+                    >
+                      📄 View File
+                    </a>
           </div>
         )}
       </div>

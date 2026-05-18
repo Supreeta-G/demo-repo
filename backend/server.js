@@ -7,7 +7,7 @@ const routes = require('./routes/index');
 
 const app = express();
 
-// Middleware
+// ====================== MIDDLEWARE ======================
 app.use(cors({
   origin: 'http://localhost:5173',
   credentials: true
@@ -15,19 +15,20 @@ app.use(cors({
 
 app.use(express.json());
 
-// ✅ STATIC FILES - Serve Uploaded PDFs (MUST be before routes)
+// ✅ IMPROVED STATIC FILE SERVING FOR UPLOADS
 const uploadsPath = path.join(__dirname, 'uploads');
 
 app.use('/uploads', express.static(uploadsPath, {
+  index: false,
   setHeaders: (res, filepath) => {
-    if (filepath.endsWith('.pdf')) {
+    if (filepath.toLowerCase().endsWith('.pdf')) {
       res.setHeader('Content-Type', 'application/pdf');
-      res.setHeader('Content-Disposition', 'inline'); // Opens PDF in browser
+      res.setHeader('Content-Disposition', 'inline');
     }
   }
 }));
 
-console.log(`📁 Static uploads folder served at: ${uploadsPath}`);
+console.log(`📁 Serving uploads from: ${uploadsPath}`);
 
 // Debug middleware
 app.use((req, res, next) => {
@@ -69,7 +70,7 @@ const startServer = async () => {
     const PORT = process.env.PORT || 5001;
     app.listen(PORT, () => {
       console.log(`🚀 Server running on http://localhost:${PORT}`);
-      console.log(`📂 Uploads folder is publicly available at: http://localhost:${PORT}/uploads`);
+      console.log(`📂 Uploads available at: http://localhost:${PORT}/uploads`);
     });
   } catch (err) {
     console.error('❌ Failed to start:', err.message);
@@ -77,3 +78,10 @@ const startServer = async () => {
 };
 
 startServer();
+
+
+
+
+
+
+

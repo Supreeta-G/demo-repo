@@ -190,11 +190,14 @@ const TutorQueue = ({ filter }) => {
                           <p><strong>Type:</strong> {app.duration_type === 'summer' ? 'Summer Internship' : '6-Month Internship'}</p>
                           <p><strong>Period:</strong> {app.start_date?.split('T')[0]} — {app.end_date?.split('T')[0]}</p>
                           <p><strong>Work Mode:</strong> {app.work_mode}</p>
-                          <p><strong>Stipend:</strong> {app.stipend_amount ? `₹${Number(app.stipend_amount).toLocaleString('en-IN')}` : 'Not Mentioned'}</p>                          {app.offer_letter_url && (
+                          <p><strong>Stipend:</strong> {app.stipend_amount ? `₹${Number(app.stipend_amount).toLocaleString('en-IN')}` : 'Not Mentioned'}</p>                          
+                          
+                          {/* Offer Letter Link - Works for both Summer and 6-Month */}
+                          {(app.offer_letter_url || app.offer_letter_full_url) && (
                             <p className="flex items-center gap-2 pt-2 border-t border-gray-200">
                               <strong>Offer Letter:</strong>
                               <a 
-                                href={app.offer_letter_full_url} 
+                                href={app.offer_letter_full_url || `http://localhost:5001${app.offer_letter_url}`} 
                                 target="_blank" 
                                 rel="noopener noreferrer"
                                 className="text-fern hover:underline flex items-center gap-1 font-medium"
@@ -205,35 +208,22 @@ const TutorQueue = ({ filter }) => {
                           )}
                         </div>
                       </div>
-                      {/* Offer Letter */}
-      {app.offer_letter_url && (
-        <div className="lg:col-span-2 bg-blue-50 p-6 rounded-3xl border border-blue-200">
-          <h4 className="font-semibold mb-3 flex items-center gap-2">
-            <FileDown className="w-5 h-5" /> Offer Letter
-          </h4>
-          <a 
-            href={app.offer_letter_url} 
-            target="_blank" 
-            className="text-blue-600 hover:underline flex items-center gap-2"
-          >
-            📄 View / Download Offer Letter
-          </a>
-        </div>
-      )}
+
                       {/* Academic Status */}
-      <div className="lg:col-span-2 bg-bone p-6 rounded-3xl">
-        <h4 className="font-semibold mb-4 text-forest">📚 Academic Status</h4>
-        <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
-          <div>
-            <p className="text-xs font-medium text-hunter/60 mb-1">RA / Arrear Courses</p>
-            <p className="text-sm">{app.ra_courses || 'None'}</p>
-          </div>
-          <div>
-            <p className="text-xs font-medium text-hunter/60 mb-1">Pending Courses (Current Semester)</p>
-            <p className="text-sm">{app.pending_courses || 'None'}</p>
-          </div>
-        </div>
-      </div>
+                      <div className="lg:col-span-2 bg-bone p-6 rounded-3xl">
+                        <h4 className="font-semibold mb-4 text-forest">📚 Academic Status</h4>
+                        <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+                          <div>
+                            <p className="text-xs font-medium text-hunter/60 mb-1">RA / Arrear Courses</p>
+                            <p className="text-sm">{app.ra_courses || 'None'}</p>
+                          </div>
+                          <div>
+                            <p className="text-xs font-medium text-hunter/60 mb-1">Pending Courses (Current Semester)</p>
+                            <p className="text-sm">{app.pending_courses || 'None'}</p>
+                          </div>
+                        </div>
+                      </div>
+
                       {/* Company Address */}
                       <div className="lg:col-span-2 bg-bone p-6 rounded-3xl">
                         <h4 className="font-semibold mb-3">📍 Company Address</h4>

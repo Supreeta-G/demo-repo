@@ -296,6 +296,7 @@ const trackPdfDownload = async (req, res) => {
 // ──── TUTOR ────
 
 // ──── TUTOR QUEUE ────
+// ──── TUTOR QUEUE ────
 const getTutorQueue = async (req, res) => {
   try {
     const { filter } = req.query;
@@ -327,7 +328,7 @@ const getTutorQueue = async (req, res) => {
       [req.user.user_id]
     );
 
-    // === ADD FULL URL FOR OFFER LETTER ===
+    // ✅ Use BACKEND_URL from .env
     const backendUrl = process.env.BACKEND_URL || 'http://localhost:5001';
 
     const processedRows = rows.map(app => ({
@@ -337,7 +338,7 @@ const getTutorQueue = async (req, res) => {
         : null
     }));
 
-    console.log(`✅ Tutor Queue: ${rows.length} applications found (Filter: ${filter || 'pending'})`);
+    console.log(`✅ Tutor Queue: ${rows.length} applications found`);
 
     res.json(processedRows);
   } catch (err) { 
