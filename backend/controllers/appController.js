@@ -102,99 +102,62 @@ const getApplicationById = async (req, res) => {
 
 // ==================== SAVE DRAFT ====================
 const saveDraft = async (req, res) => {
-  const {
-    application_id,   // ← This will be sent when editing
-    company_id, company_name_manual, role_title, intern_type,
-    company_address, company_city, company_state, company_country, company_phone,
-    duration_type, work_mode, how_obtained,
-    start_date, end_date, attendance_days,
-    guide_name_industry, guide_department, guide_contact,
-    cgpa, semester_completed, ra_courses, pending_courses,
-    has_declined_other, declined_company_details,
-    stipend_amount, student_note, tutor_id, tutor_email
-  } = req.body;
+  const { application_id: existingId, ...data } = req.body;
 
   try {
-    // ==================== UPDATE EXISTING APPLICATION ====================
-    if (application_id) {
+    // ==================== UPDATE EXISTING (EDIT) ====================
+    if (existingId) {
       const { rowCount } = await pool.query(`
         UPDATE internship_applications 
         SET 
-          company_id = $1,
-          company_name_manual = $2,
-          role_title = $3,
-          intern_type = $4,
-          company_address = $5,
-          company_city = $6,
-          company_state = $7,
-          company_country = $8,
-          company_phone = $9,
-          duration_type = $10,
-          work_mode = $11,
-          how_obtained = $12,
-          start_date = $13,
-          end_date = $14,
-          attendance_days = $15,
-          guide_name_industry = $16,
-          guide_department = $17,
-          guide_contact = $18,
-          cgpa = $19,
-          semester_completed = $20,
-          ra_courses = $21,
-          pending_courses = $22,
-          has_declined_other = $23,
-          declined_company_details = $24,
-          stipend_amount = $25,
-          student_note = $26,
-          tutor_id = $27,
-          tutor_email = $28,
-          updated_at = NOW(),
-          status = 'draft'
+          company_id = $1, company_name_manual = $2, role_title = $3, intern_type = $4,
+          company_address = $5, company_city = $6, company_state = $7, 
+          company_country = $8, company_phone = $9,
+          duration_type = $10, work_mode = $11, how_obtained = $12,
+          start_date = $13, end_date = $14, attendance_days = $15,
+          guide_name_industry = $16, guide_department = $17, guide_contact = $18,
+          cgpa = $19, semester_completed = $20, ra_courses = $21, pending_courses = $22,
+          has_declined_other = $23, declined_company_details = $24,
+          stipend_amount = $25, student_note = $26,
+          tutor_id = $27, tutor_email = $28,
+          updated_at = NOW()
         WHERE application_id = $29
       `, [
-        company_id || null, company_name_manual || null, role_title || null,
-        intern_type || 'industry',
-        company_address || null, company_city || null, company_state || null,
-        company_country || 'India', company_phone || null,
-        duration_type || 'summer', work_mode || 'on_site', how_obtained || null,
-        start_date || null, end_date || null, attendance_days || null,
-        guide_name_industry || null, guide_department || null, guide_contact || null,
-        cgpa || null, semester_completed || null,
-        ra_courses || null, pending_courses || null,
-        has_declined_other || false, declined_company_details || null,
-        stipend_amount || null, student_note || null,
-        tutor_id || null, tutor_email || null,
-        application_id
+        data.company_id, data.company_name_manual, data.role_title, data.intern_type,
+        data.company_address, data.company_city, data.company_state, data.company_country, data.company_phone,
+        data.duration_type, data.work_mode, data.how_obtained,
+        data.start_date, data.end_date, data.attendance_days,
+        data.guide_name_industry, data.guide_department, data.guide_contact,
+        data.cgpa, data.semester_completed, data.ra_courses, data.pending_courses,
+        data.has_declined_other, data.declined_company_details,
+        data.stipend_amount, data.student_note,
+        data.tutor_id, data.tutor_email,
+        existingId
       ]);
 
-      if (rowCount === 0) {
-        return res.status(404).json({ error: "Application not found" });
-      }
+      if (rowCount === 0) return res.status(404).json({ error: "Application not found" });
 
-      return res.json({ 
-        success: true,
-        message: "Draft updated successfully",
-        application_id: application_id 
-      });
+      return res.json({ success: true, application_id: existingId, message: "Draft updated" });
     }
 
     // ==================== CREATE NEW DRAFT ====================
-    // (Your existing insert logic remains here)
     const year = new Date().getFullYear();
-
-    const countRes = await pool.query(`
-      SELECT COUNT(*) as total FROM internship_applications 
-      WHERE student_id = $1 AND EXTRACT(YEAR FROM created_at) = $2
-    `, [req.user.user_id, year]);
-
-    if (parseInt(countRes.rows[0].total) >= 2) {
-      return res.status(400).json({ error: "You can only apply for maximum 2 internships per year." });
-    }
-
     const rollRes = await pool.query("SELECT roll_number FROM users WHERE user_id = $1", [req.user.user_id]);
     const rollNumber = rollRes.rows[0]?.roll_number || "UNKNOWN";
-    const seq = String(parseInt(countRes.rows[0].total) + 1).padStart(2, '0');
-    const new_application_id = `${rollNumber}/${year}/${seq}/${seq}`;
+
+    // Get the highest sequence number used this year by this student
+    const seqRes = await pool.query(`
+      SELECT MAX(CAST(SPLIT_PART(application_id, '/', 3) AS INTEGER)) as max_seq
+      FROM internship_applications 
+      WHERE student_id = $1 AND application_id LIKE $2
+    `, [req.user.user_id, `${rollNumber}/${year}/%`]);
+
+    const maxSeq = parseInt(seqRes.rows[0]?.max_seq || 0);
+    const nextSeq = maxSeq + 1;
+    const seqStr = String(nextSeq).padStart(2, '0');
+    const new_application_id = `${rollNumber}/${year}/${seqStr}/${seqStr}`;
+
+    console.log("🆕 Generating new ID:", new_application_id);
 
     const { rows } = await pool.query(`
       INSERT INTO internship_applications (
@@ -208,21 +171,20 @@ const saveDraft = async (req, res) => {
       ) VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $12, $13, $14, $15, $16, $17, $18, $19, $20, $21, $22, $23, $24, $25, $26, $27, $28, $29, $30, 'draft', FALSE)
       RETURNING application_id
     `, [
-      new_application_id, req.user.user_id, company_id || null, company_name_manual || null,
-      role_title || null, intern_type || 'industry',
-      company_address || null, company_city || null, company_state || null,
-      company_country || 'India', company_phone || null,
-      duration_type || 'summer', work_mode || 'on_site', how_obtained || null,
-      start_date || null, end_date || null, attendance_days || null,
-      guide_name_industry || null, guide_department || null, guide_contact || null,
-      cgpa || null, semester_completed || null,
-      ra_courses || null, pending_courses || null,
-      has_declined_other || false, declined_company_details || null,
-      stipend_amount || null, student_note || null, 
-      tutor_id || null, tutor_email || null
+      new_application_id, req.user.user_id, data.company_id, data.company_name_manual,
+      data.role_title, data.intern_type, data.company_address, data.company_city,
+      data.company_state, data.company_country, data.company_phone,
+      data.duration_type, data.work_mode, data.how_obtained,
+      data.start_date, data.end_date, data.attendance_days,
+      data.guide_name_industry, data.guide_department, data.guide_contact,
+      data.cgpa, data.semester_completed, data.ra_courses, data.pending_courses,
+      data.has_declined_other, data.declined_company_details,
+      data.stipend_amount, data.student_note,
+      data.tutor_id, data.tutor_email
     ]);
 
     res.json({ 
+      success: true,
       message: "Draft saved successfully", 
       application_id: rows[0].application_id 
     });
@@ -232,7 +194,6 @@ const saveDraft = async (req, res) => {
     res.status(500).json({ error: err.message || 'Failed to save draft' });
   }
 };
-
 // ==================== SUBMIT FOR APPROVAL ====================
 const submitForApproval = async (req, res) => {
   const { application_id } = req.body;

@@ -81,37 +81,40 @@ const SixMonthInternshipForm = () => {
           setSavedId(data.application_id);
           setIsLocked(data.locked || false);
 
-          setForm({
-            company_id: data.company_id || '',
-            company_name_manual: data.company_name_manual || data.company_display_name || data.company_name || '',
-            role_title: data.role_title || '',
-            company_address: data.company_address || data.co_address || '',
-            company_city: data.company_city || '',
-            company_state: data.company_state || '',
-            company_phone: data.company_phone || '',
-            how_obtained: data.how_obtained || '',
-            work_mode: data.work_mode || 'on_site',
-            start_date: data.start_date ? data.start_date.split('T')[0] : '',
-            end_date: data.end_date ? data.end_date.split('T')[0] : '',
-            intern_type: data.intern_type || 'industry',
-            stipend: data.stipend || '',
-            attendance_days: data.attendance_days || '',
-            guide_name_industry: data.guide_name_industry || '',
-            guide_contact: data.guide_contact || '',
-            cgpa: data.cgpa || data.student_cgpa || '',
-            semester_completed: data.semester_completed || '',
-            ra_courses: data.ra_courses || '',
-            pending_courses: data.pending_courses || '',
-            has_declined_other: data.has_declined_other || false,
-            declined_company_name: data.declined_company_name || '',
-            declined_start_date: data.declined_start_date ? data.declined_start_date.split('T')[0] : '',
-            declined_end_date: data.declined_end_date ? data.declined_end_date.split('T')[0] : '',
-            declined_guide_name: data.declined_guide_name || '',
-            tutor_id: data.tutor_id || '',
-            tutor_email: data.tutor_email || '',
-            duration_type: data.duration_type || 'six_month', // Dynamically populates based on database records
-            offer_letter_url: data.offer_letter_url || '',
-          });
+         setForm({
+  company_id: data.company_id || '',
+  company_name_manual: data.company_name_manual || data.company_display_name || data.company_name || '',
+  role_title: data.role_title || '',
+
+  intern_type: data.intern_type || 'industry',
+  how_obtained: data.how_obtained || '',
+
+  company_address: data.company_address || data.co_address || '',
+  company_city: data.company_city || data.co_city || '',
+  company_state: data.company_state || data.co_state || '',
+  company_country: data.company_country || 'India',
+  company_phone: data.company_phone || '',
+
+  duration_type: data.duration_type || 'six_month',
+  work_mode: data.work_mode || 'on_site',
+
+  start_date: data.start_date ? data.start_date.split('T')[0] : '',
+  end_date: data.end_date ? data.end_date.split('T')[0] : '',
+  attendance_days: data.attendance_days || '',
+
+  guide_name_industry: data.guide_name_industry || '',
+  guide_contact: data.guide_contact || '',
+
+  // ✅ FIXED STIPEND, CGPA, SEMESTER
+  stipend: data.stipend_amount || data.stipend || '',
+  cgpa: data.cgpa || data.student_cgpa || '',
+  semester_completed: data.semester_completed || '',
+  ra_courses: data.ra_courses || '',
+  pending_courses: data.pending_courses || '',
+  tutor_id: data.tutor_id || '',
+  tutor_email: data.tutor_email || '',
+  offer_letter_url: data.offer_letter_url || '',
+});
         })
         .catch(err => {
           console.error("Failed to load application for edit", err);
@@ -119,75 +122,90 @@ const SixMonthInternshipForm = () => {
         });
     }
   }, [editId]);
+const handleOfferLetterUpload = async (e) => {
+  const file = e.target.files[0];
+  if (!file) return;
+  if (file.size > 5 * 1024 * 1024) return alert("File size must be less than 5MB");
 
-  const handleOfferLetterUpload = async (e) => {
-    const file = e.target.files[0];
-    if (!file) return;
-    if (file.size > 5 * 1024 * 1024) return alert("File size must be less than 5MB");
+  const formData = new FormData();
+  formData.append('offerLetter', file);           // ← Changed to match backend
+  if (savedId) formData.append('application_id', savedId);
 
-    const formData = new FormData();
-    formData.append('offer_letter', file);
-    if (savedId) formData.append('application_id', savedId);
+  try {
+    const { data } = await api.post('/applications/upload-offer', formData, {
+      headers: { 'Content-Type': 'multipart/form-data' }
+    });
+    
+    setForm(prev => ({ ...prev, offer_letter_url: data.url }));
+    alert("✅ Offer Letter uploaded successfully!");
+  } catch (err) {
+    console.error(err);
+    alert(err.response?.data?.error || "Failed to upload offer letter");
+  }
+};
+const handleSaveDraft = async () => {
+  if (isLocked && !isEditing) {
+    return alert("This form is locked.");
+  }
 
-    try {
-      const { data } = await api.post('/applications/upload-offer', formData, {
-        headers: { 'Content-Type': 'multipart/form-data' }
-      });
-      setForm(prev => ({ ...prev, offer_letter_url: data.url }));
-      alert("✅ Offer Letter uploaded successfully!");
-    } catch (err) {
-      alert("Failed to upload offer letter");
-    }
-  };
+  if (!form.company_id && !form.company_name_manual) {
+    return alert("Please select a company or enter company name manually");
+  }
+  if (!form.tutor_email) {
+    return alert("Please enter tutor email");
+  }
 
-  const handleSaveDraft = async () => {
-    if (isLocked && !isEditing) return alert("This form is locked.");
+  setLoading(true);
+  try {
+    const payload = {
+      ...form,
+      application_id: savedId || editId,        // ← Critical for editing
+      duration_type: 'six_month',               // for six month form
 
-    if (!form.company_id && !form.company_name_manual) {
-      return alert("Please select a company or enter company name manually");
-    }
-    if (!form.tutor_email) {
-      return alert("Please enter tutor email");
-    }
+      // Convert to proper types to avoid database errors
+      cgpa: form.cgpa ? Number(form.cgpa) : null,
+      semester_completed: form.semester_completed ? Number(form.semester_completed) : null,
+      stipend_amount: form.stipend ? Number(form.stipend) : null,
+      attendance_days: form.attendance_days ? Number(form.attendance_days) : null,
+    };
 
-    setLoading(true);
-    try {
-      const payload = { 
-        ...form, 
-        application_id: savedId || editId
-      };
+    console.log("Saving with application_id:", payload.application_id); // Debug
 
-      const { data } = await api.post('/applications/draft', payload);
-      
+    const { data } = await api.post('/applications/draft', payload);
+    
+    if (data.application_id) {
       setSavedId(data.application_id);
-      alert(`✅ Draft ${isEditing ? 'Updated' : 'Saved'} Successfully!\n\nApplication ID: ${data.application_id}`);
-      
-    } catch (err) {
-      console.error(err);
-      alert(err.response?.data?.error || "Failed to save draft. Check console (F12).");
-    } finally {
-      setLoading(false);
     }
-  };
 
-  const handleSubmit = async () => {
-    if (isLocked && !isEditing) return alert("This form is locked.");
-    if (!savedId && !editId) return alert("❌ Please click 'Save Draft' first!");
-    if (!form.tutor_email) return alert("❌ Please enter Tutor Email");
+    alert(`✅ Draft ${isEditing ? 'Updated' : 'Saved'} Successfully!\n\nApplication ID: ${data.application_id || savedId || editId}`);
+    
+  } catch (err) {
+    console.error("Save Draft Error:", err);
+    alert(err.response?.data?.error || "Failed to save draft. Check console (F12).");
+  } finally {
+    setLoading(false);
+  }
+};
 
-    setSubmitLoading(true);
-    try {
-      await api.post('/applications/submit', { 
-        application_id: savedId || editId 
-      });
-      alert("✅ Application Submitted Successfully!\nTutor has been notified.");
-      navigate('/student/applications');
-    } catch (err) {
-      alert(err.response?.data?.error || "Submission failed.");
-    } finally {
-      setSubmitLoading(false);
-    }
-  };
+const handleSubmit = async () => {
+  if (isLocked && !isEditing) return alert("This form is locked.");
+  if (!savedId && !editId) return alert("❌ Please click 'Save Draft' first!");
+  if (!form.tutor_email) return alert("❌ Please enter Tutor Email");
+
+  setSubmitLoading(true);
+  try {
+    await api.post('/applications/submit', { 
+      application_id: savedId || editId 
+    });
+    alert("✅ Application Submitted Successfully!\nTutor has been notified.");
+    navigate('/student/applications');
+  } catch (err) {
+    alert(err.response?.data?.error || "Submission failed.");
+  } finally {
+    setSubmitLoading(false);
+  }
+};
+ 
 
   const requestNewCompany = () => {
     const name = prompt("Enter the new company name to request from Admin:");
@@ -328,8 +346,15 @@ const SixMonthInternshipForm = () => {
             </select>
           </div>
           <div>
-            <label className="block text-sm font-medium mb-2">Stipend (if any)</label>
-            <input className="w-full px-4 py-3 border border-gray-300 rounded-2xl" value={form.stipend} onChange={e => setField('stipend', e.target.value)} placeholder="₹15,000 / month" disabled={isLocked && !isEditing} />
+            <label className="block text-sm font-medium mb-2">Stipend (if any) ₹ / month</label>
+<input 
+  type="number" 
+  className="w-full px-4 py-3 border border-gray-300 rounded-2xl" 
+  value={form.stipend} 
+  onChange={e => setField('stipend', e.target.value)} 
+  placeholder="15000" 
+  disabled={isLocked && !isEditing} 
+/>
           </div>
         </div>
         <div className="grid grid-cols-1 md:grid-cols-2 gap-6 mt-6">
@@ -380,15 +405,31 @@ const SixMonthInternshipForm = () => {
           </div>
         </div>
 
-        <div className="mt-6">
-          <label className="block text-sm font-medium mb-2">RA / Arrear Courses</label>
-          <input className="w-full px-4 py-3 border border-gray-300 rounded-2xl" value={form.ra_courses} onChange={e => setField('ra_courses', e.target.value)} placeholder="MA101 - Mathematics" disabled={isLocked && !isEditing} />
-        </div>
+        {/* RA / Arrear Courses */}
+<div>
+  <label className="block text-sm font-medium mb-2">RA / Arrear Courses</label>
+  <input 
+    type="text" 
+    className="w-full px-4 py-3 border border-gray-300 rounded-2xl" 
+    value={form.ra_courses} 
+    onChange={e => setField('ra_courses', e.target.value)} 
+    placeholder="23XW45 - Artificial Intelligence"
+    disabled={isLocked && !isEditing} 
+  />
+</div>
 
-        <div className="mt-4">
-          <label className="block text-sm font-medium mb-2">Pending Courses</label>
-          <input className="w-full px-4 py-3 border border-gray-300 rounded-2xl" value={form.pending_courses} onChange={e => setField('pending_courses', e.target.value)} placeholder="CS789 - Artificial Intelligence" disabled={isLocked && !isEditing} />
-        </div>
+{/* Pending Courses */}
+<div>
+  <label className="block text-sm font-medium mb-2">Pending Courses</label>
+  <input 
+    type="text" 
+    className="w-full px-4 py-3 border border-gray-300 rounded-2xl" 
+    value={form.pending_courses} 
+    onChange={e => setField('pending_courses', e.target.value)} 
+    placeholder="23XW78 - Machine Learning"
+    disabled={isLocked && !isEditing} 
+  />
+</div>
       </div>
 
       {/* Faculty Tutor */}

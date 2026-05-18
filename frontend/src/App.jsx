@@ -44,14 +44,26 @@ const App = () => (
       <Route path="/" element={<LoginPage />} />
       <Route path="/signup" element={<SignupPage />} />
 
-      {/* Student Application Routes */}
-      {/* <Route path="/student/apply/summer" element={
-        <ProtectedRoute allowedRoles={['student']} element={<SummerInternshipForm />} />
-      } />
+     {/* Student Application Routes - Direct Access */}
+      <Route 
+        path="/student/apply/summer" 
+        element={
+          <ProtectedRoute 
+            allowedRoles={['student']} 
+            element={<SummerInternshipForm />} 
+          />
+        } 
+      />
       
-      <Route path="/student/apply/six-month" element={
-        <ProtectedRoute allowedRoles={['student']} element={<SixMonthInternshipForm />} />
-      } /> */}
+      <Route 
+        path="/student/apply/six-month" 
+        element={
+          <ProtectedRoute 
+            allowedRoles={['student']} 
+            element={<SixMonthInternshipForm />} 
+          />
+        } 
+      />
 
       {/* Protected Layout Routes */}
       <Route 

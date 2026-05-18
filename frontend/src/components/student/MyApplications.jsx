@@ -62,8 +62,16 @@ const MyApplications = () => {
   };
 
   // ==================== NEW: Edit Rejected Application ====================
-  const handleEdit = (app) => {
-  if (app.status === 'rejected') {
+const handleEdit = (app) => {
+  if (app.status !== 'rejected') {
+    alert("Only rejected applications can be edited.");
+    return;
+  }
+
+  // ✅ Correct routing based on duration_type
+  if (app.duration_type === 'six_month' || app.duration_type === 'sixmonth') {
+    navigate(`/student/apply/six-month?edit=${app.application_id}`);
+  } else {
     navigate(`/student/apply/summer?edit=${app.application_id}`);
   }
 };
