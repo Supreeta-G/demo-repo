@@ -23,7 +23,7 @@ router.get('/companies', appCtrl.getCompanies);
 router.get('/tutors', appCtrl.getTutors);
 router.get('/applications/*', appCtrl.getApplicationById);
 
-// Student
+// Student// Student Routes - Offer Letter Upload
 router.post('/applications/upload-offer', requireRole('student'), appCtrl.uploadOfferLetter);
 router.get('/student/profile', requireRole('student'), appCtrl.getStudentProfile);
 router.get('/student/applications', requireRole('student'), appCtrl.getMyApplications);
@@ -35,7 +35,6 @@ router.post('/applications/request-delete', requireRole('student'), appCtrl.requ
 
 router.post('/applications/upload-offer', 
   requireRole('student'), 
-  appCtrl.upload.single('offerLetter'),
   appCtrl.uploadOfferLetter
 );
 
