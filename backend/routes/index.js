@@ -24,6 +24,7 @@ router.get('/tutors', appCtrl.getTutors);
 router.get('/applications/*', appCtrl.getApplicationById);
 
 // Student
+router.post('/applications/upload-offer', requireRole('student'), appCtrl.uploadOfferLetter);
 router.get('/student/profile', requireRole('student'), appCtrl.getStudentProfile);
 router.get('/student/applications', requireRole('student'), appCtrl.getMyApplications);
 router.post('/applications/draft', requireRole('student'), appCtrl.saveDraft);

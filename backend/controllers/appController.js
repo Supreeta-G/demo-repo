@@ -1,4 +1,6 @@
 const bcrypt = require('bcrypt');
+const fs = require('fs');
+const path = require('path');
 const { pool } = require('../config/db');
 const { sendApprovalEmail, sendRejectionEmail } = require('../utils/mailer');
 const { sendTutorNotificationEmail } = require('../utils/mailer'); 
@@ -602,6 +604,50 @@ const unlockForm = async (req, res) => {
     res.status(500).json({ error: err.message });
   }
 };
+// ==================== UPLOAD OFFER LETTER ====================
+const uploadOfferLetter = async (req, res) => {
+  const { application_id } = req.body;
+  const file = req.files?.offer_letter;   // using express-fileupload
+
+  if (!file) {
+    return res.status(400).json({ error: "No file uploaded" });
+  }
+
+  if (!file.name.endsWith('.pdf')) {
+    return res.status(400).json({ error: "Only PDF files are allowed" });
+  }
+
+  try {
+    // Create uploads folder if not exists
+    const uploadDir = path.join(__dirname, '../uploads/offer_letters');
+    if (!fs.existsSync(uploadDir)) {
+      fs.mkdirSync(uploadDir, { recursive: true });
+    }
+
+    const fileName = `${application_id}_${Date.now()}.pdf`;
+    const filePath = path.join(uploadDir, fileName);
+
+    await file.mv(filePath);
+
+    const fileUrl = `/uploads/offer_letters/${fileName}`;
+
+    // Update application with offer letter URL
+    await pool.query(
+      "UPDATE internship_applications SET offer_letter_url = $1, updated_at = NOW() WHERE application_id = $2",
+      [fileUrl, application_id]
+    );
+
+    res.json({ 
+      success: true, 
+      message: "Offer letter uploaded successfully",
+      url: fileUrl 
+    });
+
+  } catch (err) {
+    console.error(err);
+    res.status(500).json({ error: "Failed to upload offer letter" });
+  }
+};
 
 // ==================== UPLOAD OFFER LETTER ====================
 const multer = require('multer');
@@ -668,6 +714,7 @@ const uploadOfferLetter = async (req, res) => {
 };
 // ==================== FINAL EXPORTS ====================
 module.exports = {
+  uploadOfferLetter,
   getProgrammes, 
   getCompanies, 
   getTutors,
