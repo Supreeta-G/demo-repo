@@ -651,7 +651,6 @@ const uploadOfferLetter = async (req, res) => {
 
 // ==================== UPLOAD OFFER LETTER ====================
 const multer = require('multer');
-const path = require('path');
 
 const storage = multer.diskStorage({
   destination: (req, file, cb) => {
@@ -675,43 +674,7 @@ const upload = multer({
   }
 });
 
-const uploadOfferLetter = async (req, res) => {
-  try {
-    if (!req.file) return res.status(400).json({ error: "No file uploaded" });
 
-    const { application_id } = req.body;
-    if (!application_id) return res.status(400).json({ error: "Application ID required" });
-
-    const { rows } = await pool.query(
-      `SELECT 1 FROM internship_applications 
-       WHERE application_id = $1 AND student_id = $2`,
-      [application_id, req.user.user_id]
-    );
-
-    if (rows.length === 0) {
-      return res.status(403).json({ error: "Not your application" });
-    }
-
-    const fileUrl = `/uploads/offer-letters/${req.file.filename}`;
-
-    await pool.query(
-      `UPDATE internship_applications 
-       SET offer_letter_url = $1, updated_at = NOW() 
-       WHERE application_id = $2`,
-      [fileUrl, application_id]
-    );
-
-    res.json({ 
-      success: true, 
-      url: fileUrl, 
-      message: "Offer letter uploaded successfully" 
-    });
-
-  } catch (err) {
-    console.error("Upload Error:", err);
-    res.status(500).json({ error: "Upload failed" });
-  }
-};
 // ==================== FINAL EXPORTS ====================
 module.exports = {
   uploadOfferLetter,
@@ -739,5 +702,5 @@ module.exports = {
   adminDeleteApplication,
   unlockForm,
   upload,                    
-  uploadOfferLetter,
+  
 };
