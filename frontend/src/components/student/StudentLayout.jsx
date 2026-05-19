@@ -30,18 +30,22 @@ const StudentLayout = () => {
     <aside className={`flex flex-col h-full ${mobile ? '' : 'w-64'}`}
       style={{ background: 'linear-gradient(180deg, #344E41 0%, #3A5A40 60%, #588157 100%)' }}>
       
+      {/* Left Sidebar - PSG College of Technology */}
       <div className="px-5 py-6 border-b border-white/10">
         <div className="flex items-center gap-3">
-          <div className="w-9 h-9 rounded-xl bg-white/15 flex items-center justify-center border border-white/20 flex-shrink-0">
-            <Leaf className="w-5 h-5 text-white" />
-          </div>
+          <img 
+            src="https://encrypted-tbn0.gstatic.com/images?q=tbn:ANd9GcQHji8vdWeN-Yg9qx36vQtrNGU3mr-gXid9eQ&s" 
+            alt="PSG Logo" 
+            className="h-9 w-9 object-contain rounded-lg flex-shrink-0"
+          />
           <div className="min-w-0">
-            <p className="text-white font-bold text-sm leading-tight truncate">PSG Tech</p>
-            <p className="text-white/50 text-[10px] uppercase tracking-wider">Internship Portal</p>
+            <p className="text-white font-bold text-base leading-tight">PSG College of Technology</p>
+            <p className="text-white/60 text-xs">Internship Portal</p>
           </div>
         </div>
       </div>
 
+      {/* User Info */}
       <div className="px-4 py-4 border-b border-white/10">
         <div className="flex items-center gap-3 p-3 bg-white/10 rounded-xl">
           <div className="w-9 h-9 rounded-full bg-sage/40 flex items-center justify-center flex-shrink-0">
@@ -57,6 +61,7 @@ const StudentLayout = () => {
         </div>
       </div>
 
+      {/* Navigation */}
       <nav className="flex-1 px-3 py-4 space-y-1 overflow-y-auto">
         {navItems.map(({ to, icon: Icon, label }) => (
           <NavLink key={to} to={to}
@@ -97,7 +102,8 @@ const StudentLayout = () => {
       )}
 
       <div className="flex-1 flex flex-col overflow-hidden">
-        <div className="md:hidden flex items-center gap-3 px-4 py-3 bg-forest text-white shadow-md">
+        {/* Minimal Top Bar (No Logo) */}
+        <div className="md:hidden flex items-center gap-3 px-4 py-3 text-white shadow-md" style={{ background: '#344E41' }}>
           <button onClick={() => setSidebarOpen(true)} className="p-1.5 rounded-lg hover:bg-white/10">
             <Menu className="w-5 h-5" />
           </button>
@@ -108,19 +114,13 @@ const StudentLayout = () => {
         <main className="flex-1 overflow-y-auto">
           <div className="page-enter">
             <Routes>
-            <Route path="home" element={<StudentHome />} />
-            
-            {/* Summer Internship */}
-            <Route path="apply/summer" element={<SummerInternshipForm />} />
-            
-            {/* Six Month Internship - FIXED */}
-            <Route path="apply/six-month" element={<SixMonthInternshipForm />} />
-            
-            <Route path="apply" element={<Navigate to="summer" replace />} />
-            
-            <Route path="applications" element={<MyApplications />} />
-            <Route path="*" element={<Navigate to="home" replace />} />
-          </Routes>
+              <Route path="home" element={<StudentHome />} />
+              <Route path="apply/summer" element={<SummerInternshipForm />} />
+              <Route path="apply/six-month" element={<SixMonthInternshipForm />} />
+              <Route path="apply" element={<Navigate to="summer" replace />} />
+              <Route path="applications" element={<MyApplications />} />
+              <Route path="*" element={<Navigate to="home" replace />} />
+            </Routes>
           </div>
         </main>
       </div>

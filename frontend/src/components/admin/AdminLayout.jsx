@@ -46,14 +46,17 @@ const AdminLayout = () => {
     <aside className={`flex flex-col h-full ${mobile ? '' : 'w-64'}`}
       style={{ background: 'linear-gradient(180deg, #2d3a30 0%, #344E41 50%, #3A5A40 100%)' }}>
       
+      {/* PSG College of Technology - Single Line */}
       <div className="px-5 py-6 border-b border-white/10">
         <div className="flex items-center gap-3">
-          <div className="w-9 h-9 rounded-xl bg-white/15 flex items-center justify-center border border-white/20 flex-shrink-0">
-            <Shield className="w-5 h-5 text-white" />
-          </div>
-          <div>
-            <p className="text-white font-bold text-sm">PSG Tech</p>
-            <p className="text-white/50 text-[10px] uppercase tracking-wider">Admin Portal</p>
+          <img 
+            src="https://encrypted-tbn0.gstatic.com/images?q=tbn:ANd9GcQHji8vdWeN-Yg9qx36vQtrNGU3mr-gXid9eQ&s" 
+            alt="PSG Logo" 
+            className="h-9 w-9 object-contain rounded-lg flex-shrink-0"
+          />
+          <div className="min-w-0">
+            <p className="text-white font-bold text-base leading-tight">PSG College of Technology</p>
+            <p className="text-white/60 text-xs">Admin Portal</p>
           </div>
         </div>
       </div>
@@ -100,16 +103,15 @@ const AdminLayout = () => {
 
   return (
     <div className="flex h-screen overflow-hidden bg-bone">
-      <div className="hidden md:flex flex-shrink-0"><Sidebar /></div>
+      <div className="hidden md:flex flex-shrink-0">
+        <Sidebar />
+      </div>
 
       {sidebarOpen && (
         <div className="md:hidden fixed inset-0 z-40 flex">
           <div className="fixed inset-0 bg-black/50 backdrop-blur-sm" onClick={() => setSidebarOpen(false)} />
           <div className="relative z-50 w-72 flex flex-col">
-            <button 
-              onClick={() => setSidebarOpen(false)} 
-              className="absolute top-4 right-4 text-white/60 hover:text-white z-50"
-            >
+            <button onClick={() => setSidebarOpen(false)} className="absolute top-4 right-4 text-white/60 hover:text-white z-50">
               <X className="w-5 h-5" />
             </button>
             <Sidebar mobile />
@@ -118,8 +120,8 @@ const AdminLayout = () => {
       )}
 
       <div className="flex-1 flex flex-col overflow-hidden">
-        <div className="md:hidden flex items-center gap-3 px-4 py-3 text-white shadow-md" 
-             style={{ background: '#344E41' }}>
+        {/* Clean Top Bar - No Logo */}
+        <div className="md:hidden flex items-center gap-3 px-4 py-3 text-white shadow-md" style={{ background: '#344E41' }}>
           <button onClick={() => setSidebarOpen(true)} className="p-1.5 rounded-lg hover:bg-white/10">
             <Menu className="w-5 h-5" />
           </button>
