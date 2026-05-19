@@ -1,0 +1,121 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <title>PSG College of Technology - Final Semester Internship Undertaking</title>
+  <style>
+    body {
+      font-family: Arial, Helvetica, sans-serif;
+      margin: 40px;
+      line-height: 1.6;
+      color: #000;
+    }
+    .header {
+      text-align: center;
+      font-weight: bold;
+    }
+    h3 { margin: 5px 0; }
+    table {
+      width: 100%;
+      border-collapse: collapse;
+      margin: 15px 0;
+    }
+    td, th {
+      border: 1px solid #000;
+      padding: 8px;
+      vertical-align: top;
+    }
+    .signature-box {
+      border: 1px solid #000;
+      height: 70px;
+      width: 130px;
+      margin-top: 10px;
+    }
+    .note {
+      font-size: 0.9em;
+      margin-top: 30px;
+    }
+  </style>
+</head>
+<body>
+
+  <h3 class="header">PSG COLLEGE OF TECHNOLOGY, COIMBATORE 641 004</h3>
+  <h4 class="header">Undertaking for Pursuing Internship in the Final Semester (UG/PG)</h4>
+
+  <p><strong>Date:</strong> {{formatDate currentDate}}</p>
+
+  <p><strong>From</strong><br>
+  {{student_name}}<br>
+  {{roll_number}}
+  </p>
+
+  <p><strong>To</strong><br>
+  The Principal<br>
+  PSG College of Technology<br>
+  Coimbatore – 641004
+  </p>
+
+  <p>Through: THE HEAD OF THE DEPARTMENT, DEPARTMENT OF <strong>{{department}}</strong></p>
+
+  <p><strong>Sub:</strong> Undertaking while pursuing Internship/Project Work II in Industry / Institutions.</p>
+
+  <p>I wish to inform that, I have been offered internship in the organization, details of which are provided below. The activities carried out during this internship will be adequate for completing Project Work II.</p>
+
+  <!-- Main Table -->
+  <table>
+    <tr>
+      <td><strong>Name & Address of the Industry / Institution</strong><br>
+          {{company_name}}<br>
+          {{company_address}}<br>
+          {{company_city}}, {{company_state}}
+      </td>
+      <td><strong>Internship Period</strong><br>
+          From: {{formatDate start_date}}<br>
+          To: {{formatDate end_date}}
+      </td>
+      <td><strong>Guide from the industry / institution</strong><br>
+          with contact details<br>
+          {{guide_name_industry}}<br>
+          {{guide_contact}}
+      </td>
+      <td><strong>Stipend receivable (if any)</strong><br>
+          {{stipend_amount}}
+      </td>
+    </tr>
+  </table>
+
+  <p>My CGPA up to semester <strong>{{semester_completed}}</strong> is <strong>{{cgpa}}</strong></p>
+
+  <p><strong>I hereby undertake the following:</strong></p>
+  <ol>
+    <li>I will be regular and sincere in carrying out my internship at the above organization and I will obey the Rules and Regulations of the organization.</li>
+    <li>My attendance will be sent regularly to my department by the Industry / Institution.</li>
+    <li>I will attend all the project work II reviews scheduled in the department and submit the report for my Project Work II on or before the deadline specified by the Department.</li>
+    <li>I have completed all course work except Project Work II to become eligible for the award of the Degree.</li>
+    <li>I have enclosed the offer letter for internship.</li>
+    <li>I have enclosed my parent’s permission letter to carry out the internship/Project work.</li>
+  </ol>
+
+  <div class="signature">
+    <p>(Signature of the Student)</p>
+    
+    <table style="width:100%; margin-top: 40px;">
+      <tr>
+        <td>Tutor/Programme Co-ordinator</td>
+        <td>Guide</td>
+        <td>HoD</td>
+        <td>Dean, Placement & Training</td>
+        <td>Dean - Academic</td>
+        <td>Principal</td>
+      </tr>
+    </table>
+  </div>
+
+  <div class="note">
+    <strong>NOTE:</strong><br>
+    1. Original Form shall be submitted to Placement Office<br>
+    2. Photo copies shall be submitted to Academic Section and Concerned Department
+  </div>
+
+</body>
+</html>

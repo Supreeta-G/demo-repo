@@ -1,0 +1,75 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <title>PSG Summer Internship Permission</title>
+  <style>
+    body { font-family: Arial, sans-serif; margin: 40px; line-height: 1.6; }
+    .header { text-align: center; font-weight: bold; }
+    table { width: 100%; border-collapse: collapse; margin: 15px 0; }
+    td, th { border: 1px solid #000; padding: 8px; vertical-align: top; }
+    .signature-box { border: 1px solid #000; height: 70px; }
+  </style>
+</head>
+<body>
+
+  <h3 class="header">PSG COLLEGE OF TECHNOLOGY, COIMBATORE 641 004</h3>
+  <h4 class="header">Permission and Undertaking for Summer Internship / Short Duration Internship</h4>
+
+  <p><strong>Date:</strong> {{formatDate currentDate}}</p>
+
+  <p><strong>From:</strong><br>{{student_name}}<br>{{roll_number}}</p>
+
+  <p><strong>To:</strong><br>The Principal<br>PSG College of Technology<br>Coimbatore – 641004</p>
+
+  <p>Through: The Head of the Department, Department of <strong>{{department}}</strong></p>
+
+  <p><strong>Sub:</strong> Undertaking while pursuing Internship/Project Work in Industry / Institutions.</p>
+
+  <p>I wish to inform that I have been offered Summer internship/Short Duration internship in the organization, details of which are provided below.</p>
+
+  <table>
+    <tr>
+      <td><strong>Name & Address of the Industry / Institution with contact details</strong><br>
+          {{company_name}}<br>{{company_address}}<br>{{company_city}}, {{company_state}}
+      </td>
+      <td><strong>Internship Period</strong><br>
+          From: {{formatDate start_date}}<br>
+          To: {{formatDate end_date}}
+      </td>
+      <td><strong>Name of Mentor/Guide in Industry</strong><br>
+          {{guide_name_industry}}<br>{{guide_contact}}
+      </td>
+      <td><strong>Attendance Needed</strong><br>{{attendance_days}} days</td>
+    </tr>
+  </table>
+
+  <p>My CGPA up to semester <strong>{{semester_completed}}</strong> is <strong>{{cgpa}}</strong></p>
+
+  <p><strong>I hereby undertake the following:</strong></p>
+  <ol>
+    <li>I will be regular and sincere in carrying out my internship...</li>
+    <li>I will obtain the attendance certificate and submit the same...</li>
+    <li>I will study on my own, the syllabi covered in the class during my internship.</li>
+    <li>I have enclosed the offer letter for internship.</li>
+    <li>I have enclosed parent’s consent Letter.</li>
+  </ol>
+
+  <div style="margin-top: 60px;">
+    <p>(Signature of the Student)</p>
+    <table style="width:100%">
+      <tr>
+        <td>Tutor</td>
+        <td>Guide (Dept)</td>
+        <td>Programme Co-ordinator</td>
+        <td>HoD</td>
+        <td>Dean (P&T)</td>
+        <td>Dean-Academic</td>
+      </tr>
+    </table>
+  </div>
+
+  <p><strong>PRINCIPAL</strong></p>
+
+</body>
+</html>
