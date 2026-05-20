@@ -166,7 +166,12 @@ const TutorQueue = ({ filter }) => {
                 {isExpanded && (
                   <div className="px-6 pb-8 pt-4 border-t border-sage/20 bg-white">
                     <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
-
+                    {/* Strong Debug */}
+      {console.log("Full App Data for stipend check:", {
+        stipend_amount: app.stipend_amount,
+        stipend: app.stipend,
+        all_keys: Object.keys(app)
+      })}
                       {/* Student Information */}
                       <div className="bg-bone p-6 rounded-3xl">
                         <h4 className="font-semibold mb-4 flex items-center gap-2 text-forest">👤 Student Information</h4>
@@ -190,7 +195,10 @@ const TutorQueue = ({ filter }) => {
                           <p><strong>Type:</strong> {app.duration_type === 'summer' ? 'Summer Internship' : '6-Month Internship'}</p>
                           <p><strong>Period:</strong> {app.start_date?.split('T')[0]} — {app.end_date?.split('T')[0]}</p>
                           <p><strong>Work Mode:</strong> {app.work_mode}</p>
-                          <p><strong>Stipend:</strong> {app.stipend_amount ? `₹${Number(app.stipend_amount).toLocaleString('en-IN')}` : 'Not Mentioned'}</p>                          
+                          <p><strong>Stipend:</strong> {app.stipend_amount 
+  ? `₹${app.stipend_amount} / month` 
+  : 'Not Mentioned'}
+</p>
                           
                           {/* Offer Letter Link - Works for both Summer and 6-Month */}
                           {(app.offer_letter_url || app.offer_letter_full_url) && (
@@ -206,23 +214,41 @@ const TutorQueue = ({ filter }) => {
                               </a>
                             </p>
                           )}
+                          {/* Parent Permission Letter */}
+                          {app.parent_permission_url && (
+                            <div className="lg:col-span-2 bg-green-50 border border-green-200 p-6 rounded-3xl">
+                              <h4 className="font-semibold mb-3 flex items-center gap-2">
+                                📄 Parent Permission Letter
+                              </h4>
+                              <a 
+                                href={`http://localhost:5001${app.parent_permission_url}`} 
+                                target="_blank" 
+                                rel="noopener noreferrer"
+                                className="inline-flex items-center gap-2 text-green-600 hover:text-green-700 hover:underline font-medium"
+                              >
+                                📄 View Parent Permission Letter
+                              </a>
+                            </div>
+                          )}
                         </div>
                       </div>
 
-                      {/* Academic Status */}
-                      <div className="lg:col-span-2 bg-bone p-6 rounded-3xl">
-                        <h4 className="font-semibold mb-4 text-forest">📚 Academic Status</h4>
-                        <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
-                          <div>
-                            <p className="text-xs font-medium text-hunter/60 mb-1">RA / Arrear Courses</p>
-                            <p className="text-sm">{app.ra_courses || 'None'}</p>
-                          </div>
-                          <div>
-                            <p className="text-xs font-medium text-hunter/60 mb-1">Pending Courses (Current Semester)</p>
-                            <p className="text-sm">{app.pending_courses || 'None'}</p>
+                      {/* Academic Status - Show only for 6-Month */}
+                      {app.duration_type === 'six_month' && (
+                        <div className="lg:col-span-2 bg-bone p-6 rounded-3xl">
+                          <h4 className="font-semibold mb-4">📚 Academic Status</h4>
+                          <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+                            <div>
+                              <p className="text-xs font-medium text-hunter/60 mb-1">RA / Arrear Courses</p>
+                              <p className="text-sm">{app.ra_courses || 'None'}</p>
+                            </div>
+                            <div>
+                              <p className="text-xs font-medium text-hunter/60 mb-1">Pending Courses</p>
+                              <p className="text-sm">{app.pending_courses || 'None'}</p>
+                            </div>
                           </div>
                         </div>
-                      </div>
+                      )}
 
                       {/* Company Address */}
                       <div className="lg:col-span-2 bg-bone p-6 rounded-3xl">

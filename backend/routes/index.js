@@ -34,10 +34,17 @@ router.post('/applications/request-delete', requireRole('student'), appCtrl.requ
 // Offer Letter Upload with Multer
 
 router.post('/applications/upload-offer', 
+  authenticateToken, 
   requireRole('student'), 
+  //appCtrl.upload.single('offer_letter'),     // ← Must match frontend
   appCtrl.uploadOfferLetter
 );
-
+router.post('/applications/upload-parent-permission',
+  authenticateToken,
+  requireRole('student'),
+  //appCtrl.upload.single('parent_permission'),
+  appCtrl.uploadParentPermission
+);
 // Tutor
 router.get('/tutor/queue', requireRole('tutor'), appCtrl.getTutorQueue);
 router.post('/tutor/decision', requireRole('tutor'), appCtrl.tutorDecision);   // ← Important

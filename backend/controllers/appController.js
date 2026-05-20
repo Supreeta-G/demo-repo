@@ -1,9 +1,40 @@
 const bcrypt = require('bcrypt');
-const fs = require('fs');
-const path = require('path');
 const { pool } = require('../config/db');
 const { sendApprovalEmail, sendRejectionEmail } = require('../utils/mailer');
 const { sendTutorNotificationEmail } = require('../utils/mailer'); 
+const multer = require('multer');
+const path = require('path');
+const fs = require('fs');
+
+// Multer Setup
+const storage = multer.diskStorage({
+  destination: (req, file, cb) => {
+    const uploadPath = path.join(__dirname, '../uploads/offer_letters');
+    if (!fs.existsSync(uploadPath)) {
+      fs.mkdirSync(uploadPath, { recursive: true });
+    }
+    cb(null, uploadPath);
+  },
+  filename: (req, file, cb) => {
+    const uniqueSuffix = Date.now() + '-' + Math.round(Math.random() * 1E9);
+    cb(null, 'offer-' + uniqueSuffix + path.extname(file.originalname));
+  }
+});
+
+const upload = multer({ 
+  storage: storage,
+  limits: { fileSize: 5 * 1024 * 1024 }, // 5MB
+  fileFilter: (req, file, cb) => {
+    if (file.mimetype === 'application/pdf') {
+      cb(null, true);
+    } else {
+      cb(new Error('Only PDF files are allowed!'), false);
+    }
+  }
+});
+
+
+
 
 // ──── SHARED ────
 
@@ -100,71 +131,109 @@ const getApplicationById = async (req, res) => {
   }
 };
 
-// ==================== SAVE DRAFT ====================
+// ==================== SAVE DRAFT - WITH YEARLY LIMIT ====================
 const saveDraft = async (req, res) => {
   const {
-    company_id, company_name_manual, role_title, intern_type,
-    company_address, company_city, company_state, company_country, company_phone,
-    duration_type, work_mode, how_obtained,
+    application_id: existingId,
+    company_id, company_name_manual, role_title, intern_type = 'industry',
+    company_address, company_city, company_state, company_country = 'India', company_phone,
+    duration_type, work_mode = 'on_site', how_obtained,
     start_date, end_date, attendance_days,
     guide_name_industry, guide_department, guide_contact,
     cgpa, semester_completed, ra_courses, pending_courses,
-    has_declined_other, declined_company_details,
-    stipend_amount, student_note, tutor_id, tutor_email
+    has_declined_other = false, declined_company_details,
+    stipend, student_note, tutor_id, tutor_email,
+    offer_letter_url
   } = req.body;
+
+  const student_id = req.user.user_id;
 
   try {
     const year = new Date().getFullYear();
 
+    // ====================== EDIT MODE ======================
+    if (existingId && existingId !== 'null' && existingId !== '') {
+      const { rowCount } = await pool.query(`
+        UPDATE internship_applications 
+        SET 
+          company_id = $1, company_name_manual = $2, role_title = $3, intern_type = $4,
+          company_address = $5, company_city = $6, company_state = $7, company_country = $8, company_phone = $9,
+          duration_type = $10, work_mode = $11, how_obtained = $12,
+          start_date = $13, end_date = $14, attendance_days = $15,
+          guide_name_industry = $16, guide_department = $17, guide_contact = $18,
+          cgpa = $19, semester_completed = $20,
+          ra_courses = $21, pending_courses = $22,
+          has_declined_other = $23, declined_company_details = $24,
+          stipend_amount = $25, student_note = $26,
+          tutor_id = $27, tutor_email = $28, 
+          offer_letter_url = $29,
+          updated_at = NOW()
+        WHERE application_id = $30 AND student_id = $31
+      `, [
+        company_id || null, company_name_manual || null, role_title || null, intern_type,
+        company_address || null, company_city || null, company_state || null, company_country, company_phone || null,
+        duration_type || 'summer', work_mode, how_obtained || null,
+        start_date || null, end_date || null, attendance_days || null,
+        guide_name_industry || null, guide_department || null, guide_contact || null,
+        cgpa || null, semester_completed || null,
+        ra_courses || null, pending_courses || null,
+        has_declined_other, declined_company_details || null,
+        stipend || null, student_note || null,
+        tutor_id || null, tutor_email || null,
+        offer_letter_url || null,
+        existingId, student_id
+      ]);
+
+      if (rowCount > 0) {
+        return res.json({ message: "Draft updated successfully", application_id: existingId });
+      }
+    }
+
+    // ====================== NEW DRAFT - YEARLY LIMIT CHECK ======================
     const countRes = await pool.query(`
-      SELECT COUNT(*) as total
-      FROM internship_applications
-      WHERE student_id = $1 AND EXTRACT(YEAR FROM created_at) = $2
-    `, [req.user.user_id, year]);
+      SELECT COUNT(*) as total 
+      FROM internship_applications 
+      WHERE student_id = $1 
+        AND EXTRACT(YEAR FROM created_at) = $2
+    `, [student_id, year]);
 
     if (parseInt(countRes.rows[0].total) >= 2) {
-      return res.status(400).json({ error: "You can only apply for maximum 2 internships per year." });
+      return res.status(400).json({ 
+        error: "You can only apply for maximum 2 internships per calendar year." 
+      });
     }
 
-    const pendingRes = await pool.query(`
-      SELECT application_id FROM internship_applications
-      WHERE student_id = $1 AND status = 'pending_tutor'
-    `, [req.user.user_id]);
+    // Generate new application_id
+    const rollRes = await pool.query("SELECT roll_number FROM users WHERE user_id = $1", [student_id]);
+    const rollNumber = rollRes.rows[0]?.roll_number || "UNKNOWN";
 
-    if (pendingRes.rows.length > 0) {
-      return res.status(400).json({ error: "You already have a pending application." });
-    }
+    const seq = String(parseInt(countRes.rows[0].total) + 1).padStart(2, '0');
+    const new_application_id = `${rollNumber}/${year}/${seq}/${seq}`;
 
-    const rollRes = await pool.query("SELECT roll_number FROM users WHERE user_id = $1", [req.user.user_id]);
-    const rollNumber = rollRes.rows[0].roll_number || "UNKNOWN";
-    const totalApplications = parseInt(countRes.rows[0].total) + 1;
-    const seq = String(totalApplications).padStart(2, '0');
-    const application_id = `${rollNumber}/${year}/${seq}/${seq}`;
-
+    // Insert new draft
     const { rows } = await pool.query(`
       INSERT INTO internship_applications (
         application_id, student_id, company_id, company_name_manual, role_title, intern_type,
         company_address, company_city, company_state, company_country, company_phone,
         duration_type, work_mode, how_obtained, start_date, end_date, attendance_days,
-        guide_name_industry, guide_department, guide_contact,
-        cgpa, semester_completed, ra_courses, pending_courses,
-        has_declined_other, declined_company_details, stipend_amount, student_note,
-        tutor_id, tutor_email, status, locked
-      ) VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $12, $13, $14, $15, $16, $17, $18, $19, $20, $21, $22, $23, $24, $25, $26, $27, $28, $29, $30, 'draft', FALSE)
+        guide_name_industry, guide_department, guide_contact, cgpa, semester_completed,
+        ra_courses, pending_courses, has_declined_other, declined_company_details,
+        stipend_amount, student_note, tutor_id, tutor_email, offer_letter_url, status, locked
+      ) VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $12, $13, $14, $15, $16, $17, $18, $19, $20, $21, $22, $23, $24, $25, $26, $27, $28, $29, $30, $31, 'draft', FALSE)
       RETURNING application_id
     `, [
-      application_id, req.user.user_id, company_id || null, company_name_manual || null,
-      role_title || null, intern_type || 'industry',
-      company_address || null, company_city || null, company_state || null,
-      company_country || 'India', company_phone || null,
-      duration_type || 'summer', work_mode || 'on_site', how_obtained || null,
+      new_application_id, student_id,
+      company_id || null, company_name_manual || null, role_title || null, intern_type,
+      company_address || null, company_city || null, company_state || null, company_country, company_phone || null,
+      duration_type || 'summer', work_mode, how_obtained || null,
       start_date || null, end_date || null, attendance_days || null,
       guide_name_industry || null, guide_department || null, guide_contact || null,
       cgpa || null, semester_completed || null,
       ra_courses || null, pending_courses || null,
-      has_declined_other || false, declined_company_details || null,
-      stipend_amount || null, student_note || null, 
-      tutor_id || null, tutor_email || null
+      has_declined_other, declined_company_details || null,
+      stipend_amount || null, student_note || null,
+      tutor_id || null, tutor_email || null,
+      offer_letter_url || null
     ]);
 
     res.json({ 
@@ -173,7 +242,7 @@ const saveDraft = async (req, res) => {
     });
 
   } catch (err) {
-    console.error(err);
+    console.error("Save Draft Error:", err);
     res.status(500).json({ error: err.message || 'Failed to save draft' });
   }
 };
@@ -264,20 +333,20 @@ const trackPdfDownload = async (req, res) => {
 
 const getTutorQueue = async (req, res) => {
   try {
-    const { rows } = await pool.query(
-      `SELECT a.*,
-              COALESCE(c.name, a.company_name_manual) AS company_name,
-              s.full_name AS student_name, 
-              s.roll_number, 
-              s.email AS student_email,
-              p.programme, 
-              p.department
-       FROM internship_applications a
-       LEFT JOIN companies c ON a.company_id = c.company_id
-       JOIN users s ON a.student_id = s.user_id
-       LEFT JOIN programmes p ON s.prog_id = p.prog_id
-       WHERE a.tutor_id = $1 
-       ORDER BY a.submitted_at DESC NULLS LAST, a.created_at DESC`, 
+    const { rows } = await pool.query(`
+      SELECT a.*,
+             COALESCE(c.name, a.company_name_manual) AS company_name,
+             s.full_name AS student_name, 
+             s.roll_number, 
+             s.email AS student_email,
+             p.programme, 
+             p.department
+      FROM internship_applications a
+      LEFT JOIN companies c ON a.company_id = c.company_id
+      JOIN users s ON a.student_id = s.user_id
+      LEFT JOIN programmes p ON s.prog_id = p.prog_id
+      WHERE a.tutor_id = $1 
+      ORDER BY a.submitted_at DESC NULLS LAST, a.created_at DESC`, 
       [req.user.user_id]
     );
     res.json(rows);
@@ -386,35 +455,110 @@ const unlockForm = async (req, res) => { /* your full function */ };
 
 // ==================== UPLOAD OFFER LETTER ====================
 const uploadOfferLetter = async (req, res) => {
-  const { application_id } = req.body;
-  const file = req.files?.offer_letter;
-
-  if (!file) return res.status(400).json({ error: "No file uploaded" });
-  if (!file.name.endsWith('.pdf')) return res.status(400).json({ error: "Only PDF files allowed" });
+  console.log("🔥 Upload Offer Letter Called");
+  console.log("Files:", req.files);
+  console.log("Body:", req.body);
 
   try {
-    const uploadDir = path.join(__dirname, '../uploads/offer_letters');
-    if (!fs.existsSync(uploadDir)) fs.mkdirSync(uploadDir, { recursive: true });
+    if (!req.files || !req.files.offer_letter) {
+      return res.status(400).json({ error: "No file uploaded" });
+    }
 
-    const fileName = `${application_id}_${Date.now()}.pdf`;
+    const file = req.files.offer_letter;
+    let { application_id } = req.body;
+
+    // If no application_id, create a temporary one or skip DB update
+    if (!application_id) {
+      application_id = `temp_${Date.now()}`;
+      console.log("⚠️ No application_id provided. Using temp ID:", application_id);
+    }
+
+    // Ensure directory exists
+    const uploadDir = path.join(__dirname, '../uploads/offer_letters');
+    if (!fs.existsSync(uploadDir)) {
+      fs.mkdirSync(uploadDir, { recursive: true });
+    }
+
+    const fileName = `${application_id}_${Date.now()}${path.extname(file.name)}`;
     const filePath = path.join(uploadDir, fileName);
 
     await file.mv(filePath);
 
     const fileUrl = `/uploads/offer_letters/${fileName}`;
 
-    await pool.query(
-      "UPDATE internship_applications SET offer_letter_url = $1, updated_at = NOW() WHERE application_id = $2",
-      [fileUrl, application_id]
-    );
+    // Update database only if real application_id exists
+    if (!application_id.startsWith('temp_')) {
+      await pool.query(
+        `UPDATE internship_applications 
+         SET offer_letter_url = $1, updated_at = NOW() 
+         WHERE application_id = $2`,
+        [fileUrl, application_id]
+      );
+    }
 
-    res.json({ success: true, message: "Offer letter uploaded", url: fileUrl });
+    console.log("✅ Offer Letter Saved:", fileUrl);
+
+    res.json({ 
+      success: true, 
+      message: "Offer letter uploaded successfully", 
+      url: fileUrl 
+    });
+
   } catch (err) {
-    console.error(err);
+    console.error("Upload Offer Letter Error:", err);
     res.status(500).json({ error: "Failed to upload offer letter" });
   }
 };
+// ==================== UPLOAD PARENT PERMISSION LETTER ====================
+const uploadParentPermission = async (req, res) => {
+  console.log("🔥 Parent Permission Upload Called");
 
+  try {
+    if (!req.files || !req.files.parent_permission) {
+      return res.status(400).json({ error: "No file uploaded" });
+    }
+
+    const file = req.files.parent_permission;
+    let { application_id } = req.body;
+
+    // Allow upload before saving draft
+    if (!application_id) {
+      application_id = `temp_${Date.now()}`;
+    }
+
+    const uploadDir = path.join(__dirname, '../uploads/parent_permissions');
+    if (!fs.existsSync(uploadDir)) {
+      fs.mkdirSync(uploadDir, { recursive: true });
+    }
+
+    const fileName = `parent_${application_id}_${Date.now()}${path.extname(file.name)}`;
+    const filePath = path.join(uploadDir, fileName);
+
+    await file.mv(filePath);
+
+    const fileUrl = `/uploads/parent_permissions/${fileName}`;
+
+    // Update database only if real application_id exists
+    if (!application_id.startsWith('temp_')) {
+      await pool.query(
+        `UPDATE internship_applications 
+         SET parent_permission_url = $1, updated_at = NOW() 
+         WHERE application_id = $2`,
+        [fileUrl, application_id]
+      );
+    }
+
+    res.json({ 
+      success: true, 
+      message: "Parent permission letter uploaded successfully", 
+      url: fileUrl 
+    });
+
+  } catch (err) {
+    console.error("Parent Permission Upload Error:", err);
+    res.status(500).json({ error: "Failed to upload parent permission letter" });
+  }
+};
 // ==================== FINAL EXPORTS ====================
 module.exports = {
   getProgrammes, 
@@ -440,4 +584,6 @@ module.exports = {
   adminDeleteApplication,
   unlockForm,
   uploadOfferLetter,
+  uploadParentPermission,
+  upload,                    // ← Important
 };
