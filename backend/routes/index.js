@@ -60,7 +60,8 @@ router.post('/admin/companies', requireRole('admin'), appCtrl.addCompany);
 router.get('/admin/delete-requests', requireRole('admin'), appCtrl.getDeleteRequests);
 
 // Admin Actions
-router.delete('/admin/applications/*', requireRole('admin'), appCtrl.adminDeleteApplication);  // Wildcard for ID with slashes
+router.delete('/admin/applications/:id', requireRole('admin'), appCtrl.adminDeleteApplication);
+
 router.post('/admin/unlock', requireRole('admin'), appCtrl.unlockForm);
 
 module.exports = router;

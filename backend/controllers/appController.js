@@ -415,7 +415,6 @@ const tutorDecision = async (req, res) => {
 };
 
 // ──── ADMIN ────
-
 const getAdminStats = async (req, res) => {
   try {
     const [students, tutors, apps, approved, pending, rejected, companies] = await Promise.all([
@@ -435,23 +434,217 @@ const getAdminStats = async (req, res) => {
       approved: parseInt(approved.rows[0].count),
       pending: parseInt(pending.rows[0].count),
       rejected: parseInt(rejected.rows[0].count),
-      total_companies: parseInt(companies.rows[0].count),
+      total_companies: parseInt(companies.rows[0].count) || 0,
     });
   } catch (err) { 
-    res.status(500).json({ error: err.message }); 
+    console.error("❌ getAdminStats Error:", err.message);
+    res.status(500).json({ 
+      error: err.message,
+      total_students: 0,
+      total_tutors: 0,
+      total_applications: 0,
+      approved: 0,
+      pending: 0,
+      rejected: 0,
+      total_companies: 0
+    });
+  }
+};
+// ==================== ADMIN FUNCTIONS ====================
+
+const getAllApplications = async (req, res) => {
+  try {
+    const { rows } = await pool.query(`
+      SELECT 
+        a.application_id,
+        a.status,
+        a.duration_type,
+        a.created_at,
+        a.submitted_at,
+        COALESCE(c.name, a.company_name_manual) as company_name,
+        s.full_name as student_name,
+        s.roll_number,
+        COALESCE(u.full_name, 'Not Assigned') as tutor_name
+      FROM internship_applications a
+      LEFT JOIN companies c ON a.company_id = c.company_id
+      JOIN users s ON a.student_id = s.user_id
+      LEFT JOIN users u ON a.tutor_id = u.user_id
+      ORDER BY a.created_at DESC
+      LIMIT 100
+    `);
+    res.json(rows);
+  } catch (err) {
+    console.error("getAllApplications Error:", err.message);
+    res.status(500).json({ error: err.message });
   }
 };
 
-const getAllApplications = async (req, res) => { /* your full function */ };
-const getAdminUsers = async (req, res) => { /* your full function */ };
-const createUser = async (req, res) => { /* your full function */ };
-const getCompaniesAdmin = async (req, res) => { /* your full function */ };
-const addCompany = async (req, res) => { /* your full function */ };
-const getAuditLog = async (req, res) => { /* your full function */ };
-const getDeleteRequests = async (req, res) => { /* your full function */ };
-const requestDelete = async (req, res) => { /* your full function */ };
-const adminDeleteApplication = async (req, res) => { /* your full function */ };
-const unlockForm = async (req, res) => { /* your full function */ };
+const getAdminUsers = async (req, res) => {
+  try {
+    const { rows } = await pool.query(`
+      SELECT user_id, full_name, email, role, roll_number, phone, created_at 
+      FROM users 
+      ORDER BY role, full_name
+    `);
+    res.json(rows);
+  } catch (err) {
+    console.error("getAdminUsers Error:", err.message);
+    res.status(500).json({ error: err.message });
+  }
+};
+
+const createUser = async (req, res) => {
+  const { email, password, full_name, role, roll_number, phone } = req.body;
+  try {
+    const hashedPassword = await bcrypt.hash(password, 10);
+
+    const { rows } = await pool.query(`
+      INSERT INTO users (email, password_hash, full_name, role, roll_number, phone)
+      VALUES ($1, $2, $3, $4, $5, $6)
+      RETURNING user_id, email, full_name, role
+    `, [email, hashedPassword, full_name, role, roll_number || null, phone || null]);
+
+    res.json({ success: true, message: "User created successfully", user: rows[0] });
+  } catch (err) {
+    console.error("Create User Error:", err);
+    res.status(500).json({ error: err.message });
+  }
+};
+
+const getCompaniesAdmin = async (req, res) => {
+  try {
+    const { rows } = await pool.query(`
+      SELECT * FROM companies 
+      ORDER BY is_active DESC, name
+    `);
+    res.json(rows);
+  } catch (err) {
+    console.error("getCompaniesAdmin Error:", err.message);
+    res.status(500).json({ error: err.message });
+  }
+};
+
+const addCompany = async (req, res) => {
+  const { name, address, city, state, country, website } = req.body;
+  try {
+    const { rows } = await pool.query(`
+      INSERT INTO companies (name, address, city, state, country, website, is_active)
+      VALUES ($1, $2, $3, $4, $5, $6, TRUE)
+      RETURNING *
+    `, [name, address, city, state, country, website || null]);
+
+    res.json({ success: true, message: "Company added successfully", company: rows[0] });
+  } catch (err) {
+    console.error("Add Company Error:", err);
+    res.status(500).json({ error: err.message });
+  }
+};
+
+const getAuditLog = async (req, res) => {
+  try {
+    const { rows } = await pool.query(`
+      SELECT * FROM audit_log 
+      ORDER BY created_at DESC 
+      LIMIT 100
+    `);
+    res.json(rows);
+  } catch (err) {
+    console.error("getAuditLog Error:", err.message);
+    res.status(500).json({ error: err.message });
+  }
+};
+
+const getDeleteRequests = async (req, res) => {
+  try {
+    const { rows } = await pool.query(`
+      SELECT 
+        a.application_id,
+        a.delete_reason,
+        a.status,
+        s.full_name AS student_name,
+        s.roll_number,
+        COALESCE(c.name, a.company_name_manual) AS company_name,
+        a.updated_at
+      FROM internship_applications a
+      JOIN users s ON a.student_id = s.user_id
+      LEFT JOIN companies c ON a.company_id = c.company_id
+      WHERE a.delete_requested = TRUE
+      ORDER BY a.updated_at DESC
+    `);
+    res.json(rows);
+  } catch (err) {
+    console.error("getDeleteRequests Error:", err.message);
+    res.status(500).json({ error: err.message });
+  }
+};
+
+const requestDelete = async (req, res) => {
+  const { application_id, reason } = req.body;
+  try {
+    await pool.query(`
+      UPDATE internship_applications 
+      SET delete_requested = TRUE, 
+          delete_reason = $1,
+          updated_at = NOW()
+      WHERE application_id = $2 AND student_id = $3
+    `, [reason || 'No reason provided', application_id, req.user.user_id]);
+
+    res.json({ message: "Delete request sent to Admin successfully." });
+  } catch (err) {
+    res.status(500).json({ error: err.message });
+  }
+};
+
+const adminDeleteApplication = async (req, res) => {
+  // This handles IDs with slashes like "24pw33/2026/003"
+  let id = req.params.id || req.params[0];
+
+  // Fallback: If ID is split, join all params
+  if (!id && req.params) {
+    id = Object.values(req.params).join('/');
+  }
+
+  if (!id) {
+    return res.status(400).json({ error: "Application ID is required" });
+  }
+
+  try {
+    console.log(`🗑️ Admin attempting to delete: ${id}`);
+
+    const result = await pool.query(
+      "DELETE FROM internship_applications WHERE application_id = $1", 
+      [id]
+    );
+
+    if (result.rowCount === 0) {
+      console.log(`❌ Application not found: ${id}`);
+      return res.status(404).json({ error: "Application not found" });
+    }
+
+    console.log(`✅ Successfully deleted application: ${id}`);
+    res.json({ success: true, message: "Application deleted successfully" });
+  } catch (err) {
+    console.error("Admin Delete Error:", err);
+    res.status(500).json({ error: err.message || "Failed to delete application" });
+  }
+};
+
+const unlockForm = async (req, res) => {
+  const { application_id } = req.body;
+  try {
+    await pool.query(`
+      UPDATE internship_applications 
+      SET locked = FALSE, 
+          admin_unlocked = TRUE,
+          updated_at = NOW()
+      WHERE application_id = $1
+    `, [application_id]);
+
+    res.json({ success: true, message: "Form unlocked successfully" });
+  } catch (err) {
+    res.status(500).json({ error: err.message });
+  }
+};
 
 // ==================== UPLOAD OFFER LETTER ====================
 const uploadOfferLetter = async (req, res) => {
