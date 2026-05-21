@@ -1,7 +1,6 @@
 import React, { useState } from 'react';
 import { Routes, Route, NavLink, useNavigate, Navigate } from 'react-router-dom';
 import { Home, FileText, ClipboardList, LogOut, Leaf, Menu, X, ChevronRight, User } from 'lucide-react';
-
 import StudentHome from './StudentHome.jsx';
 import SummerInternshipForm from './SummerInternshipForm.jsx';
 import SixMonthInternshipForm from './SixMonthInternshipForm.jsx';
@@ -27,19 +26,21 @@ const StudentLayout = () => {
   ];
 
   const Sidebar = ({ mobile = false }) => (
-    <aside className={`flex flex-col h-full ${mobile ? '' : 'w-64'}`}
+    <aside className={`flex flex-col h-full ${mobile ? '' : 'w-85'}`}   // ← Increased width from w-64 to w-72
       style={{ background: 'linear-gradient(180deg, #344E41 0%, #3A5A40 60%, #588157 100%)' }}>
       
-      {/* Left Sidebar - PSG College of Technology */}
+      {/* Logo Section - Single Line */}
       <div className="px-5 py-6 border-b border-white/10">
         <div className="flex items-center gap-3">
-          <img 
-            src="https://encrypted-tbn0.gstatic.com/images?q=tbn:ANd9GcQHji8vdWeN-Yg9qx36vQtrNGU3mr-gXid9eQ&s" 
-            alt="PSG Logo" 
-            className="h-9 w-9 object-contain rounded-lg flex-shrink-0"
+          <img
+            src="https://encrypted-tbn0.gstatic.com/images?q=tbn:ANd9GcQHji8vdWeN-Yg9qx36vQtrNGU3mr-gXid9eQ&s"
+            alt="PSG Logo"
+            className="h-10 w-10 object-contain rounded-lg flex-shrink-0"
           />
           <div className="min-w-0">
-            <p className="text-white font-bold text-base leading-tight">PSG College of Technology</p>
+            <p className="text-white font-bold text-base leading-tight truncate">
+              PSG College of Technology
+            </p>
             <p className="text-white/60 text-xs">Internship Portal</p>
           </div>
         </div>
@@ -102,7 +103,6 @@ const StudentLayout = () => {
       )}
 
       <div className="flex-1 flex flex-col overflow-hidden">
-        {/* Minimal Top Bar (No Logo) */}
         <div className="md:hidden flex items-center gap-3 px-4 py-3 text-white shadow-md" style={{ background: '#344E41' }}>
           <button onClick={() => setSidebarOpen(true)} className="p-1.5 rounded-lg hover:bg-white/10">
             <Menu className="w-5 h-5" />

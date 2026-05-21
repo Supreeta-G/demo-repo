@@ -51,7 +51,7 @@ const TutorQueue = ({ filter }) => {
       });
       
       showToast(
-        `Application ${decision === 'approve' ? ' Approved' : 'Rejected'}`, 
+        `Application ${decision === 'approve' ? ' Approved' : 'Returned'}`, 
         decision === 'approve' ? 'success' : 'error'
       );
       
@@ -156,15 +156,15 @@ const handlePDF = async (application_id) => {
                 <div className="flex items-start gap-4 p-4">
                   <div className={`w-1.5 self-stretch rounded-full flex-shrink-0 ${
                     app.status === 'approved' ? 'bg-emerald-400' :
-                    app.status === 'rejected' ? 'bg-red-400' : 'bg-amber-400'
+                    app.status === 'returned' ? 'bg-red-400' : 'bg-amber-400'
                   }`} />
 
                   <div className="flex-1 min-w-0">
                     <div className="flex items-center gap-2 flex-wrap mb-1">
                       <span className="font-bold text-forest text-lg">{app.student_name}</span>
                       <span className="text-sage/60 text-sm">· {app.roll_number}</span>
-                      <span className={`badge ${isPending ? 'badge-pending' : app.status === 'approved' ? 'badge-approved' : 'badge-rejected'}`}>
-                        {isPending ? ' Pending' : app.status === 'approved' ? 'Approved' : ' Rejected'}
+                      <span className={`badge ${isPending ? 'badge-pending' : app.status === 'approved' ? 'badge-approved' : 'badge-returned'}`}>
+                        {isPending ? ' Pending' : app.status === 'approved' ? 'Approved' : ' Returned'}
                       </span>
                     </div>
 
@@ -229,26 +229,27 @@ const handlePDF = async (application_id) => {
                             ? `₹${app.stipend_amount} / month` 
                             : 'Not Mentioned'}
                           </p>
-                          
+                        <div className="lg:col-span-2 bg-green-50 border border-green-200 p-6 rounded-3xl lg:col-span-2 space-y-4">  
                           {/* Offer Letter Link - Works for both Summer and 6-Month */}
                           {(app.offer_letter_url || app.offer_letter_full_url) && (
-                            <p className="flex items-center gap-2 pt-2 border-t border-gray-200">
-                              <strong>Offer Letter:</strong>
+                            <div className="lg:col-span-2 bg-green-50 border border-green-200 p-6 rounded-3xl ">
+                              <h4 className="font-semibold mb-3 flex items-center gap-2">Offer Letter</h4>
+              
                               <a 
                                 href={app.offer_letter_full_url || `http://localhost:5001${app.offer_letter_url}`} 
                                 target="_blank" 
                                 rel="noopener noreferrer"
-                                className="text-fern hover:underline flex items-center gap-1 font-medium"
+                                className="inline-flex items-center gap-2 text-green-600 hover:text-green-700 hover:underline font-medium"
                               >
-                                📄 View Offer Letter <FileDown className="w-4 h-4" />
+                                 View Offer Letter <FileDown className="w-4 h-4" />
                               </a>
-                            </p>
+                            </div>
                           )}
                           {/* Parent Permission Letter */}
                           {app.parent_permission_url && (
                             <div className="lg:col-span-2 bg-green-50 border border-green-200 p-6 rounded-3xl">
                               <h4 className="font-semibold mb-3 flex items-center gap-2">
-                                📄 Parent Permission Letter
+                                 Parent Permission Letter
                               </h4>
                               <a 
                                 href={`http://localhost:5001${app.parent_permission_url}`} 
@@ -256,10 +257,11 @@ const handlePDF = async (application_id) => {
                                 rel="noopener noreferrer"
                                 className="inline-flex items-center gap-2 text-green-600 hover:text-green-700 hover:underline font-medium"
                               >
-                                📄 View Parent Permission Letter
+                                 View Parent Permission Letter<FileDown className="w-4 h-4" />
                               </a>
                             </div>
                           )}
+                        </div>
                         </div>
                       </div>
 
@@ -326,7 +328,7 @@ const handlePDF = async (application_id) => {
                         </button>
 
                         <button 
-                          onClick={() => decide(app.application_id, 'reject')}
+                          onClick={() => decide(app.application_id, 'return')}
                           disabled={actionLoading}
                           className="flex-1 bg-red-600 hover:bg-red-700 text-white py-4 rounded-2xl font-semibold"
                         >
