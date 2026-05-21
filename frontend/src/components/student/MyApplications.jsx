@@ -1,7 +1,7 @@
 import React, { useEffect, useState } from 'react';
 import { FileText, Clock, CheckCircle, XCircle, FileDown, Lock, Unlock, Building2 } from 'lucide-react';
 import api from '../../api.js';
-import { generateInternshipPDF } from './pdfGenerator.js';
+//import { generateInternshipPDF } from './pdfGenerator.js';
 import { useNavigate } from 'react-router-dom';   // ← Added for navigation
 
 const statusConfig = {
@@ -45,21 +45,29 @@ const MyApplications = () => {
         showToast(err.response?.data?.error || "Failed to send delete request", "error");
       }
     };
-  const handlePDF = async (app) => {
-    if (app.status !== 'approved') {
-      showToast('PDF download is only available after tutor approval.', 'error');
-      return;
-    }
-    setPdfLoading(app.application_id);
-    try {
-      await api.post('/applications/pdf-download', { application_id: app.application_id });
-      const { data } = await api.get(`/applications/${app.application_id}`);
-      await generateInternshipPDF(data, true);
-      showToast('PDF downloaded successfully! ✓');
-    } catch (e) {
-      showToast(e.response?.data?.error || 'Failed to generate PDF.', 'error');
-    } finally { setPdfLoading(null); }
-  };
+  const handlePDF = async (application_id) => {
+  try {
+    const { data } = await api.post('/applications/pdf-download', {
+      application_id: application_id
+    }, {
+      responseType: 'blob'
+    });
+
+    const url = window.URL.createObjectURL(new Blob([data]));
+    const link = document.createElement('a');
+    link.href = url;
+    link.setAttribute('download', `PSG_Internship_${application_id}.pdf`);
+    document.body.appendChild(link);
+    link.click();
+    link.remove();
+    window.URL.revokeObjectURL(url);
+
+    alert("✅ PDF Downloaded Successfully!");
+  } catch (err) {
+    console.error(err);
+    alert("Failed to download PDF. Please try again.");
+  }
+};
 
   // ==================== NEW: Edit Rejected Application ====================
 const handleEdit = (app) => {

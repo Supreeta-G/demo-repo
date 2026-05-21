@@ -1,7 +1,7 @@
 import React, { useState, useEffect } from 'react';
 import { Search, Download, Unlock, Trash2, Eye } from 'lucide-react';
 import api from '../../api.js';
-import { generateInternshipPDF } from '../student/pdfGenerator.js';
+//import { generateInternshipPDF } from '../student/pdfGenerator.js';
 
 const AdminApplications = () => {
   const [applications, setApplications] = useState([]);

@@ -559,6 +559,74 @@ const uploadParentPermission = async (req, res) => {
     res.status(500).json({ error: "Failed to upload parent permission letter" });
   }
 };
+// ====================== PDF GENERATION USING HANDLEBARS ======================
+
+const handlebars = require('handlebars');
+const html_to_pdf = require('html-pdf-node');
+
+// Helper function for date formatting in Handlebars
+handlebars.registerHelper('formatDate', function(date) {
+  if (!date) return '';
+  return new Date(date).toLocaleDateString('en-IN', { 
+    day: '2-digit', 
+    month: 'long', 
+    year: 'numeric' 
+  });
+});
+
+const generatePDF = async (req, res) => {
+  try {
+    const { application_id } = req.body;
+
+    const { rows } = await pool.query(`
+      SELECT a.*,
+             s.full_name as student_name,
+             s.roll_number,
+             s.email as student_email,
+             s.cgpa as student_cgpa,
+             p.programme,
+             p.department,
+             COALESCE(c.name, a.company_name_manual) as company_name
+      FROM internship_applications a
+      JOIN users s ON a.student_id = s.user_id
+      LEFT JOIN companies c ON a.company_id = c.company_id
+      LEFT JOIN programmes p ON s.prog_id = p.prog_id
+      WHERE a.application_id = $1
+    `, [application_id]);
+
+    if (rows.length === 0) {
+      return res.status(404).json({ error: "Application not found" });
+    }
+
+    const app = rows[0];
+    app.currentDate = new Date();
+
+    // Choose template
+    let templateName = 'summer-internship.hbs';
+    if (app.duration_type === 'six_month') {
+      templateName = 'six-month-internship.hbs';
+    }
+
+    const templatePath = path.join(__dirname, '../templates', templateName);
+    const templateHtml = fs.readFileSync(templatePath, 'utf8');
+
+    const compiledTemplate = handlebars.compile(templateHtml);
+    const htmlContent = compiledTemplate(app);
+
+    const options = { format: 'A4', margin: { top: 10, bottom: 20, left: 15, right: 15 } };
+    const file = { content: htmlContent };
+
+    const pdfBuffer = await html_to_pdf.generatePdf(file, options);
+
+    res.setHeader('Content-Type', 'application/pdf');
+    res.setHeader('Content-Disposition', `attachment; filename=PSG_Internship_${app.roll_number || 'Student'}.pdf`);
+    res.send(pdfBuffer);
+
+  } catch (err) {
+    console.error("PDF Generation Error:", err);
+    res.status(500).json({ error: "Failed to generate PDF" });
+  }
+};
 // ==================== FINAL EXPORTS ====================
 module.exports = {
   getProgrammes, 
@@ -583,6 +651,7 @@ module.exports = {
   requestDelete,
   adminDeleteApplication,
   unlockForm,
+  generatePDF,
   uploadOfferLetter,
   uploadParentPermission,
   upload,                    // ← Important

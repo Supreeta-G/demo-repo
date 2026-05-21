@@ -1,7 +1,7 @@
 import React, { useEffect, useState } from 'react';
 import { CheckCircle, XCircle, Clock, FileDown, ChevronDown, ChevronUp, Building2, User, Calendar, Mail } from 'lucide-react';
 import api from '../../api.js';
-import { generateInternshipPDF } from '../student/pdfGenerator.js';
+//import { generateInternshipPDF } from '../student/pdfGenerator.js';
 
 const TutorQueue = ({ filter }) => {
   const [apps, setApps] = useState([]);
@@ -66,18 +66,33 @@ const TutorQueue = ({ filter }) => {
     }
   };
 
-  const handlePDF = async (appId) => {
-    setPdfLoading(appId);
-    try {
-      const { data } = await api.get(`/applications/${appId}`);
-      await generateInternshipPDF(data, true);
-    } catch (e) {
-      console.error(e);
-      showToast('Failed to generate PDF', 'error');
-    } finally {
-      setPdfLoading(null);
-    }
-  };
+const handlePDF = async (application_id) => {
+  if (!application_id) {
+    return alert("Application ID not found!");
+  }
+
+  try {
+    const { data } = await api.post('/applications/pdf-download', {
+      application_id: application_id
+    }, {
+      responseType: 'blob'
+    });
+
+    const url = window.URL.createObjectURL(new Blob([data]));
+    const link = document.createElement('a');
+    link.href = url;
+    link.setAttribute('download', `PSG_Internship_${application_id}.pdf`);
+    document.body.appendChild(link);
+    link.click();
+    link.remove();
+    window.URL.revokeObjectURL(url);
+
+    alert("✅ PDF Downloaded Successfully!");
+  } catch (err) {
+    console.error(err);
+    alert("Failed to download PDF. Please try again.");
+  }
+};
 
   if (loading) {
     return (
@@ -277,13 +292,12 @@ const TutorQueue = ({ filter }) => {
                       {/* Actions */}
                       <div className="lg:col-span-2 flex flex-wrap gap-4 pt-6">
                         <button 
-                          onClick={() => handlePDF(app.application_id)}
-                          disabled={pdfLoading === app.application_id}
-                          className="flex-1 py-4 border border-gray-400 hover:bg-gray-100 rounded-2xl font-medium flex items-center justify-center gap-2"
-                        >
-                          <FileDown className="w-5 h-5" />
-                          {pdfLoading === app.application_id ? 'Generating...' : 'Preview PDF'}
-                        </button>
+                        onClick={() => handlePDF(app.application_id)}
+                        className="flex-1 py-4 border border-gray-400 hover:bg-gray-100 rounded-2xl font-medium flex items-center justify-center gap-2"
+                      >
+                        <FileDown className="w-5 h-5" />
+                        Download PDF
+                      </button>
 
                         <button 
                           onClick={() => decide(app.application_id, 'approve')}
