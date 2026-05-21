@@ -5,7 +5,8 @@ const { sendTutorNotificationEmail } = require('../utils/mailer');
 const multer = require('multer');
 const path = require('path');
 const fs = require('fs');
-
+const handlebars = require('handlebars');
+//const html_to_pdf = require('html-pdf-node');
 // Multer Setup
 const storage = multer.diskStorage({
   destination: (req, file, cb) => {
@@ -752,14 +753,17 @@ const uploadParentPermission = async (req, res) => {
     res.status(500).json({ error: "Failed to upload parent permission letter" });
   }
 };
-// ====================== PDF GENERATION USING HANDLEBARS ======================
 
-const handlebars = require('handlebars');
-const html_to_pdf = require('html-pdf-node');
 
-// Helper function for date formatting in Handlebars
+
+
+
+// ====================== PDF GENERATION WITH HANDLEBARS ====================
+
+
+// Register date helper
 handlebars.registerHelper('formatDate', function(date) {
-  if (!date) return '';
+  if (!date) return 'N/A';
   return new Date(date).toLocaleDateString('en-IN', { 
     day: '2-digit', 
     month: 'long', 
@@ -767,59 +771,100 @@ handlebars.registerHelper('formatDate', function(date) {
   });
 });
 
-const generatePDF = async (req, res) => {
-  try {
-    const { application_id } = req.body;
 
+
+// ====================== FINAL RELIABLE PDF GENERATION ======================
+const puppeteer = require('puppeteer');
+
+const generatePDF = async (req, res) => {
+  let browser;
+  try {
+    console.log("📥 PDF REQUEST STARTED");
+    const { application_id } = req.body;
+    console.log("Application ID:", application_id);
+
+    if (!application_id) {
+      console.log("❌ No application_id");
+      return res.status(400).json({ error: "Application ID is required" });
+    }
+
+    console.log("🔍 Querying database...");
     const { rows } = await pool.query(`
-      SELECT a.*,
-             s.full_name as student_name,
+      SELECT a.*, 
+             s.full_name as student_name, 
              s.roll_number,
-             s.email as student_email,
-             s.cgpa as student_cgpa,
-             p.programme,
-             p.department,
+             s.department,
              COALESCE(c.name, a.company_name_manual) as company_name
       FROM internship_applications a
       JOIN users s ON a.student_id = s.user_id
       LEFT JOIN companies c ON a.company_id = c.company_id
-      LEFT JOIN programmes p ON s.prog_id = p.prog_id
       WHERE a.application_id = $1
     `, [application_id]);
 
     if (rows.length === 0) {
+      console.log("❌ Application not found");
       return res.status(404).json({ error: "Application not found" });
     }
 
     const app = rows[0];
+    console.log("✅ Data loaded. Duration:", app.duration_type);
+
     app.currentDate = new Date();
 
-    // Choose template
     let templateName = 'summer-internship.hbs';
     if (app.duration_type === 'six_month') {
       templateName = 'six-month-internship.hbs';
     }
 
     const templatePath = path.join(__dirname, '../templates', templateName);
+    console.log("📄 Template path:", templatePath);
+
+    if (!fs.existsSync(templatePath)) {
+      throw new Error(`Template file not found at: ${templatePath}`);
+    }
+
     const templateHtml = fs.readFileSync(templatePath, 'utf8');
+    console.log("✅ Template loaded, length:", templateHtml.length);
 
     const compiledTemplate = handlebars.compile(templateHtml);
     const htmlContent = compiledTemplate(app);
+    console.log("✅ HTML compiled, length:", htmlContent.length);
 
-    const options = { format: 'A4', margin: { top: 10, bottom: 20, left: 15, right: 15 } };
-    const file = { content: htmlContent };
+    console.log("🚀 Launching Puppeteer...");
+    browser = await puppeteer.launch({
+      headless: true,
+      args: ['--no-sandbox', '--disable-setuid-sandbox', '--disable-dev-shm-usage']
+    });
 
-    const pdfBuffer = await html_to_pdf.generatePdf(file, options);
+    const page = await browser.newPage();
+    await page.setContent(htmlContent, { waitUntil: 'networkidle0' });
+    console.log("✅ Page content set");
+
+    const pdfBuffer = await page.pdf({
+      format: 'A4',
+      printBackground: true,
+      margin: { top: '20mm', bottom: '20mm', left: '20mm', right: '20mm' }
+    });
+
+    console.log("✅ PDF GENERATED! Size:", pdfBuffer.length, "bytes");
 
     res.setHeader('Content-Type', 'application/pdf');
     res.setHeader('Content-Disposition', `attachment; filename=PSG_Internship_${app.roll_number || 'Student'}.pdf`);
     res.send(pdfBuffer);
 
   } catch (err) {
-    console.error("PDF Generation Error:", err);
-    res.status(500).json({ error: "Failed to generate PDF" });
+    console.error("❌ PDF CRASHED:", err.message);
+    console.error("❌ STACK:", err.stack);
+    res.status(500).json({ error: err.message || "Failed to generate PDF" });
+  } finally {
+    if (browser) {
+      console.log("🔒 Closing browser");
+      await browser.close();
+    }
   }
 };
+
+
 // ==================== FINAL EXPORTS ====================
 module.exports = {
   getProgrammes, 

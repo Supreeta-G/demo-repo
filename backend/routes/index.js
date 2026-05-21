@@ -29,9 +29,9 @@ router.get('/student/profile', requireRole('student'), appCtrl.getStudentProfile
 router.get('/student/applications', requireRole('student'), appCtrl.getMyApplications);
 router.post('/applications/draft', requireRole('student'), appCtrl.saveDraft);
 router.post('/applications/submit', requireRole('student'), appCtrl.submitForApproval);
-router.post('/applications/pdf-download', appCtrl.trackPdfDownload);
 router.post('/applications/request-delete', requireRole('student'), appCtrl.requestDelete);
-router.post('/applications/pdf-download', authenticateToken, appCtrl.generatePDF);
+// Temporarily change this:
+router.post('/applications/pdf-download', appCtrl.generatePDF);
 // Offer Letter Upload with Multer
 
 router.post('/applications/upload-offer', 

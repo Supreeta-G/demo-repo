@@ -51,7 +51,7 @@ const TutorQueue = ({ filter }) => {
       });
       
       showToast(
-        `Application ${decision === 'approve' ? '✅ Approved' : '❌ Rejected'}`, 
+        `Application ${decision === 'approve' ? ' Approved' : 'Rejected'}`, 
         decision === 'approve' ? 'success' : 'error'
       );
       
@@ -67,30 +67,45 @@ const TutorQueue = ({ filter }) => {
   };
 
 const handlePDF = async (application_id) => {
-  if (!application_id) {
-    return alert("Application ID not found!");
-  }
+  if (!application_id) return alert("Application ID not found!");
 
   try {
-    const { data } = await api.post('/applications/pdf-download', {
-      application_id: application_id
+    const response = await api.post('/applications/pdf-download', {
+      application_id
     }, {
-      responseType: 'blob'
+      responseType: 'blob' // Tells Axios to handle binary data
     });
 
-    const url = window.URL.createObjectURL(new Blob([data]));
+    // 1. Get the blob directly from Axios
+    const blob = response.data;
+
+    // 2. CRITICAL FIX: Double check if it is ACTUALLY a PDF before processing.
+    // If it's a real PDF, its type will be 'application/pdf'.
+    if (blob.type !== "application/pdf") {
+      // If it isn't a PDF, it's a backend JSON error wrapped in a blob
+      const text = await blob.text();
+      const errJson = JSON.parse(text);
+      throw new Error(errJson.error || "Server sent data, but it wasn't a valid PDF.");
+    }
+
+    // 3. If it IS a PDF, proceed to download it cleanly
+    const url = window.URL.createObjectURL(blob);
     const link = document.createElement('a');
     link.href = url;
+    
+    // Naming the file dynamically based on ID
     link.setAttribute('download', `PSG_Internship_${application_id}.pdf`);
     document.body.appendChild(link);
     link.click();
+    
+    // Clean up memory
     link.remove();
     window.URL.revokeObjectURL(url);
 
     alert("✅ PDF Downloaded Successfully!");
   } catch (err) {
-    console.error(err);
-    alert("Failed to download PDF. Please try again.");
+    console.error("PDF Download Error:", err);
+    alert(`Error: ${err.message}`);
   }
 };
 
@@ -112,7 +127,7 @@ const handlePDF = async (application_id) => {
 
       <div className="mb-6">
         <h1 className="text-2xl font-bold font-display text-forest">
-          {filter === 'pending_tutor' ? '⏳ Pending Approvals' : '✅ Reviewed Applications'}
+          {filter === 'pending_tutor' ? ' Pending Approvals' : ' Reviewed Applications'}
         </h1>
         <p className="text-sage/80 text-sm mt-1">
           {apps.length} application{apps.length !== 1 ? 's' : ''}
@@ -149,7 +164,7 @@ const handlePDF = async (application_id) => {
                       <span className="font-bold text-forest text-lg">{app.student_name}</span>
                       <span className="text-sage/60 text-sm">· {app.roll_number}</span>
                       <span className={`badge ${isPending ? 'badge-pending' : app.status === 'approved' ? 'badge-approved' : 'badge-rejected'}`}>
-                        {isPending ? '⏳ Pending' : app.status === 'approved' ? '✅ Approved' : '❌ Rejected'}
+                        {isPending ? ' Pending' : app.status === 'approved' ? 'Approved' : ' Rejected'}
                       </span>
                     </div>
 
@@ -160,7 +175,7 @@ const handlePDF = async (application_id) => {
                         <Building2 className="w-3 h-3" /> {app.company_name || app.company_name_manual}
                       </span>
                       <span className="bg-sage/20 text-forest px-2.5 py-1 rounded-full">
-                        {app.duration_type === 'summer' ? '☀️ Summer' : '🎓 6-Month'}
+                        {app.duration_type === 'summer' ? ' Summer' : '🎓 6-Month'}
                       </span>
                     </div>
                   </div>
@@ -182,11 +197,11 @@ const handlePDF = async (application_id) => {
                   <div className="px-6 pb-8 pt-4 border-t border-sage/20 bg-white">
                     <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
                     {/* Strong Debug */}
-      {console.log("Full App Data for stipend check:", {
-        stipend_amount: app.stipend_amount,
-        stipend: app.stipend,
-        all_keys: Object.keys(app)
-      })}
+                    {console.log("Full App Data for stipend check:", {
+                      stipend_amount: app.stipend_amount,
+                      stipend: app.stipend,
+                      all_keys: Object.keys(app)
+                    })}
                       {/* Student Information */}
                       <div className="bg-bone p-6 rounded-3xl">
                         <h4 className="font-semibold mb-4 flex items-center gap-2 text-forest">👤 Student Information</h4>
@@ -211,9 +226,9 @@ const handlePDF = async (application_id) => {
                           <p><strong>Period:</strong> {app.start_date?.split('T')[0]} — {app.end_date?.split('T')[0]}</p>
                           <p><strong>Work Mode:</strong> {app.work_mode}</p>
                           <p><strong>Stipend:</strong> {app.stipend_amount 
-  ? `₹${app.stipend_amount} / month` 
-  : 'Not Mentioned'}
-</p>
+                            ? `₹${app.stipend_amount} / month` 
+                            : 'Not Mentioned'}
+                          </p>
                           
                           {/* Offer Letter Link - Works for both Summer and 6-Month */}
                           {(app.offer_letter_url || app.offer_letter_full_url) && (
@@ -251,7 +266,7 @@ const handlePDF = async (application_id) => {
                       {/* Academic Status - Show only for 6-Month */}
                       {app.duration_type === 'six_month' && (
                         <div className="lg:col-span-2 bg-bone p-6 rounded-3xl">
-                          <h4 className="font-semibold mb-4">📚 Academic Status</h4>
+                          <h4 className="font-semibold mb-4"> Academic Status</h4>
                           <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
                             <div>
                               <p className="text-xs font-medium text-hunter/60 mb-1">RA / Arrear Courses</p>
@@ -267,7 +282,7 @@ const handlePDF = async (application_id) => {
 
                       {/* Company Address */}
                       <div className="lg:col-span-2 bg-bone p-6 rounded-3xl">
-                        <h4 className="font-semibold mb-3">📍 Company Address</h4>
+                        <h4 className="font-semibold mb-3"> Company Address</h4>
                         <p className="text-sm leading-relaxed whitespace-pre-wrap">
                           {app.company_address || app.co_address || 'No address provided'}
                         </p>
@@ -290,31 +305,36 @@ const handlePDF = async (application_id) => {
                       </div>
 
                       {/* Actions */}
-                      <div className="lg:col-span-2 flex flex-wrap gap-4 pt-6">
-                        <button 
-                        onClick={() => handlePDF(app.application_id)}
-                        className="flex-1 py-4 border border-gray-400 hover:bg-gray-100 rounded-2xl font-medium flex items-center justify-center gap-2"
-                      >
-                        <FileDown className="w-5 h-5" />
-                        Download PDF
-                      </button>
+                      {/* Action Buttons */}
+                  <div className="lg:col-span-2 flex gap-4 pt-6">
+                    <button 
+                      onClick={() => handlePDF(app.application_id)}
+                      className="flex-1 py-4 border border-gray-400 hover:bg-gray-100 rounded-2xl font-medium flex items-center justify-center gap-2"
+                    >
+                      <FileDown className="w-5 h-5" />
+                      Download PDF
+                    </button>
 
+                    {isPending && (
+                      <>
                         <button 
                           onClick={() => decide(app.application_id, 'approve')}
                           disabled={actionLoading}
-                          className="flex-1 bg-emerald-600 hover:bg-emerald-700 text-white py-4 rounded-2xl font-semibold flex items-center justify-center gap-2 text-lg"
+                          className="flex-1 bg-emerald-600 hover:bg-emerald-700 text-white py-4 rounded-2xl font-semibold"
                         >
-                          ✅ Approve & Send to Student
+                           Approve
                         </button>
 
                         <button 
                           onClick={() => decide(app.application_id, 'reject')}
                           disabled={actionLoading}
-                          className="flex-1 bg-red-600 hover:bg-red-700 text-white py-4 rounded-2xl font-semibold flex items-center justify-center gap-2 text-lg"
+                          className="flex-1 bg-red-600 hover:bg-red-700 text-white py-4 rounded-2xl font-semibold"
                         >
-                          ❌ Reject Application
+                           Return
                         </button>
-                      </div>
+                      </>
+                    )}
+                  </div>
                     </div>
                   </div>
                 )}
