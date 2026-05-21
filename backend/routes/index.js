@@ -7,16 +7,14 @@ const appCtrl = require('../controllers/appController');
 
 console.log("✅ Routes file loaded successfully");
 
-// ====================== PUBLIC ROUTES ======================
+// ====================== PUBLIC ROUTES (No token needed) ======================
 router.post('/auth/send-otp', authCtrl.sendOtp);
 router.post('/auth/verify-otp', authCtrl.verifyOtp);
 router.post('/auth/signup', authCtrl.signup);
 router.post('/auth/login', authCtrl.login);
+router.post('/auth/reset-password', authCtrl.resetPassword);   // ← MUST BE HERE
 
-// ✅ THIS MUST BE PUBLIC - BEFORE authenticateToken
-router.post('/auth/reset-password', authCtrl.resetPassword);
-
-// ====================== ALL PROTECTED ROUTES BELOW ======================
+// ====================== PROTECTED ROUTES (Token required) ======================
 router.use(authenticateToken);
 
 // Shared
@@ -32,9 +30,7 @@ router.post('/applications/draft', requireRole('student'), appCtrl.saveDraft);
 router.post('/applications/submit', requireRole('student'), appCtrl.submitForApproval);
 router.post('/applications/request-delete', requireRole('student'), appCtrl.requestDelete);
 router.post('/applications/pdf-download', appCtrl.trackPdfDownload);
-
 router.post('/applications/upload-offer', requireRole('student'), appCtrl.uploadOfferLetter);
-router.post('/applications/upload-parent-permission', requireRole('student'), appCtrl.uploadParentPermission);
 
 // Tutor
 router.get('/tutor/queue', requireRole('tutor'), appCtrl.getTutorQueue);
