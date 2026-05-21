@@ -63,6 +63,8 @@ const compileTemplate = (templateName, data) => {
 const generatePDF = async (htmlContent) => {
   const browser = await puppeteer.launch({
     headless: 'new',
+    executablePath: 'C:\\Program Files\\Google\\Chrome\\Application\\chrome.exe',
+    // ↑ use your actual Chrome path — check below if unsure
     args: ['--no-sandbox', '--disable-setuid-sandbox', '--disable-dev-shm-usage'],
   });
 
@@ -73,11 +75,12 @@ const generatePDF = async (htmlContent) => {
     const pdfBuffer = await page.pdf({
       format: 'A4',
       printBackground: true,
+      // In generatePDF(), change margins from 15mm to:
       margin: {
-        top: '15mm',
-        bottom: '15mm',
-        left: '15mm',
-        right: '15mm',
+        top:    '12mm',
+        right:  '16mm',
+        bottom: '10mm',
+        left:   '16mm',
       },
     });
 

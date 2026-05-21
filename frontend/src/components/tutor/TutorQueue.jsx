@@ -1,7 +1,6 @@
 import React, { useEffect, useState } from 'react';
 import { CheckCircle, XCircle, Clock, FileDown, ChevronDown, ChevronUp, Building2, User, Calendar, Mail } from 'lucide-react';
 import api from '../../api.js';
-//import { generateInternshipPDF } from '../student/pdfGenerator.js';
 
 const TutorQueue = ({ filter }) => {
   const [apps, setApps] = useState([]);
@@ -21,7 +20,6 @@ const TutorQueue = ({ filter }) => {
     setLoading(true);
     try {
       const { data } = await api.get('/tutor/queue');
-      
       if (filter === 'pending_tutor') {
         setApps(data.filter(a => a.status === 'pending_tutor'));
       } else {
@@ -42,20 +40,17 @@ const TutorQueue = ({ filter }) => {
   const decide = async (appId, decision) => {
     const key = appId + decision;
     setActionLoading(key);
-
     try {
-      await api.post('/tutor/decision', { 
-        application_id: appId, 
+      await api.post('/tutor/decision', {
+        application_id: appId,
         decision: decision,
-        remarks: remarks[appId] || '' 
+        remarks: remarks[appId] || ''
       });
-      
       showToast(
-        `Application ${decision === 'approve' ? ' Approved' : 'Rejected'}`, 
+        `Application ${decision === 'approve' ? 'Approved' : 'Rejected'}`,
         decision === 'approve' ? 'success' : 'error'
       );
-      
-      load();                    
+      load();
       setExpanded(null);
       setRemarks(r => ({ ...r, [appId]: '' }));
     } catch (err) {
@@ -66,48 +61,49 @@ const TutorQueue = ({ filter }) => {
     }
   };
 
-const handlePDF = async (application_id) => {
-  if (!application_id) return alert("Application ID not found!");
+  // ── PDF Download ──────────────────────────────────────────────────────────
+  const handlePDF = async (application_id) => {
+    if (!application_id) return showToast('Application ID not found!', 'error');
 
-  try {
-    const response = await api.post('/applications/pdf-download', {
-      application_id
-    }, {
-      responseType: 'blob' // Tells Axios to handle binary data
-    });
+    setPdfLoading(application_id);
 
-    // 1. Get the blob directly from Axios
-    const blob = response.data;
+    try {
+      const token = localStorage.getItem('token');
 
-    // 2. CRITICAL FIX: Double check if it is ACTUALLY a PDF before processing.
-    // If it's a real PDF, its type will be 'application/pdf'.
-    if (blob.type !== "application/pdf") {
-      // If it isn't a PDF, it's a backend JSON error wrapped in a blob
-      const text = await blob.text();
-      const errJson = JSON.parse(text);
-      throw new Error(errJson.error || "Server sent data, but it wasn't a valid PDF.");
+      const response = await fetch('http://localhost:5001/api/generate-pdf', {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+          'Authorization': `Bearer ${token}`
+        },
+        body: JSON.stringify({ application_id }),
+      });
+
+      if (!response.ok) {
+        const errData = await response.json().catch(() => ({}));
+        throw new Error(errData.error || `Server error: ${response.status}`);
+      }
+
+      const blob = await response.blob();
+      if (blob.size === 0) throw new Error('Received empty PDF from server.');
+
+      const url = URL.createObjectURL(blob);
+      const link = document.createElement('a');
+      link.href = url;
+      link.download = `Internship_${application_id.replace(/\//g, '_')}.pdf`;
+      document.body.appendChild(link);
+      link.click();
+      document.body.removeChild(link);
+      URL.revokeObjectURL(url);
+
+      showToast('PDF Downloaded Successfully!', 'success');
+    } catch (err) {
+      console.error('PDF Error:', err);
+      showToast(err.message || 'Failed to generate PDF', 'error');
+    } finally {
+      setPdfLoading(null);
     }
-
-    // 3. If it IS a PDF, proceed to download it cleanly
-    const url = window.URL.createObjectURL(blob);
-    const link = document.createElement('a');
-    link.href = url;
-    
-    // Naming the file dynamically based on ID
-    link.setAttribute('download', `PSG_Internship_${application_id}.pdf`);
-    document.body.appendChild(link);
-    link.click();
-    
-    // Clean up memory
-    link.remove();
-    window.URL.revokeObjectURL(url);
-
-    alert("✅ PDF Downloaded Successfully!");
-  } catch (err) {
-    console.error("PDF Download Error:", err);
-    alert(`Error: ${err.message}`);
-  }
-};
+  };
 
   if (loading) {
     return (
@@ -127,7 +123,7 @@ const handlePDF = async (application_id) => {
 
       <div className="mb-6">
         <h1 className="text-2xl font-bold font-display text-forest">
-          {filter === 'pending_tutor' ? ' Pending Approvals' : ' Reviewed Applications'}
+          {filter === 'pending_tutor' ? 'Pending Approvals' : 'Reviewed Applications'}
         </h1>
         <p className="text-sage/80 text-sm mt-1">
           {apps.length} application{apps.length !== 1 ? 's' : ''}
@@ -149,9 +145,11 @@ const handlePDF = async (application_id) => {
             const isPending = app.status === 'pending_tutor';
 
             return (
-              <div key={app.application_id} className="card border border-sage/20 overflow-hidden animate-slide-up"
-                style={{ animationDelay: `${i * 0.06}s` }}>
-                
+              <div
+                key={app.application_id}
+                className="card border border-sage/20 overflow-hidden animate-slide-up"
+                style={{ animationDelay: `${i * 0.06}s` }}
+              >
                 {/* Header */}
                 <div className="flex items-start gap-4 p-4">
                   <div className={`w-1.5 self-stretch rounded-full flex-shrink-0 ${
@@ -164,7 +162,7 @@ const handlePDF = async (application_id) => {
                       <span className="font-bold text-forest text-lg">{app.student_name}</span>
                       <span className="text-sage/60 text-sm">· {app.roll_number}</span>
                       <span className={`badge ${isPending ? 'badge-pending' : app.status === 'approved' ? 'badge-approved' : 'badge-rejected'}`}>
-                        {isPending ? ' Pending' : app.status === 'approved' ? 'Approved' : ' Rejected'}
+                        {isPending ? 'Pending' : app.status === 'approved' ? 'Approved' : 'Rejected'}
                       </span>
                     </div>
 
@@ -175,20 +173,19 @@ const handlePDF = async (application_id) => {
                         <Building2 className="w-3 h-3" /> {app.company_name || app.company_name_manual}
                       </span>
                       <span className="bg-sage/20 text-forest px-2.5 py-1 rounded-full">
-                        {app.duration_type === 'summer' ? ' Summer' : '🎓 6-Month'}
+                        {app.duration_type === 'summer' ? 'Summer' : '6-Month'}
                       </span>
                     </div>
                   </div>
 
-                  <button 
+                  <button
                     onClick={() => setExpanded(isExpanded ? null : app.application_id)}
                     className="btn-secondary py-2 px-3 text-xs flex-shrink-0 flex items-center gap-1"
                   >
-                    {isExpanded ? (
-                      <> <ChevronUp className="w-4 h-4" /> Hide </>
-                    ) : (
-                      <> <ChevronDown className="w-4 h-4" /> Review </>
-                    )}
+                    {isExpanded
+                      ? <><ChevronUp className="w-4 h-4" /> Hide</>
+                      : <><ChevronDown className="w-4 h-4" /> Review</>
+                    }
                   </button>
                 </div>
 
@@ -196,12 +193,7 @@ const handlePDF = async (application_id) => {
                 {isExpanded && (
                   <div className="px-6 pb-8 pt-4 border-t border-sage/20 bg-white">
                     <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
-                    {/* Strong Debug */}
-                    {console.log("Full App Data for stipend check:", {
-                      stipend_amount: app.stipend_amount,
-                      stipend: app.stipend,
-                      all_keys: Object.keys(app)
-                    })}
+
                       {/* Student Information */}
                       <div className="bg-bone p-6 rounded-3xl">
                         <h4 className="font-semibold mb-4 flex items-center gap-2 text-forest">👤 Student Information</h4>
@@ -214,7 +206,7 @@ const handlePDF = async (application_id) => {
                         </div>
                       </div>
 
-                      {/* Internship Details with Offer Letter */}
+                      {/* Internship Details */}
                       <div className="bg-bone p-6 rounded-3xl">
                         <h4 className="font-semibold mb-4 flex items-center gap-2 text-forest">
                           <Building2 className="w-5 h-5" /> Internship Details
@@ -225,18 +217,14 @@ const handlePDF = async (application_id) => {
                           <p><strong>Type:</strong> {app.duration_type === 'summer' ? 'Summer Internship' : '6-Month Internship'}</p>
                           <p><strong>Period:</strong> {app.start_date?.split('T')[0]} — {app.end_date?.split('T')[0]}</p>
                           <p><strong>Work Mode:</strong> {app.work_mode}</p>
-                          <p><strong>Stipend:</strong> {app.stipend_amount 
-                            ? `₹${app.stipend_amount} / month` 
-                            : 'Not Mentioned'}
-                          </p>
-                          
-                          {/* Offer Letter Link - Works for both Summer and 6-Month */}
+                          <p><strong>Stipend:</strong> {app.stipend_amount ? `₹${app.stipend_amount} / month` : 'Not Mentioned'}</p>
+
                           {(app.offer_letter_url || app.offer_letter_full_url) && (
                             <p className="flex items-center gap-2 pt-2 border-t border-gray-200">
                               <strong>Offer Letter:</strong>
-                              <a 
-                                href={app.offer_letter_full_url || `http://localhost:5001${app.offer_letter_url}`} 
-                                target="_blank" 
+                              <a
+                                href={app.offer_letter_full_url || `http://localhost:5001${app.offer_letter_url}`}
+                                target="_blank"
                                 rel="noopener noreferrer"
                                 className="text-fern hover:underline flex items-center gap-1 font-medium"
                               >
@@ -244,29 +232,27 @@ const handlePDF = async (application_id) => {
                               </a>
                             </p>
                           )}
-                          {/* Parent Permission Letter */}
+
                           {app.parent_permission_url && (
-                            <div className="lg:col-span-2 bg-green-50 border border-green-200 p-6 rounded-3xl">
-                              <h4 className="font-semibold mb-3 flex items-center gap-2">
-                                📄 Parent Permission Letter
-                              </h4>
-                              <a 
-                                href={`http://localhost:5001${app.parent_permission_url}`} 
-                                target="_blank" 
+                            <p className="flex items-center gap-2 pt-2 border-t border-gray-200">
+                              <strong>Parent Letter:</strong>
+                              <a
+                                href={`http://localhost:5001${app.parent_permission_url}`}
+                                target="_blank"
                                 rel="noopener noreferrer"
-                                className="inline-flex items-center gap-2 text-green-600 hover:text-green-700 hover:underline font-medium"
+                                className="text-green-600 hover:underline flex items-center gap-1 font-medium"
                               >
                                 📄 View Parent Permission Letter
                               </a>
-                            </div>
+                            </p>
                           )}
                         </div>
                       </div>
 
-                      {/* Academic Status - Show only for 6-Month */}
+                      {/* Academic Status - 6-Month only */}
                       {app.duration_type === 'six_month' && (
                         <div className="lg:col-span-2 bg-bone p-6 rounded-3xl">
-                          <h4 className="font-semibold mb-4"> Academic Status</h4>
+                          <h4 className="font-semibold mb-4">Academic Status</h4>
                           <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
                             <div>
                               <p className="text-xs font-medium text-hunter/60 mb-1">RA / Arrear Courses</p>
@@ -282,7 +268,7 @@ const handlePDF = async (application_id) => {
 
                       {/* Company Address */}
                       <div className="lg:col-span-2 bg-bone p-6 rounded-3xl">
-                        <h4 className="font-semibold mb-3"> Company Address</h4>
+                        <h4 className="font-semibold mb-3">Company Address</h4>
                         <p className="text-sm leading-relaxed whitespace-pre-wrap">
                           {app.company_address || app.co_address || 'No address provided'}
                         </p>
@@ -304,37 +290,47 @@ const handlePDF = async (application_id) => {
                         />
                       </div>
 
-                      {/* Actions */}
                       {/* Action Buttons */}
-                  <div className="lg:col-span-2 flex gap-4 pt-6">
-                    <button 
-                      onClick={() => handlePDF(app.application_id)}
-                      className="flex-1 py-4 border border-gray-400 hover:bg-gray-100 rounded-2xl font-medium flex items-center justify-center gap-2"
-                    >
-                      <FileDown className="w-5 h-5" />
-                      Download PDF
-                    </button>
-
-                    {isPending && (
-                      <>
-                        <button 
-                          onClick={() => decide(app.application_id, 'approve')}
-                          disabled={actionLoading}
-                          className="flex-1 bg-emerald-600 hover:bg-emerald-700 text-white py-4 rounded-2xl font-semibold"
+                      <div className="lg:col-span-2 flex gap-4 pt-6">
+                        <button
+                          onClick={() => handlePDF(app.application_id)}
+                          disabled={pdfLoading === app.application_id}
+                          className="flex-1 py-4 border border-gray-400 hover:bg-gray-100 rounded-2xl font-medium flex items-center justify-center gap-2 disabled:opacity-50 disabled:cursor-not-allowed transition-all"
                         >
-                           Approve
+                          {pdfLoading === app.application_id ? (
+                            <>
+                              <span className="w-4 h-4 border-2 border-gray-400 border-t-gray-700 rounded-full animate-spin" />
+                              Generating...
+                            </>
+                          ) : (
+                            <>
+                              <FileDown className="w-5 h-5" />
+                              Download PDF
+                            </>
+                          )}
                         </button>
 
-                        <button 
-                          onClick={() => decide(app.application_id, 'reject')}
-                          disabled={actionLoading}
-                          className="flex-1 bg-red-600 hover:bg-red-700 text-white py-4 rounded-2xl font-semibold"
-                        >
-                           Return
-                        </button>
-                      </>
-                    )}
-                  </div>
+                        {isPending && (
+                          <>
+                            <button
+                              onClick={() => decide(app.application_id, 'approve')}
+                              disabled={!!actionLoading}
+                              className="flex-1 bg-emerald-600 hover:bg-emerald-700 text-white py-4 rounded-2xl font-semibold disabled:opacity-50 transition-all"
+                            >
+                              ✅ Approve
+                            </button>
+
+                            <button
+                              onClick={() => decide(app.application_id, 'reject')}
+                              disabled={!!actionLoading}
+                              className="flex-1 bg-red-600 hover:bg-red-700 text-white py-4 rounded-2xl font-semibold disabled:opacity-50 transition-all"
+                            >
+                              ❌ Return
+                            </button>
+                          </>
+                        )}
+                      </div>
+
                     </div>
                   </div>
                 )}
