@@ -18,6 +18,7 @@ const SummerInternshipForm = () => {
 
   const [isLocked, setIsLocked] = useState(false);
   const [isEditing, setIsEditing] = useState(false);
+  const [parentPermissionUrl, setParentPermissionUrl] = useState('');
 
   const [form, setForm] = useState({
     company_id: '',
@@ -129,7 +130,8 @@ useEffect(() => {
     }
   }, [form.start_date, form.end_date]);
 
- const handleSaveDraft = async () => {
+ // Updated Save Draft - Now allows upload first
+const handleSaveDraft = async () => {
   if (isLocked && !isEditing) return alert("This form is locked.");
 
   // ====================== ALL MANDATORY FIELD VALIDATION ======================
@@ -184,9 +186,9 @@ useEffect(() => {
 
   setLoading(true);
   try {
-    const payload = { 
-      ...form, 
-      application_id: savedId || editId,   // ← This is the most important line
+    const payload = {
+      ...form,
+      application_id: savedId || editId,
       stipend_amount: form.stipend
     };
 
@@ -285,17 +287,13 @@ const handleOfferLetterUpload = async (e) => {
 const handleParentPermissionUpload = async (e) => {
   const file = e.target.files[0];
   if (!file) return;
-  if (file.size > 5 * 1024 * 1024) {
-    return alert("File size must be less than 5MB");
-  }
 
   const formData = new FormData();
   formData.append('parent_permission', file);
 
-  // Use whichever ID is available (very important for edit mode)
-  const appId = savedId || editId;
-  if (appId) {
-    formData.append('application_id', appId);
+  // If we have savedId, send it. Otherwise backend will use temp ID
+  if (savedId) {
+    formData.append('application_id', savedId);
   }
 
   try {
@@ -303,11 +301,13 @@ const handleParentPermissionUpload = async (e) => {
       headers: { 'Content-Type': 'multipart/form-data' }
     });
 
+    // Store the uploaded URL
     setForm(prev => ({ ...prev, parent_permission_url: data.url }));
+
     alert("✅ Parent Permission Letter uploaded successfully!");
   } catch (err) {
-    console.error("Parent Permission Upload Error:", err.response?.data || err);
-    alert(err.response?.data?.error || "Failed to upload Parent Permission Letter");
+    console.error(err);
+    alert(err.response?.data?.error || "Failed to upload file");
   }
 };
   return (

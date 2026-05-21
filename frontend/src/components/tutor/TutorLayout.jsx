@@ -23,7 +23,7 @@ const TutorLayout = () => {
   ];
 
   const Sidebar = ({ mobile = false }) => (
-    <aside className={`flex flex-col h-full ${mobile ? '' : 'w-64'}`}
+    <aside className={`flex flex-col h-full ${mobile ? '' : 'w-82'}`}
       style={{ background: 'linear-gradient(180deg, #3A5A40 0%, #344E41 60%, #2d4236 100%)' }}>
       
       {/* PSG College of Technology - Single Line */}
@@ -32,7 +32,7 @@ const TutorLayout = () => {
           <img 
             src="https://encrypted-tbn0.gstatic.com/images?q=tbn:ANd9GcQHji8vdWeN-Yg9qx36vQtrNGU3mr-gXid9eQ&s" 
             alt="PSG Logo" 
-            className="h-9 w-9 object-contain rounded-lg flex-shrink-0"
+            className="h-10 w-10 object-contain  flex-shrink-0"
           />
           <div className="min-w-0">
             <p className="text-white font-bold text-base leading-tight">PSG College of Technology</p>

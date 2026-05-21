@@ -122,35 +122,50 @@ function ForgotPasswordFlow({ onBack }) {
   };
 
   // ── Step 2: Reset Password ──
-  const handleResetPassword = async () => {
-    setError("");
-    if (fpNewPass.length < 8) {
-      setError("Password must be at least 8 characters.");
-      return;
+ const handleResetPassword = async () => {
+  setError("");
+  
+  if (fpNewPass.length < 8) {
+    setError("Password must be at least 8 characters.");
+    return;
+  }
+  if (fpNewPass !== fpConfirmPass) {
+    setError("Passwords do not match.");
+    return;
+  }
+
+  setLoading(true);
+
+  try {
+    const response = await fetch(`${API_BASE}/auth/reset-password`, {   // ← FIXED: Added /auth/
+      method: "POST",
+      headers: { 
+        "Content-Type": "application/json" 
+      },
+      body: JSON.stringify({ 
+        email: fpEmail, 
+        otp: fpOtp, 
+        newPassword: fpNewPass 
+      }),
+    });
+
+    const data = await response.json();
+
+    if (response.ok) {
+      setSuccess(true);
+      alert("✅ Password reset successful! You can now login with new password.");
+      // Optional: redirect to login
+      // navigate('/');
+    } else {
+      setError(data.error || "Failed to reset password. Please try again.");
     }
-    if (fpNewPass !== fpConfirmPass) {
-      setError("Passwords do not match.");
-      return;
-    }
-    setLoading(true);
-    try {
-      const response = await fetch(`${API_BASE}/reset-password`, {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ email: fpEmail, otp: fpOtp, newPassword: fpNewPass }),
-      });
-      const data = await response.json();
-      if (response.ok) {
-        setSuccess(true);
-      } else {
-        setError(data.error || "Failed to reset password. Please try again.");
-      }
-    } catch {
-      setError("Server error. Please check your connection and try again.");
-    } finally {
-      setLoading(false);
-    }
-  };
+  } catch (err) {
+    console.error(err);
+    setError("Server error. Please check your connection and try again.");
+  } finally {
+    setLoading(false);
+  }
+};
 
   // ── Success Screen ──
   if (success) {

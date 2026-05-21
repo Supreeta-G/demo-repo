@@ -358,55 +358,56 @@ const getTutorQueue = async (req, res) => {
 };
 
 const tutorDecision = async (req, res) => {
-  const { application_id, decision, remarks } = req.body;
+  const { application_id, decision, remarks = '' } = req.body;
+  const tutor_id = req.user.user_id;
 
   try {
-    let finalDecision = decision?.toLowerCase();
-
-    if (!['approve', 'reject'].includes(finalDecision)) {
-      return res.status(400).json({ error: "Invalid decision. Use 'approve' or 'reject'" });
-    }
-
-    const newStatus = finalDecision === 'approve' ? 'approved' : 'rejected';
+    // Accept both 'reject' and 'return'
+    const finalDecision = decision === 'approve' ? 'approved' : 'rejected';
 
     const { rows } = await pool.query(`
-      UPDATE internship_applications 
-      SET 
-        status = $1,
-        tutor_remarks = $2,
-        decided_at = NOW(),
-        updated_at = NOW(),
-        locked = $3
-      WHERE application_id = $4
-      RETURNING *, 
-                (SELECT email FROM users WHERE user_id = student_id) as student_email,
-                (SELECT full_name FROM users WHERE user_id = student_id) as student_name
-    `, [newStatus, remarks || null, finalDecision === 'approve', application_id]);
+      SELECT a.application_id,
+             a.company_name_manual,
+             s.full_name AS student_name, 
+             s.email AS student_email
+      FROM internship_applications a
+      JOIN users s ON a.student_id = s.user_id
+      WHERE a.application_id = $1 AND a.tutor_id = $2
+    `, [application_id, tutor_id]);
 
     if (rows.length === 0) {
       return res.status(404).json({ error: 'Application not found' });
     }
 
     const app = rows[0];
+    const companyName = app.company_name_manual || 'Company';
 
+    await pool.query(`
+      UPDATE internship_applications 
+      SET status = $1, 
+          tutor_remarks = $2, 
+          ${finalDecision === 'approved' ? 'approved_at = NOW()' : 'rejected_at = NOW()'},
+          locked = $3,
+          updated_at = NOW()
+      WHERE application_id = $4
+    `, [finalDecision, remarks, finalDecision === 'approved', application_id]);
+
+    // Send email to student
     if (app.student_email) {
       try {
-        console.log(`📧 Sending ${finalDecision} email to ${app.student_email}`);
-        if (finalDecision === 'approve') {
-          await sendApprovalEmail(app.student_email, app.student_name || 'Student', application_id);
+        if (finalDecision === 'approved') {
+          await sendApprovalEmail(app.student_email, app.student_name, companyName, application_id);
         } else {
-          await sendRejectionEmail(app.student_email, app.student_name || 'Student', application_id, remarks);
+          await sendRejectionEmail(app.student_email, app.student_name, companyName, remarks || 'No remarks provided', application_id);
         }
-        console.log(`✅ Email sent successfully`);
       } catch (mailErr) {
-        console.error("❌ Email failed:", mailErr.message);
+        console.error("Email failed:", mailErr.message);
       }
     }
 
-    res.json({
-      success: true,
-      message: `Application ${newStatus.toUpperCase()} successfully.`,
-      status: newStatus
+    res.json({ 
+      success: true, 
+      message: `Application ${finalDecision} successfully.` 
     });
 
   } catch (err) {
@@ -418,13 +419,13 @@ const tutorDecision = async (req, res) => {
 // ──── ADMIN ────
 const getAdminStats = async (req, res) => {
   try {
-    const [students, tutors, apps, approved, pending, rejected, companies] = await Promise.all([
+    const [students, tutors, apps, approved, pending, returned, companies] = await Promise.all([
       pool.query("SELECT COUNT(*) FROM users WHERE role='student'"),
       pool.query("SELECT COUNT(*) FROM users WHERE role='tutor'"),
       pool.query('SELECT COUNT(*) FROM internship_applications'),
       pool.query("SELECT COUNT(*) FROM internship_applications WHERE status='approved'"),
       pool.query("SELECT COUNT(*) FROM internship_applications WHERE status='pending_tutor'"),
-      pool.query("SELECT COUNT(*) FROM internship_applications WHERE status='rejected'"),
+      pool.query("SELECT COUNT(*) FROM internship_applications WHERE status='returned'"),
       pool.query('SELECT COUNT(*) FROM companies WHERE is_active=TRUE'),
     ]);
 
@@ -434,7 +435,7 @@ const getAdminStats = async (req, res) => {
       total_applications: parseInt(apps.rows[0].count),
       approved: parseInt(approved.rows[0].count),
       pending: parseInt(pending.rows[0].count),
-      rejected: parseInt(rejected.rows[0].count),
+      returned: parseInt(retuned.rows[0].count),
       total_companies: parseInt(companies.rows[0].count) || 0,
     });
   } catch (err) { 
@@ -446,7 +447,7 @@ const getAdminStats = async (req, res) => {
       total_applications: 0,
       approved: 0,
       pending: 0,
-      rejected: 0,
+      returned: 0,
       total_companies: 0
     });
   }
@@ -703,21 +704,17 @@ const uploadOfferLetter = async (req, res) => {
     res.status(500).json({ error: "Failed to upload offer letter" });
   }
 };
-// ==================== UPLOAD PARENT PERMISSION LETTER ====================
 const uploadParentPermission = async (req, res) => {
-  console.log("🔥 Parent Permission Upload Called");
-
   try {
     if (!req.files || !req.files.parent_permission) {
       return res.status(400).json({ error: "No file uploaded" });
     }
 
     const file = req.files.parent_permission;
-    let { application_id } = req.body;
+    const { application_id } = req.body;
 
-    // Allow upload before saving draft
     if (!application_id) {
-      application_id = `temp_${Date.now()}`;
+      return res.status(400).json({ error: "application_id is required" });
     }
 
     const uploadDir = path.join(__dirname, '../uploads/parent_permissions');
@@ -729,31 +726,30 @@ const uploadParentPermission = async (req, res) => {
     const filePath = path.join(uploadDir, fileName);
 
     await file.mv(filePath);
-
     const fileUrl = `/uploads/parent_permissions/${fileName}`;
 
-    // Update database only if real application_id exists
-    if (!application_id.startsWith('temp_')) {
-      await pool.query(
-        `UPDATE internship_applications 
-         SET parent_permission_url = $1, updated_at = NOW() 
-         WHERE application_id = $2`,
-        [fileUrl, application_id]
-      );
-    }
+    // Update database
+    await pool.query(
+      `UPDATE internship_applications 
+       SET parent_permission_url = $1, 
+           updated_at = NOW()
+       WHERE application_id = $2`,
+      [fileUrl, application_id]
+    );
 
-    res.json({ 
-      success: true, 
-      message: "Parent permission letter uploaded successfully", 
-      url: fileUrl 
+    console.log("✅ Parent Permission uploaded for:", application_id);
+
+    res.json({
+      success: true,
+      message: "Parent permission letter uploaded successfully",
+      url: fileUrl
     });
 
   } catch (err) {
     console.error("Parent Permission Upload Error:", err);
-    res.status(500).json({ error: "Failed to upload parent permission letter" });
+    res.status(500).json({ error: err.message || "Failed to upload parent permission letter" });
   }
 };
-
 
 
 
