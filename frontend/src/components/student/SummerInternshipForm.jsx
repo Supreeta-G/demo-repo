@@ -188,8 +188,7 @@ const handleSaveDraft = async () => {
   try {
     const payload = {
       ...form,
-      application_id: savedId || editId,
-      stipend_amount: form.stipend
+      application_id: savedId || editId
     };
 
     const { data } = await api.post('/applications/draft', payload);
@@ -200,8 +199,7 @@ const handleSaveDraft = async () => {
 
     alert(`✅ Draft ${isEditing ? 'Updated' : 'Saved'} Successfully!`);
   } catch (err) {
-    console.error(err);
-    alert(err.response?.data?.error || "Failed to save draft. Check console.");
+    alert(err.response?.data?.error || "Failed to save draft");
   } finally {
     setLoading(false);
   }
@@ -288,12 +286,16 @@ const handleParentPermissionUpload = async (e) => {
   const file = e.target.files[0];
   if (!file) return;
 
+  if (file.size > 5 * 1024 * 1024) {
+    return alert("File size must be less than 5MB");
+  }
+
   const formData = new FormData();
   formData.append('parent_permission', file);
 
-  // If we have savedId, send it. Otherwise backend will use temp ID
-  if (savedId) {
-    formData.append('application_id', savedId);
+  // If we have savedId or editId, send it. Otherwise backend will handle temp ID
+  if (savedId || editId) {
+    formData.append('application_id', savedId || editId);
   }
 
   try {
@@ -307,9 +309,9 @@ const handleParentPermissionUpload = async (e) => {
     alert("✅ Parent Permission Letter uploaded successfully!");
   } catch (err) {
     console.error(err);
-    alert(err.response?.data?.error || "Failed to upload file");
+    alert(err.response?.data?.error || "Failed to upload Parent Permission Letter");
   }
-};
+};;
   return (
     <div className="p-6 max-w-4xl mx-auto">
       <button onClick={() => navigate('/student/home')} className="flex items-center gap-2 text-fern mb-6 hover:underline">

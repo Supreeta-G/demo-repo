@@ -143,8 +143,8 @@ const saveDraft = async (req, res) => {
     guide_name_industry, guide_department, guide_contact,
     cgpa, semester_completed, ra_courses, pending_courses,
     has_declined_other = false, declined_company_details,
-    stipend, student_note, tutor_id, tutor_email,
-    offer_letter_url
+    stipend_amount, student_note, tutor_id, tutor_email,
+    offer_letter_url,parent_permission_url
   } = req.body;
 
   const student_id = req.user.user_id;
@@ -705,18 +705,25 @@ const uploadOfferLetter = async (req, res) => {
   }
 };
 const uploadParentPermission = async (req, res) => {
+  console.log("🔥 Upload Parent Permission Called");
+  console.log("Files:", req.files);
+  console.log("Body:", req.body);
+
   try {
     if (!req.files || !req.files.parent_permission) {
       return res.status(400).json({ error: "No file uploaded" });
     }
 
     const file = req.files.parent_permission;
-    const { application_id } = req.body;
+    let { application_id } = req.body;
 
+    // If no application_id, create a temporary one
     if (!application_id) {
-      return res.status(400).json({ error: "application_id is required" });
+      application_id = `temp_${Date.now()}`;
+      console.log("⚠️ No application_id provided. Using temp ID:", application_id);
     }
 
+    // Ensure directory exists
     const uploadDir = path.join(__dirname, '../uploads/parent_permissions');
     if (!fs.existsSync(uploadDir)) {
       fs.mkdirSync(uploadDir, { recursive: true });
@@ -726,28 +733,30 @@ const uploadParentPermission = async (req, res) => {
     const filePath = path.join(uploadDir, fileName);
 
     await file.mv(filePath);
+
     const fileUrl = `/uploads/parent_permissions/${fileName}`;
 
-    // Update database
-    await pool.query(
-      `UPDATE internship_applications 
-       SET parent_permission_url = $1, 
-           updated_at = NOW()
-       WHERE application_id = $2`,
-      [fileUrl, application_id]
-    );
+    // Update database only if real application_id exists
+    if (!application_id.startsWith('temp_')) {
+      await pool.query(
+        `UPDATE internship_applications 
+         SET parent_permission_url = $1, updated_at = NOW() 
+         WHERE application_id = $2`,
+        [fileUrl, application_id]
+      );
+    }
 
-    console.log("✅ Parent Permission uploaded for:", application_id);
+    console.log("✅ Parent Permission Letter Saved:", fileUrl);
 
-    res.json({
-      success: true,
-      message: "Parent permission letter uploaded successfully",
-      url: fileUrl
+    res.json({ 
+      success: true, 
+      message: "Parent permission letter uploaded successfully", 
+      url: fileUrl 
     });
 
   } catch (err) {
-    console.error("Parent Permission Upload Error:", err);
-    res.status(500).json({ error: err.message || "Failed to upload parent permission letter" });
+    console.error("Upload Parent Permission Error:", err);
+    res.status(500).json({ error: "Failed to upload parent permission letter" });
   }
 };
 
