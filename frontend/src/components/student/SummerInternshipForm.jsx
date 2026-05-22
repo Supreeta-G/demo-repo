@@ -512,13 +512,30 @@ const handleParentPermissionUpload = async (e) => {
           </div>
         </div>
         <div className="grid grid-cols-1 md:grid-cols-2 gap-6 mt-6">
+          {/* Start Date */}
           <div>
-            <label className="block text-sm font-medium mb-2">Start Date <span className="text-red-500">*</span></label>
-            <input type="date" className="w-full px-4 py-3 border border-gray-300 rounded-2xl" value={form.start_date} onChange={e => setField('start_date', e.target.value)} disabled={isLocked && !isEditing} />
+            <label className="block text-sm font-medium mb-2">Start Date *</label>
+            <input 
+              type="date" 
+              className="w-full px-4 py-3 border border-gray-300 rounded-2xl" 
+              value={form.start_date} 
+              onChange={e => setField('start_date', e.target.value)} 
+              min={new Date().toISOString().split('T')[0]}   // ← Disable past dates
+              disabled={isLocked && !isEditing} 
+            />
           </div>
+
+          {/* End Date */}
           <div>
-            <label className="block text-sm font-medium mb-2">End Date <span className="text-red-500">*</span></label>
-            <input type="date" className="w-full px-4 py-3 border border-gray-300 rounded-2xl" value={form.end_date} onChange={e => setField('end_date', e.target.value)} disabled={isLocked && !isEditing} />
+            <label className="block text-sm font-medium mb-2">End Date *</label>
+            <input 
+              type="date" 
+              className="w-full px-4 py-3 border border-gray-300 rounded-2xl" 
+              value={form.end_date} 
+              onChange={e => setField('end_date', e.target.value)} 
+              min={form.start_date || new Date().toISOString().split('T')[0]}   // ← Cannot be before start date
+              disabled={isLocked && !isEditing} 
+            />
           </div>
         </div>
         {form.attendance_days && (
