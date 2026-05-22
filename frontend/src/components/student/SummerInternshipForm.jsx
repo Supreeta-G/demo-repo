@@ -17,7 +17,7 @@ const SummerInternshipForm = () => {
   const [submitLoading, setSubmitLoading] = useState(false);
 
   const [isLocked, setIsLocked] = useState(false);
-  const [isEditing, setIsEditing] = useState(false);
+ const [isEditing, setIsEditing] = useState(false);
   const [parentPermissionUrl, setParentPermissionUrl] = useState('');
 
   const [form, setForm] = useState({

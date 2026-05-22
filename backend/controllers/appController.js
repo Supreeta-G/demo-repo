@@ -155,7 +155,8 @@ const saveDraft = async (req, res) => {
       FROM internship_applications 
       WHERE student_id = $1 AND EXTRACT(YEAR FROM created_at) = $2
     `, [req.user.user_id, year]);
-
+    const isEditing = !!req.body.application_id;   // ← Add this line
+    
     if (!isEditing && parseInt(countRes.rows[0].total) >= 2) {
       return res.status(400).json({ error: "You can only apply for maximum 2 internships per year." });
     }
