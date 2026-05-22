@@ -472,6 +472,7 @@ const getAllApplications = async (req, res) => {
         a.ra_courses,
         a.pending_courses,
         a.offer_letter_url,
+        a.parent_permission_url,
         a.tutor_remarks,
         a.admin_remarks,
         a.delete_reason,
@@ -531,11 +532,27 @@ const getAllApplications = async (req, res) => {
 };
 const getAdminUsers = async (req, res) => {
   try {
-    const { rows } = await pool.query(`
-      SELECT user_id, full_name, email, role, roll_number, phone, created_at 
-      FROM users 
-      ORDER BY role, full_name
-    `);
+    const { role } = req.query;
+
+    let query = `
+      SELECT u.user_id, u.full_name, u.email, u.role, u.roll_number, 
+             u.phone, u.created_at, u.last_login_at,
+             p.programme
+      FROM users u
+      LEFT JOIN programmes p ON u.prog_id = p.prog_id
+      WHERE 1=1
+    `;
+
+    const params = [];
+
+    if (role && role !== 'all') {
+      params.push(role);
+      query += ` AND u.role = $${params.length}`;
+    }
+
+    query += ` ORDER BY u.role, u.full_name`;
+
+    const { rows } = await pool.query(query, params);
     res.json(rows);
   } catch (err) {
     console.error("getAdminUsers Error:", err.message);
