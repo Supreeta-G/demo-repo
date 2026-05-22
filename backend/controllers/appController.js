@@ -135,110 +135,95 @@ const getApplicationById = async (req, res) => {
 // ==================== SAVE DRAFT - WITH YEARLY LIMIT ====================
 const saveDraft = async (req, res) => {
   const {
-    application_id: existingId,
-    company_id, company_name_manual, role_title, intern_type = 'industry',
-    company_address, company_city, company_state, company_country = 'India', company_phone,
-    duration_type, work_mode = 'on_site', how_obtained,
+    company_id, company_name_manual, role_title, intern_type,
+    company_address, company_city, company_state, company_country, company_phone,
+    duration_type, work_mode, how_obtained,
     start_date, end_date, attendance_days,
     guide_name_industry, guide_department, guide_contact,
     cgpa, semester_completed, ra_courses, pending_courses,
-    has_declined_other = false, declined_company_details,
-    stipend_amount, student_note, tutor_id, tutor_email,
-    offer_letter_url,parent_permission_url
+    has_declined_other, declined_company_details,
+    stipend, student_note, tutor_id, tutor_email,           // ← stipend from frontend
+    parent_permission_url, offer_letter_url                 // ← Added
   } = req.body;
-
-  const student_id = req.user.user_id;
 
   try {
     const year = new Date().getFullYear();
 
-    // ====================== EDIT MODE ======================
-    if (existingId && existingId !== 'null' && existingId !== '') {
-      const { rowCount } = await pool.query(`
-        UPDATE internship_applications 
-        SET 
-          company_id = $1, company_name_manual = $2, role_title = $3, intern_type = $4,
-          company_address = $5, company_city = $6, company_state = $7, company_country = $8, company_phone = $9,
-          duration_type = $10, work_mode = $11, how_obtained = $12,
-          start_date = $13, end_date = $14, attendance_days = $15,
-          guide_name_industry = $16, guide_department = $17, guide_contact = $18,
-          cgpa = $19, semester_completed = $20,
-          ra_courses = $21, pending_courses = $22,
-          has_declined_other = $23, declined_company_details = $24,
-          stipend_amount = $25, student_note = $26,
-          tutor_id = $27, tutor_email = $28, 
-          offer_letter_url = $29,
-          updated_at = NOW()
-        WHERE application_id = $30 AND student_id = $31
-      `, [
-        company_id || null, company_name_manual || null, role_title || null, intern_type,
-        company_address || null, company_city || null, company_state || null, company_country, company_phone || null,
-        duration_type || 'summer', work_mode, how_obtained || null,
-        start_date || null, end_date || null, attendance_days || null,
-        guide_name_industry || null, guide_department || null, guide_contact || null,
-        cgpa || null, semester_completed || null,
-        ra_courses || null, pending_courses || null,
-        has_declined_other, declined_company_details || null,
-        stipend || null, student_note || null,
-        tutor_id || null, tutor_email || null,
-        offer_letter_url || null,
-        existingId, student_id
-      ]);
-
-      if (rowCount > 0) {
-        return res.json({ message: "Draft updated successfully", application_id: existingId });
-      }
-    }
-
-    // ====================== NEW DRAFT - YEARLY LIMIT CHECK ======================
+    // Check limits
     const countRes = await pool.query(`
       SELECT COUNT(*) as total 
       FROM internship_applications 
-      WHERE student_id = $1 
-        AND EXTRACT(YEAR FROM created_at) = $2
-    `, [student_id, year]);
+      WHERE student_id = $1 AND EXTRACT(YEAR FROM created_at) = $2
+    `, [req.user.user_id, year]);
 
     if (parseInt(countRes.rows[0].total) >= 2) {
-      return res.status(400).json({ 
-        error: "You can only apply for maximum 2 internships per calendar year." 
-      });
+      return res.status(400).json({ error: "You can only apply for maximum 2 internships per year." });
     }
 
-    // Generate new application_id
-    const rollRes = await pool.query("SELECT roll_number FROM users WHERE user_id = $1", [student_id]);
+    // Get roll number
+    const rollRes = await pool.query(
+      "SELECT roll_number FROM users WHERE user_id = $1", 
+      [req.user.user_id]
+    );
+
     const rollNumber = rollRes.rows[0]?.roll_number || "UNKNOWN";
+    const totalApplications = parseInt(countRes.rows[0].total) + 1;
+    const seq = String(totalApplications).padStart(2, '0');
+    const application_id = `${rollNumber}/${year}/${seq}/${seq}`;
 
-    const seq = String(parseInt(countRes.rows[0].total) + 1).padStart(2, '0');
-    const new_application_id = `${rollNumber}/${year}/${seq}/${seq}`;
-
-    // Insert new draft
+    // Insert or Update
     const { rows } = await pool.query(`
       INSERT INTO internship_applications (
         application_id, student_id, company_id, company_name_manual, role_title, intern_type,
         company_address, company_city, company_state, company_country, company_phone,
         duration_type, work_mode, how_obtained, start_date, end_date, attendance_days,
-        guide_name_industry, guide_department, guide_contact, cgpa, semester_completed,
-        ra_courses, pending_courses, has_declined_other, declined_company_details,
-        stipend_amount, student_note, tutor_id, tutor_email, offer_letter_url, status, locked
-      ) VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $12, $13, $14, $15, $16, $17, $18, $19, $20, $21, $22, $23, $24, $25, $26, $27, $28, $29, $30, $31, 'draft', FALSE)
+        guide_name_industry, guide_department, guide_contact,
+        cgpa, semester_completed, ra_courses, pending_courses,
+        has_declined_other, declined_company_details, stipend_amount, student_note,
+        tutor_id, tutor_email, parent_permission_url, offer_letter_url, status, locked
+      ) VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $12, $13, $14, $15, $16, $17, $18, $19, $20, $21, $22, $23, $24, $25, $26, $27, $28, $29, $30, $31, $32, 'draft', FALSE)
+      ON CONFLICT (application_id) DO UPDATE SET
+        company_id = EXCLUDED.company_id,
+        company_name_manual = EXCLUDED.company_name_manual,
+        role_title = EXCLUDED.role_title,
+        company_address = EXCLUDED.company_address,
+        company_city = EXCLUDED.company_city,
+        company_state = EXCLUDED.company_state,
+        company_phone = EXCLUDED.company_phone,
+        start_date = EXCLUDED.start_date,
+        end_date = EXCLUDED.end_date,
+        guide_name_industry = EXCLUDED.guide_name_industry,
+        guide_contact = EXCLUDED.guide_contact,
+        cgpa = EXCLUDED.cgpa,
+        semester_completed = EXCLUDED.semester_completed,
+        stipend_amount = EXCLUDED.stipend_amount,
+        student_note = EXCLUDED.student_note,
+        tutor_id = EXCLUDED.tutor_id,
+        tutor_email = EXCLUDED.tutor_email,
+        parent_permission_url = EXCLUDED.parent_permission_url,
+        offer_letter_url = EXCLUDED.offer_letter_url,
+        updated_at = NOW()
       RETURNING application_id
     `, [
-      new_application_id, student_id,
-      company_id || null, company_name_manual || null, role_title || null, intern_type,
-      company_address || null, company_city || null, company_state || null, company_country, company_phone || null,
-      duration_type || 'summer', work_mode, how_obtained || null,
+      application_id, req.user.user_id, company_id || null, company_name_manual || null,
+      role_title || null, intern_type || 'industry',
+      company_address || null, company_city || null, company_state || null,
+      company_country || 'India', company_phone || null,
+      duration_type || 'summer', work_mode || 'on_site', how_obtained || null,
       start_date || null, end_date || null, attendance_days || null,
       guide_name_industry || null, guide_department || null, guide_contact || null,
       cgpa || null, semester_completed || null,
       ra_courses || null, pending_courses || null,
-      has_declined_other, declined_company_details || null,
-      stipend_amount || null, student_note || null,
+      has_declined_other || false, declined_company_details || null,
+      stipend || null,                     // ← stipend mapped to stipend_amount
+      student_note || null, 
       tutor_id || null, tutor_email || null,
+      parent_permission_url || null,
       offer_letter_url || null
     ]);
 
     res.json({ 
-      message: "Draft saved successfully", 
+      message: 'Draft saved successfully', 
       application_id: rows[0].application_id 
     });
 
