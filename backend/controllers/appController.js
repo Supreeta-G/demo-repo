@@ -404,13 +404,13 @@ const tutorDecision = async (req, res) => {
 // ──── ADMIN ────
 const getAdminStats = async (req, res) => {
   try {
-    const [students, tutors, apps, approved, pending, returned, companies] = await Promise.all([
+    const [students, tutors, apps, approved, pending, rejected, companies] = await Promise.all([
       pool.query("SELECT COUNT(*) FROM users WHERE role='student'"),
       pool.query("SELECT COUNT(*) FROM users WHERE role='tutor'"),
       pool.query('SELECT COUNT(*) FROM internship_applications'),
       pool.query("SELECT COUNT(*) FROM internship_applications WHERE status='approved'"),
       pool.query("SELECT COUNT(*) FROM internship_applications WHERE status='pending_tutor'"),
-      pool.query("SELECT COUNT(*) FROM internship_applications WHERE status='returned'"),
+      pool.query("SELECT COUNT(*) FROM internship_applications WHERE status='rejected'"),   // Changed to 'rejected'
       pool.query('SELECT COUNT(*) FROM companies WHERE is_active=TRUE'),
     ]);
 
@@ -420,9 +420,10 @@ const getAdminStats = async (req, res) => {
       total_applications: parseInt(apps.rows[0].count),
       approved: parseInt(approved.rows[0].count),
       pending: parseInt(pending.rows[0].count),
-      returned: parseInt(retuned.rows[0].count),
+      rejected: parseInt(rejected.rows[0].count),        
       total_companies: parseInt(companies.rows[0].count) || 0,
     });
+
   } catch (err) { 
     console.error("❌ getAdminStats Error:", err.message);
     res.status(500).json({ 
@@ -432,7 +433,7 @@ const getAdminStats = async (req, res) => {
       total_applications: 0,
       approved: 0,
       pending: 0,
-      returned: 0,
+      rejected: 0,
       total_companies: 0
     });
   }

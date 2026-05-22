@@ -48,6 +48,7 @@ const SixMonthInternshipForm = () => {
     tutor_email: '',
     duration_type: 'six_month', // Defaults to six_month, changes dynamically on edit
     offer_letter_url: '',
+    parent_permission_url: '',
   });
 
   const setField = (key, value) => setForm(prev => ({ ...prev, [key]: value }));
@@ -125,35 +126,112 @@ const SixMonthInternshipForm = () => {
 const handleOfferLetterUpload = async (e) => {
   const file = e.target.files[0];
   if (!file) return;
-  if (file.size > 5 * 1024 * 1024) return alert("File size must be less than 5MB");
+  if (file.size > 5 * 1024 * 1024) {
+    return alert("File size must be less than 5MB");
+  }
 
   const formData = new FormData();
-  formData.append('offerLetter', file);           // ← Changed to match backend
-  if (savedId) formData.append('application_id', savedId);
+  formData.append('offer_letter', file);
+
+  if (savedId || editId) {
+    formData.append('application_id', savedId || editId);
+  }
 
   try {
     const { data } = await api.post('/applications/upload-offer', formData, {
       headers: { 'Content-Type': 'multipart/form-data' }
     });
-    
+
     setForm(prev => ({ ...prev, offer_letter_url: data.url }));
     alert("✅ Offer Letter uploaded successfully!");
   } catch (err) {
     console.error(err);
-    alert(err.response?.data?.error || "Failed to upload offer letter");
+    alert(err.response?.data?.error || "Upload failed");
+  }
+};
+// Parent Permission Upload
+const handleParentPermissionUpload = async (e) => {
+  const file = e.target.files[0];
+  if (!file) return;
+
+  if (file.size > 5 * 1024 * 1024) {
+    return alert("File size must be less than 5MB");
+  }
+
+  const formData = new FormData();
+  formData.append('parent_permission', file);
+
+  if (savedId || editId) {
+    formData.append('application_id', savedId || editId);
+  }
+
+  try {
+    const { data } = await api.post('/applications/upload-parent-permission', formData, {
+      headers: { 'Content-Type': 'multipart/form-data' }
+    });
+
+    setForm(prev => ({ ...prev, parent_permission_url: data.url }));
+    alert("✅ Parent Permission Letter uploaded successfully!");
+  } catch (err) {
+    console.error(err);
+    alert(err.response?.data?.error || "Failed to upload file");
   }
 };
 const handleSaveDraft = async () => {
-  if (isLocked && !isEditing) {
-    return alert("This form is locked.");
-  }
+  if (isLocked && !isEditing) return alert("This form is locked.");
+  if (!form.company_id && !form.company_name_manual) 
+    return alert("Company is required");
 
-  if (!form.company_id && !form.company_name_manual) {
-    return alert("Please select a company or enter company name manually");
-  }
-  if (!form.tutor_email) {
-    return alert("Please enter tutor email");
-  }
+  if (!form.role_title || form.role_title.trim() === '') 
+    return alert("Role / Position is required");
+
+  if (!form.company_address || form.company_address.trim() === '') 
+    return alert("Company Address is required");
+
+  if (!form.company_city || form.company_city.trim() === '') 
+    return alert("City is required");
+
+  if (!form.company_state || form.company_state.trim() === '') 
+    return alert("State is required");
+
+  if (!form.company_country) return alert("Country is required");
+
+  if (!form.company_phone || form.company_phone.length !== 10) 
+    return alert("Phone number must be exactly 10 digits");
+
+  if (!form.tutor_email || !form.tutor_email.includes('@psgtech.ac.in')) 
+    return alert("Tutor email must end with @psgtech.ac.in");
+
+  if (!form.intern_type) 
+    return alert("Type of Internship is required");
+
+  if (!form.stipend && form.stipend !== 0) 
+    return alert("Stipend field is required (enter 0 if no stipend)");
+
+  if (!form.start_date) 
+    return alert("Start Date is required");
+
+  if (!form.end_date) 
+    return alert("End Date is required");
+
+  if (!form.guide_name_industry || form.guide_name_industry.trim() === '') 
+    return alert("Guide Name is required");
+
+  if (!form.parent_permission_url) 
+    return alert("Parent Permission Letter is required *");
+
+  if (!form.offer_letter_url) 
+    return alert("Offer Letter is required *");
+
+  if (!form.semester_completed) 
+    return alert("Semesters Completed is required");
+
+  if (!form.ra_courses || form.ra_courses.trim() === '') 
+    return alert("RA / Arrear Courses field is required");
+
+  if (!form.pending_courses || form.pending_courses.trim() === '') 
+    return alert("Pending Courses field is required");
+
 
   setLoading(true);
   try {
@@ -239,7 +317,7 @@ const handleSubmit = async () => {
         </h3>
 
         <div className="flex justify-between mb-3">
-          <label className="font-medium">Select Company *</label>
+          <label className="font-medium">Select Company <span className="text-red-500">*</span></label>
           <button onClick={requestNewCompany} className="text-blue-600 hover:underline text-sm flex items-center gap-1" disabled={isLocked && !isEditing}>
             <Plus className="w-4 h-4" /> Request New Company
           </button>
@@ -256,7 +334,7 @@ const handleSubmit = async () => {
           isDisabled={isLocked && !isEditing}
         />
 
-        {!form.company_id && (
+        {/* {!form.company_id && (
           <input 
             className="w-full px-4 py-3 border border-gray-300 rounded-2xl mt-3" 
             value={form.company_name_manual} 
@@ -264,11 +342,11 @@ const handleSubmit = async () => {
             placeholder="Enter Company Name Manually" 
             disabled={isLocked && !isEditing}
           />
-        )}
+        )} */}
 
         <div className="mt-6 grid grid-cols-1 md:grid-cols-2 gap-6">
           <div>
-            <label className="block text-sm font-medium mb-2">Role / Position *</label>
+            <label className="block text-sm font-medium mb-2">Role / Position <span className="text-red-500">*</span></label>
             <input className="w-full px-4 py-3 border border-gray-300 rounded-2xl" value={form.role_title} onChange={e => setField('role_title', e.target.value)} placeholder="e.g. Software Engineering Intern" disabled={isLocked && !isEditing} />
           </div>
           <div>
@@ -285,10 +363,9 @@ const handleSubmit = async () => {
         </div>
 
         <div className="mt-6">
-          <label className="block text-sm font-medium mb-2">Full Company Address *</label>
+          <label className="block text-sm font-medium mb-2">Full Company Address <span className="text-red-500">*</span></label>
           <textarea className="w-full px-4 py-3 border border-gray-300 rounded-2xl h-24" value={form.company_address} onChange={e => setField('company_address', e.target.value)} placeholder="Full address as per offer letter" disabled={isLocked && !isEditing} />
         </div>
-
         <div className="grid grid-cols-1 md:grid-cols-3 gap-6 mt-6">
           <div>
             <label className="block text-sm font-medium mb-2">City</label>
@@ -299,16 +376,34 @@ const handleSubmit = async () => {
             <input className="w-full px-4 py-3 border border-gray-300 rounded-2xl" value={form.company_state} onChange={e => setField('company_state', e.target.value)} disabled={isLocked && !isEditing} />
           </div>
           <div>
-            <label className="block text-sm font-medium mb-2">Phone Number</label>
-            <input className="w-full px-4 py-3 border border-gray-300 rounded-2xl" value={form.company_phone} onChange={e => setField('company_phone', e.target.value)} disabled={isLocked && !isEditing} />
+            <label className="block text-sm font-medium mb-2">Country <span className="text-red-500">*</span></label>
+            <input 
+              className="w-full px-4 py-3 border border-gray-300 rounded-2xl" 
+              value={form.company_country} 
+              onChange={e => setField('company_country', e.target.value)} 
+              placeholder="India" 
+              disabled={isLocked && !isEditing} 
+            />
           </div>
+        </div>
+        <div className="mt-6">
+          <label className="block text-sm font-medium mb-2">Phone Number <span className="text-red-500">*</span></label>
+          <input 
+            type="tel" 
+            className="w-full px-4 py-3 border border-gray-300 rounded-2xl" 
+            value={form.company_phone} 
+            onChange={e => setField('company_phone', e.target.value)} 
+            placeholder="9876543210" 
+            maxLength={10}
+            disabled={isLocked && !isEditing} 
+          />
         </div>
       </div>
 
             {/* Offer Letter Upload */}
       <div className="bg-white rounded-3xl shadow p-8 mb-6">
         <h3 className="text-xl font-semibold mb-6 flex items-center gap-3">
-          <FileDown className="w-6 h-6 text-fern" /> Offer Letter
+          <FileDown className="w-6 h-6 text-fern" /> Offer Letter<span className="text-red-500">*</span>
         </h3>
         <p className="text-sm text-gray-600 mb-4">Upload your official offer letter (PDF, max 5MB)</p>
 
@@ -338,6 +433,31 @@ const handleSubmit = async () => {
           </div>
         )}
       </div>
+      {/* Parent Permission Letter */}
+<div className="bg-white rounded-3xl shadow p-8 mb-6">
+  <h3 className="text-xl font-semibold mb-6 flex items-center gap-3">
+    <FileDown className="w-6 h-6 text-fern" /> Parent Permission Letter <span className="text-red-500">*</span>
+  </h3>
+  <p className="text-sm text-gray-600 mb-4">Upload signed parent's consent letter (PDF, max 5MB)</p>
+
+  <input 
+    type="file" 
+    accept=".pdf" 
+    onChange={handleParentPermissionUpload}
+    disabled={isLocked && !isEditing}
+    className="block w-full text-sm text-gray-500 
+               file:mr-4 file:py-3 file:px-6 file:rounded-2xl 
+               file:border-0 file:text-sm file:font-semibold 
+               file:bg-fern file:text-white hover:file:bg-hunter cursor-pointer"
+  />
+
+  {form.parent_permission_url && (
+    <div className="mt-4 p-3 bg-green-50 border border-green-200 rounded-2xl flex items-center gap-3">
+      <FileDown className="w-5 h-5 text-green-600" />
+      <span className="text-sm">Parent Permission Letter Uploaded</span>
+    </div>
+  )}
+</div>
 
       {/* Internship Period */}
       <div className="bg-white rounded-3xl shadow p-8 mb-6">
@@ -346,14 +466,14 @@ const handleSubmit = async () => {
         </h3>
         <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
           <div>
-            <label className="block text-sm font-medium mb-2">Type of Internship</label>
+            <label className="block text-sm font-medium mb-2">Type of Internship<span className="text-red-500">*</span></label>
             <select className="w-full px-4 py-3 border border-gray-300 rounded-2xl" value={form.intern_type} onChange={e => setField('intern_type', e.target.value)} disabled={isLocked && !isEditing}>
               <option value="industry">Industry Internship</option>
               <option value="research">Research Internship</option>
             </select>
           </div>
           <div>
-            <label className="block text-sm font-medium mb-2">Stipend (if any) ₹ / month</label>
+            <label className="block text-sm font-medium mb-2">Stipend (if any) ₹ / month<span className="text-red-500">*</span></label>
 <input 
   type="number" 
   className="w-full px-4 py-3 border border-gray-300 rounded-2xl" 
@@ -366,11 +486,11 @@ const handleSubmit = async () => {
         </div>
         <div className="grid grid-cols-1 md:grid-cols-2 gap-6 mt-6">
           <div>
-            <label className="block text-sm font-medium mb-2">Start Date *</label>
+            <label className="block text-sm font-medium mb-2">Start Date <span className="text-red-500">*</span></label>
             <input type="date" className="w-full px-4 py-3 border border-gray-300 rounded-2xl" value={form.start_date} onChange={e => setField('start_date', e.target.value)} disabled={isLocked && !isEditing} />
           </div>
           <div>
-            <label className="block text-sm font-medium mb-2">End Date *</label>
+            <label className="block text-sm font-medium mb-2">End Date <span className="text-red-500">*</span></label>
             <input type="date" className="w-full px-4 py-3 border border-gray-300 rounded-2xl" value={form.end_date} onChange={e => setField('end_date', e.target.value)} disabled={isLocked && !isEditing} />
           </div>
         </div>
@@ -386,7 +506,7 @@ const handleSubmit = async () => {
         </h3>
         <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
           <div>
-            <label className="block text-sm font-medium mb-2">Guide Name</label>
+            <label className="block text-sm font-medium mb-2">Guide Name<span className="text-red-500">*</span></label>
             <input className="w-full px-4 py-3 border border-gray-300 rounded-2xl" value={form.guide_name_industry} onChange={e => setField('guide_name_industry', e.target.value)} disabled={isLocked && !isEditing} />
           </div>
           <div>
@@ -403,18 +523,18 @@ const handleSubmit = async () => {
         </h3>
         <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
           <div>
-            <label className="block text-sm font-medium mb-2">CGPA *</label>
+            <label className="block text-sm font-medium mb-2">CGPA <span className="text-red-500">*</span></label>
             <input type="number" step="0.01" className="w-full px-4 py-3 border border-gray-300 rounded-2xl" value={form.cgpa} onChange={e => setField('cgpa', e.target.value)} disabled={isLocked && !isEditing} />
           </div>
           <div>
-            <label className="block text-sm font-medium mb-2">Semesters Completed</label>
+            <label className="block text-sm font-medium mb-2">Semesters Completed<span className="text-red-500">*</span></label>
             <input type="number" className="w-full px-4 py-3 border border-gray-300 rounded-2xl" value={form.semester_completed} onChange={e => setField('semester_completed', e.target.value)} disabled={isLocked && !isEditing} />
           </div>
         </div>
 
         {/* RA / Arrear Courses */}
 <div>
-  <label className="block text-sm font-medium mb-2">RA / Arrear Courses</label>
+  <label className="block text-sm font-medium mb-2">RA / Arrear Courses<span className="text-red-500">*</span></label>
   <input 
     type="text" 
     className="w-full px-4 py-3 border border-gray-300 rounded-2xl" 
@@ -427,7 +547,7 @@ const handleSubmit = async () => {
 
 {/* Pending Courses */}
 <div>
-  <label className="block text-sm font-medium mb-2">Pending Courses</label>
+  <label className="block text-sm font-medium mb-2">Pending Courses<span className="text-red-500">*</span></label>
   <input 
     type="text" 
     className="w-full px-4 py-3 border border-gray-300 rounded-2xl" 
@@ -457,7 +577,7 @@ const handleSubmit = async () => {
         <h3 className="text-xl font-semibold mb-6 flex items-center gap-3">
           <User className="w-6 h-6 text-fern" /> Faculty Tutor Details
         </h3>
-        <label className="block text-sm font-medium mb-2">Tutor Email ID *</label>
+        <label className="block text-sm font-medium mb-2">Tutor Email ID <span className="text-red-500">*</span></label>
         <input
           type="email"
           className="w-full px-4 py-3 border border-gray-300 rounded-2xl"
