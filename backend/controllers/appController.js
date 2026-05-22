@@ -440,34 +440,95 @@ const getAdminStats = async (req, res) => {
   }
 };
 // ==================== ADMIN FUNCTIONS ====================
-
 const getAllApplications = async (req, res) => {
   try {
-    const { rows } = await pool.query(`
+    const { search, status } = req.query;
+
+    let baseQuery = `
       SELECT 
         a.application_id,
         a.status,
         a.duration_type,
         a.created_at,
         a.submitted_at,
-        COALESCE(c.name, a.company_name_manual) as company_name,
-        s.full_name as student_name,
+        a.updated_at,
+        a.locked,
+        a.role_title,
+        a.work_mode,
+        a.start_date,
+        a.end_date,
+        a.stipend_amount,
+        a.guide_name_industry,
+        a.guide_contact,
+        a.guide_department,
+        a.company_name_manual,
+        a.company_address,
+        a.company_city,
+        a.company_state,
+        a.company_country,
+        a.company_phone,
+        a.cgpa,
+        a.semester_completed,
+        a.ra_courses,
+        a.pending_courses,
+        a.offer_letter_url,
+        a.tutor_remarks,
+        a.admin_remarks,
+        a.delete_reason,
+        a.delete_requested,
+        a.has_declined_other,
+        a.declined_company_details,
+        a.intern_type,
+        a.how_obtained,
+        a.attendance_days,
+        a.student_note,
+        COALESCE(c.name, a.company_name_manual) AS company_name,
+        c.address  AS co_address,
+        c.city     AS co_city,
+        c.state    AS co_state,
+        c.country  AS co_country,
+        s.full_name   AS student_name,
         s.roll_number,
-        COALESCE(u.full_name, 'Not Assigned') as tutor_name
+        s.email       AS student_email,
+        s.cgpa        AS student_cgpa,
+        p.programme,
+        p.department,
+        COALESCE(u.full_name, 'Not Assigned') AS tutor_name,
+        u.email AS tutor_contact_email
       FROM internship_applications a
-      LEFT JOIN companies c ON a.company_id = c.company_id
-      JOIN users s ON a.student_id = s.user_id
-      LEFT JOIN users u ON a.tutor_id = u.user_id
-      ORDER BY a.created_at DESC
-      LIMIT 100
-    `);
+      LEFT JOIN companies  c ON a.company_id = c.company_id
+      JOIN  users          s ON a.student_id = s.user_id
+      LEFT JOIN programmes p ON s.prog_id    = p.prog_id
+      LEFT JOIN users      u ON a.tutor_id   = u.user_id
+      WHERE 1=1
+    `;
+
+    const params = [];
+
+    if (search) {
+      params.push(`%${search}%`);
+      baseQuery += ` AND (
+        s.full_name ILIKE $${params.length} OR
+        s.roll_number ILIKE $${params.length} OR
+        COALESCE(c.name, a.company_name_manual) ILIKE $${params.length}
+      )`;
+    }
+
+    if (status) {
+      params.push(status);
+      baseQuery += ` AND a.status = $${params.length}`;
+    }
+
+    baseQuery += ` ORDER BY a.created_at DESC LIMIT 200`;
+
+    const { rows } = await pool.query(baseQuery, params);
     res.json(rows);
+
   } catch (err) {
     console.error("getAllApplications Error:", err.message);
     res.status(500).json({ error: err.message });
   }
 };
-
 const getAdminUsers = async (req, res) => {
   try {
     const { rows } = await pool.query(`
