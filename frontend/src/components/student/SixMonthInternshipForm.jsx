@@ -403,63 +403,7 @@ const handleSubmit = async () => {
       </div>
 
             {/* Offer Letter Upload */}
-      <div className="bg-white rounded-3xl shadow p-8 mb-6">
-        <h3 className="text-xl font-semibold mb-6 flex items-center gap-3">
-          <FileDown className="w-6 h-6 text-fern" /> Offer Letter<span className="text-red-500">*</span>
-        </h3>
-        <p className="text-sm text-gray-600 mb-4">Upload your official offer letter (PDF, max 5MB)</p>
-
-        <input 
-          type="file" 
-          accept=".pdf" 
-          onChange={handleOfferLetterUpload}
-          disabled={isLocked && !isEditing}
-          className="block w-full text-sm text-gray-500 
-                     file:mr-4 file:py-3 file:px-6 file:rounded-2xl 
-                     file:border-0 file:text-sm file:font-semibold 
-                     file:bg-fern file:text-white hover:file:bg-hunter cursor-pointer"
-        />
-
-        {form.offer_letter_url && (
-          <div className="mt-4 p-3 bg-green-50 border border-green-200 rounded-2xl flex items-center gap-3">
-            <FileDown className="w-5 h-5 text-green-600" />
-            <span className="text-sm">Offer Letter Uploaded</span>
-            <a 
-              href={`http://localhost:5001${form.offer_letter_url}`} 
-              target="_blank" 
-              rel="noopener noreferrer" 
-              className="text-fern underline text-sm ml-auto flex items-center gap-1"
-            >
-              📄 View File
-            </a>
-          </div>
-        )}
-      </div>
-      {/* Parent Permission Letter */}
-<div className="bg-white rounded-3xl shadow p-8 mb-6">
-  <h3 className="text-xl font-semibold mb-6 flex items-center gap-3">
-    <FileDown className="w-6 h-6 text-fern" /> Parent Permission Letter <span className="text-red-500">*</span>
-  </h3>
-  <p className="text-sm text-gray-600 mb-4">Upload signed parent's consent letter (PDF, max 5MB)</p>
-
-  <input 
-    type="file" 
-    accept=".pdf" 
-    onChange={handleParentPermissionUpload}
-    disabled={isLocked && !isEditing}
-    className="block w-full text-sm text-gray-500 
-               file:mr-4 file:py-3 file:px-6 file:rounded-2xl 
-               file:border-0 file:text-sm file:font-semibold 
-               file:bg-fern file:text-white hover:file:bg-hunter cursor-pointer"
-  />
-
-  {form.parent_permission_url && (
-    <div className="mt-4 p-3 bg-green-50 border border-green-200 rounded-2xl flex items-center gap-3">
-      <FileDown className="w-5 h-5 text-green-600" />
-      <span className="text-sm">Parent Permission Letter Uploaded</span>
-    </div>
-  )}
-</div>
+      
 
       {/* Internship Period */}
       <div className="bg-white rounded-3xl shadow p-8 mb-6">
@@ -579,24 +523,26 @@ const handleSubmit = async () => {
       </div>
 
       {/* Faculty Tutor */}
-      <div className="bg-white rounded-3xl shadow p-8 mb-8">
-        <h3 className="text-xl font-semibold mb-6 flex items-center gap-3">
-          <User className="w-6 h-6 text-fern" /> Faculty Tutor
-        </h3>
-        <Select 
-          options={tutors} 
-          value={tutors.find(t => t.value === form.tutor_id) || null}
-          onChange={opt => setField('tutor_id', opt?.value)}
-          placeholder="Select your tutor..." 
-          isDisabled={isLocked && !isEditing}
-        />
-      </div>
+
 
       <div className="bg-white rounded-3xl shadow p-8 mb-8">
         <h3 className="text-xl font-semibold mb-6 flex items-center gap-3">
-          <User className="w-6 h-6 text-fern" /> Faculty Tutor Details
+          <User className="w-6 h-6 text-fern" /> Tutor Details
         </h3>
-        <label className="block text-sm font-medium mb-2">Tutor Email ID <span className="text-red-500">*</span></label>
+      
+        {/* Tutor Name - Manual Input */}
+        <label className="block text-sm font-medium mb-2">Tutor Name <span className="text-red-500">*</span></label>
+        <input
+          type="text"
+          className="w-full px-4 py-3 border border-gray-300 rounded-2xl"
+          value={form.tutor_name || ''}           // Use tutor_name or adjust field name
+          onChange={e => setField('tutor_name', e.target.value)}   // or 'guide_name_industry' if you prefer
+          placeholder="Enter tutor full name"
+          disabled={isLocked && !isEditing}
+        />
+      
+        {/* Tutor Email */}
+        <label className="block text-sm font-medium mb-2 mt-6">Tutor Email ID <span className="text-red-500">*</span></label>
         <input
           type="email"
           className="w-full px-4 py-3 border border-gray-300 rounded-2xl"
@@ -607,6 +553,63 @@ const handleSubmit = async () => {
         />
         <p className="text-xs text-gray-500 mt-2">The application will be sent to this email</p>
       </div>
+      <div className="bg-white rounded-3xl shadow p-8 mb-6">
+        <h3 className="text-xl font-semibold mb-6 flex items-center gap-3">
+          <FileDown className="w-6 h-6 text-fern" /> Offer Letter<span className="text-red-500">*</span>
+        </h3>
+        <p className="text-sm text-gray-600 mb-4">Upload your official offer letter (PDF, max 5MB)</p>
+
+        <input 
+          type="file" 
+          accept=".pdf" 
+          onChange={handleOfferLetterUpload}
+          disabled={isLocked && !isEditing}
+          className="block w-full text-sm text-gray-500 
+                     file:mr-4 file:py-3 file:px-6 file:rounded-2xl 
+                     file:border-0 file:text-sm file:font-semibold 
+                     file:bg-fern file:text-white hover:file:bg-hunter cursor-pointer"
+        />
+
+        {form.offer_letter_url && (
+          <div className="mt-4 p-3 bg-green-50 border border-green-200 rounded-2xl flex items-center gap-3">
+            <FileDown className="w-5 h-5 text-green-600" />
+            <span className="text-sm">Offer Letter Uploaded</span>
+            <a 
+              href={`http://localhost:5001${form.offer_letter_url}`} 
+              target="_blank" 
+              rel="noopener noreferrer" 
+              className="text-fern underline text-sm ml-auto flex items-center gap-1"
+            >
+              📄 View File
+            </a>
+          </div>
+        )}
+      </div>
+      {/* Parent Permission Letter */}
+<div className="bg-white rounded-3xl shadow p-8 mb-6">
+  <h3 className="text-xl font-semibold mb-6 flex items-center gap-3">
+    <FileDown className="w-6 h-6 text-fern" /> Parent Permission Letter <span className="text-red-500">*</span>
+  </h3>
+  <p className="text-sm text-gray-600 mb-4">Upload signed parent's consent letter (PDF, max 5MB)</p>
+
+  <input 
+    type="file" 
+    accept=".pdf" 
+    onChange={handleParentPermissionUpload}
+    disabled={isLocked && !isEditing}
+    className="block w-full text-sm text-gray-500 
+               file:mr-4 file:py-3 file:px-6 file:rounded-2xl 
+               file:border-0 file:text-sm file:font-semibold 
+               file:bg-fern file:text-white hover:file:bg-hunter cursor-pointer"
+  />
+
+  {form.parent_permission_url && (
+    <div className="mt-4 p-3 bg-green-50 border border-green-200 rounded-2xl flex items-center gap-3">
+      <FileDown className="w-5 h-5 text-green-600" />
+      <span className="text-sm">Parent Permission Letter Uploaded</span>
+    </div>
+  )}
+</div>
 
       <div className="flex gap-4">
         <button onClick={handleSaveDraft} disabled={loading || (isLocked && !isEditing)} className="flex-1 py-4 bg-gray-100 hover:bg-gray-200 rounded-2xl font-semibold">

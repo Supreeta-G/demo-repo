@@ -373,8 +373,9 @@ function ForgotPasswordFlow({ onBack }) {
 }
 
 // ─── Main Login Page ─────────────────────────────────────────────────────────
+
 export default function LoginPage() {
-  const [isSignup, setIsSignup] = useState(false);
+const [isSignup, setIsSignup] = useState(false);
   const [showForgotPassword, setShowForgotPassword] = useState(false);
 
   const [loginData, setLoginData] = useState({ email: "", password: "" });
@@ -385,13 +386,18 @@ export default function LoginPage() {
     name: "",
     email: "",
     password: "",
+    confirmPassword: "",
+    phone: "",
     otp: "",
   });
+
   const [signupError, setSignupError] = useState("");
   const [signupLoading, setSignupLoading] = useState(false);
 
   const [showPassword, setShowPassword] = useState(false);
-  const [showSignupPassword, setShowSignupPassword] = useState(false);
+  const [showSignupPassword, setShowSignupPassword] = useState(false);   // ← Add this
+  const [showConfirmPassword, setShowConfirmPassword] = useState(false); // ← Add this
+
   const [otpTimer, setOtpTimer] = useState(0);
   const [otpLoading, setOtpLoading] = useState(false);
 
@@ -453,16 +459,47 @@ const handleLogin = async () => {
 
   // ── Send OTP for Signup ──
 // ── Send OTP for Signup ──
+// ── Send OTP for Signup ──
 const handleOtp = async () => {
   setSignupError("");
+
+  // Validation before sending OTP
+  if (!signupData.name || signupData.name.trim() === '') {
+    setSignupError("Full Name is required");
+    return;
+  }
+
   if (!signupData.email) {
     setSignupError("Please enter your email first.");
     return;
   }
+
   if (!signupData.email.endsWith("@psgtech.ac.in")) {
     setSignupError("Please use your PSG college email (@psgtech.ac.in).");
     return;
   }
+
+  if (!signupData.phone || signupData.phone.length !== 10) {
+    setSignupError("Phone number must be exactly 10 digits.");
+    return;
+  }
+
+  if (!signupData.password || signupData.password.length < 8) {
+    setSignupError("Password must be at least 8 characters.");
+    return;
+  }
+
+  if (!signupData.confirmPassword) {
+    setSignupError("Please confirm your password.");
+    return;
+  }
+
+  if (signupData.password !== signupData.confirmPassword) {
+    setSignupError("Passwords do not match.");
+    return;
+  }
+
+  if (otpLoading) return;
 
   setOtpLoading(true);
   try {
@@ -478,7 +515,7 @@ const handleOtp = async () => {
       alert("✅ OTP Sent! Check your email.");
       setOtpTimer(30);
     } else {
-      setSignupError(data.error || "Failed to send OTP.");
+      setSignupError(data.error || "Failed to send OTP. Please try again.");
     }
   } catch (err) {
     console.error(err);
@@ -489,39 +526,55 @@ const handleOtp = async () => {
 };
 
 // ── Signup submit ──
+// ── Signup submit ──
 const handleSignup = async () => {
   setSignupError("");
-  if (!signupData.name || !signupData.email || !signupData.password || !signupData.otp) {
+
+  // Validation
+  if (!signupData.name || !signupData.email || !signupData.password || 
+      !signupData.confirmPassword || !signupData.otp) {
     setSignupError("Please fill all fields and verify OTP.");
     return;
   }
-  if (!signupData.email.endsWith("@psgtech.ac.in")) {
-    setSignupError("Please use your PSG college email.");
+
+  if (signupData.phone.length !== 10) {
+    setSignupError("Phone number must be exactly 10 digits.");
     return;
   }
+
+  if (signupData.password !== signupData.confirmPassword) {
+    setSignupError("Passwords do not match.");
+    return;
+  }
+
   if (signupData.password.length < 8) {
     setSignupError("Password must be at least 8 characters.");
     return;
   }
 
+  if (!signupData.email.endsWith("@psgtech.ac.in")) {
+    setSignupError("Please use your PSG college email (@psgtech.ac.in).");
+    return;
+  }
+
   setSignupLoading(true);
   try {
-    const response = await fetch(`${API_BASE}/auth/signup`, {   // ← Correct endpoint
+    const response = await fetch(`${API_BASE}/auth/signup`, {
       method: "POST",
       headers: { "Content-Type": "application/json" },
       body: JSON.stringify({
         full_name: signupData.name,
         email: signupData.email,
         password: signupData.password,
+        phone: signupData.phone,
       }),
     });
 
     const data = await response.json();
-
     if (response.ok) {
       alert("✅ Account created successfully! Please login.");
       setIsSignup(false);
-      setSignupData({ name: "", email: "", password: "", otp: "" });
+      setSignupData({ name: "", email: "", password: "", confirmPassword: "", phone: "", otp: "" });
     } else {
       setSignupError(data.error || "Registration failed.");
     }
@@ -534,9 +587,8 @@ const handleSignup = async () => {
 };
   // ── Signup submit ──
  
-  return (
+ return (
     <div className="min-h-screen bg-gradient-to-br from-forest via-hunter to-fern flex items-center justify-center overflow-hidden relative px-4 py-6">
-
       {/* Animated Background Circles */}
       <div className="absolute top-[-120px] left-[-100px] w-72 h-72 bg-sage/20 rounded-full blur-3xl animate-floatSlow" />
       <div className="absolute bottom-[-150px] right-[-100px] w-96 h-96 bg-bone/10 rounded-full blur-3xl animate-floatMedium" />
@@ -544,11 +596,9 @@ const handleSignup = async () => {
 
       {/* Main Card */}
       <div className="w-full max-w-5xl bg-white/10 backdrop-blur-2xl border border-white/20 rounded-[32px] overflow-hidden shadow-2xl flex flex-col lg:flex-row animate-fadeUp">
-
-        {/* ── Left Panel ── */}
+        {/* Left Panel */}
         <div className="lg:w-1/2 bg-gradient-to-br from-sage via-fern to-hunter relative p-8 flex flex-col justify-between">
           <div className="absolute inset-0 bg-black/10" />
-
           {/* Logo */}
           <div className="relative z-10 flex items-center gap-4">
             <div className="w-14 h-14 bg-white flex items-center justify-center shadow-xl overflow-hidden p-1">
@@ -560,7 +610,6 @@ const handleSignup = async () => {
             </div>
             <div className="text-white">
               <h2 className="font-bold text-2xl leading-tight">PSG COLLEGE OF TECHNOLOGY</h2>
-              {/* <p className="text-sm opacity-90">Technology</p> */}
             </div>
           </div>
 
@@ -575,18 +624,13 @@ const handleSignup = async () => {
 
           {/* Tagline */}
           <div className="relative z-10 text-white">
-            <h1 className="text-3xl font-black leading-tight mb-4">Internship Form Automation System</h1>
-            {/* <p className="text-white/80 text-sm leading-6">
-              Secure access to your academic dashboard, attendance, internship portal, and college services.
-            </p> */}
+            <h1 className="text-3xl font-black leading-tight mb-4">Internship Registration And Approval System</h1>
           </div>
         </div>
 
-        {/* ── Right Panel ── */}
+        {/* Right Panel */}
         <div className="lg:w-1/2 bg-white/95 backdrop-blur-xl p-8 lg:p-12 flex items-center">
           <div className="w-full">
-
-            {/* ── FORGOT PASSWORD FLOW ── */}
             {showForgotPassword ? (
               <ForgotPasswordFlow onBack={() => setShowForgotPassword(false)} />
             ) : (
@@ -621,7 +665,7 @@ const handleSignup = async () => {
                   </p>
                 </div>
 
-                {/* ── LOGIN FORM ── */}
+                {/* LOGIN FORM */}
                 {!isSignup ? (
                   <div className="space-y-5">
                     {loginError && (
@@ -629,7 +673,6 @@ const handleSignup = async () => {
                         {loginError}
                       </div>
                     )}
-
                     <div>
                       <label className="text-sm font-semibold text-forest/80 block mb-2">College Email</label>
                       <input
@@ -640,7 +683,6 @@ const handleSignup = async () => {
                         className="w-full px-5 py-4 rounded-2xl border border-sage/30 bg-white focus:outline-none focus:ring-4 focus:ring-sage/20 focus:border-fern transition-all duration-300"
                       />
                     </div>
-
                     <div>
                       <label className="text-sm font-semibold text-forest/80 block mb-2">Password</label>
                       <div className="relative">
@@ -661,7 +703,6 @@ const handleSignup = async () => {
                         </button>
                       </div>
                     </div>
-
                     <div className="text-right">
                       <button
                         type="button"
@@ -671,7 +712,6 @@ const handleSignup = async () => {
                         Forgot Password?
                       </button>
                     </div>
-
                     <button
                       type="button"
                       onClick={handleLogin}
@@ -682,7 +722,7 @@ const handleSignup = async () => {
                     </button>
                   </div>
                 ) : (
-                  /* ── SIGNUP FORM ── */
+                  /* SIGNUP FORM - UPDATED */
                   <div className="space-y-5">
                     {signupError && (
                       <div className="bg-red-50 border border-red-200 text-red-600 text-sm px-4 py-3 rounded-xl">
@@ -690,16 +730,16 @@ const handleSignup = async () => {
                       </div>
                     )}
 
-                     <div>
+                    <div>
                       <label className="text-sm font-semibold text-forest/80 block mb-2">Full Name</label>
                       <input
                         type="text"
-                        placeholder="Enter your name"
+                        placeholder="Enter name as per college record"
                         value={signupData.name}
                         onChange={(e) => setSignupData({ ...signupData, name: e.target.value })}
                         className="w-full px-5 py-4 rounded-2xl border border-sage/30 bg-white focus:outline-none focus:ring-4 focus:ring-sage/20 focus:border-fern transition-all duration-300"
                       />
-                    </div> 
+                    </div>
 
                     <div>
                       <label className="text-sm font-semibold text-forest/80 block mb-2">College Email</label>
@@ -708,6 +748,17 @@ const handleSignup = async () => {
                         placeholder="yourname@psgtech.ac.in"
                         value={signupData.email}
                         onChange={(e) => setSignupData({ ...signupData, email: e.target.value })}
+                        className="w-full px-5 py-4 rounded-2xl border border-sage/30 bg-white focus:outline-none focus:ring-4 focus:ring-sage/20 focus:border-fern transition-all duration-300"
+                      />
+                    </div>
+
+                    <div>
+                      <label className="text-sm font-semibold text-forest/80 block mb-2">Phone Number</label>
+                      <input
+                        type="tel"
+                        placeholder="9876543210"
+                        value={signupData.phone}
+                        onChange={(e) => setSignupData({ ...signupData, phone: e.target.value })}
                         className="w-full px-5 py-4 rounded-2xl border border-sage/30 bg-white focus:outline-none focus:ring-4 focus:ring-sage/20 focus:border-fern transition-all duration-300"
                       />
                     </div>
@@ -733,6 +784,26 @@ const handleSignup = async () => {
                     </div>
 
                     <div>
+                      <label className="text-sm font-semibold text-forest/80 block mb-2">Confirm Password</label>
+                      <div className="relative">
+                        <input
+                          type={showConfirmPassword ? "text" : "password"}
+                          placeholder="Re-enter password"
+                          value={signupData.confirmPassword}
+                          onChange={(e) => setSignupData({ ...signupData, confirmPassword: e.target.value })}
+                          className="w-full px-5 py-4 rounded-2xl border border-sage/30 bg-white focus:outline-none focus:ring-4 focus:ring-sage/20 focus:border-fern transition-all duration-300"
+                        />
+                        <button
+                          type="button"
+                          onClick={() => setShowConfirmPassword(!showConfirmPassword)}
+                          className="absolute right-5 top-1/2 -translate-y-1/2 text-fern"
+                        >
+                          <EyeIcon open={showConfirmPassword} />
+                        </button>
+                      </div>
+                    </div>
+
+                    <div>
                       <label className="text-sm font-semibold text-forest/80 block mb-2">OTP Verification</label>
                       <div className="flex gap-3">
                         <input
@@ -747,8 +818,8 @@ const handleSignup = async () => {
                           type="button"
                           onClick={handleOtp}
                           disabled={otpTimer > 0 || otpLoading}
-                          className="px-5 rounded-2xl bg-gradient-to-r from-sage to-fern text-white font-bold shadow-lg hover:from-fern hover:to-hunter hover:shadow-[0_0_30px_rgba(163,177,138,0.45)] hover:scale-105 transition-all duration-300 disabled:opacity-50 whitespace-nowrap">
-                          {otpLoading ? "..." : otpTimer > 0 ? `${otpTimer}s` : "Get OTP"}
+                          className="px-5 rounded-2xl bg-gradient-to-r from-sage to-fern text-white font-bold shadow-lg hover:from-fern hover:to-hunter hover:scale-105 transition-all duration-300 disabled:opacity-50 whitespace-nowrap">
+                          {otpLoading ? "Sending OTP..." : otpTimer > 0 ? `Resend in ${otpTimer}s` : "Get OTP"}
                         </button>
                       </div>
                     </div>
@@ -765,11 +836,6 @@ const handleSignup = async () => {
                 )}
               </>
             )}
-
-            {/* Footer */}
-            <div className="mt-8 text-center text-sm text-forest/60">
-
-            </div>
           </div>
         </div>
       </div>
