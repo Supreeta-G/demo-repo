@@ -13,11 +13,12 @@ const SummerInternshipForm = () => {
   const [tutors, setTutors] = useState([]);
   const [profile, setProfile] = useState(null);
   const [savedId, setSavedId] = useState(null);
+   const [isEditing, setIsEditing] = useState(false);
   const [loading, setLoading] = useState(false);
   const [submitLoading, setSubmitLoading] = useState(false);
 
   const [isLocked, setIsLocked] = useState(false);
- const [isEditing, setIsEditing] = useState(false);
+
   const [parentPermissionUrl, setParentPermissionUrl] = useState('');
 
   const [form, setForm] = useState({
@@ -103,6 +104,7 @@ useEffect(() => {
           tutor_id: data.tutor_id || '',
           tutor_email: data.tutor_email || '',
           parent_permission_url: data.parent_permission_url || '',
+          offer_letter_url: data.offer_letter_url || '',
         });
       })
       .catch(err => console.error("Failed to load application for edit", err));
