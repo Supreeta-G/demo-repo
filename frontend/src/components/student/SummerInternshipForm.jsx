@@ -71,56 +71,41 @@ useEffect(() => {
 }, [editId]);   // ← Also added editId as dependency
 
 // Load Existing Application when editing
+// Load Existing Application if editing
 useEffect(() => {
   if (editId) {
     setIsEditing(true);
-    
     api.get(`/applications/${editId}`)
       .then(({ data }) => {
-        console.log("✅ Loaded edit data:", data);
-
         setSavedId(data.application_id);
         setIsLocked(data.locked || false);
 
         setForm({
           company_id: data.company_id || '',
-          company_name_manual: data.company_name_manual || data.company_display_name || data.company_name || '',
           role_title: data.role_title || '',
-
           intern_type: data.intern_type || 'industry',
-          how_obtained: data.how_obtained || '',
-
-          company_address: data.company_address || data.co_address || '',
-          company_city: data.company_city || data.co_city || '',
-          company_state: data.company_state || data.co_state || '',
+          company_address: data.company_address || '',
+          company_city: data.company_city || '',
+          company_state: data.company_state || '',
           company_country: data.company_country || 'India',
           company_phone: data.company_phone || '',
-
           duration_type: data.duration_type || 'summer',
           work_mode: data.work_mode || 'on_site',
-
+          how_obtained: data.how_obtained || '',
           start_date: data.start_date ? data.start_date.split('T')[0] : '',
           end_date: data.end_date ? data.end_date.split('T')[0] : '',
           attendance_days: data.attendance_days || '',
-
           guide_name_industry: data.guide_name_industry || '',
           guide_contact: data.guide_contact || '',
-
-          // ✅ CORRECTED MAPPING
-          cgpa: data.cgpa || data.student_cgpa || '',
+          stipend: data.stipend || data.stipend_amount || '',
+          cgpa: data.cgpa || '',
           semester_completed: data.semester_completed || '',
-          stipend: data.stipend_amount || '',
-
           tutor_id: data.tutor_id || '',
           tutor_email: data.tutor_email || '',
-          offer_letter_url: data.offer_letter_url || '',
           parent_permission_url: data.parent_permission_url || '',
         });
       })
-      .catch(err => {
-        console.error("Failed to load application for edit", err);
-        alert("Failed to load previous data");
-      });
+      .catch(err => console.error("Failed to load application for edit", err));
   }
 }, [editId]);
   // Auto attendance calculation
