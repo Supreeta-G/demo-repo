@@ -37,8 +37,10 @@ const SixMonthInternshipForm = () => {
     guide_contact: '',
     cgpa: '',
     semester_completed: '',
-    ra_courses: '',
-    pending_courses: '',
+    ra_courses_count: 0,
+    ra_courses_names: [],
+    pending_courses_count: 0,
+    pending_courses_names: [],
     has_declined_other: false,
     declined_company_name: '',
     declined_start_date: '',
@@ -228,11 +230,25 @@ const handleSaveDraft = async () => {
   if (!form.semester_completed) 
     return alert("Semesters Completed is required");
 
-  if (!form.ra_courses || form.ra_courses.trim() === '') 
-    return alert("RA / Arrear Courses field is required");
 
-  if (!form.pending_courses || form.pending_courses.trim() === '') 
-    return alert("Pending Courses field is required");
+  
+  if (form.ra_courses_count > 0) {
+    if (!form.ra_courses_names || form.ra_courses_names.length !== form.ra_courses_count) {
+      return alert(`Please fill all ${form.ra_courses_count} RA/Arrear course names.`);
+    }
+    if (form.pending_courses_count > 0) {
+            if (!form.pending_courses_names || form.pending_courses_names.length !== form.pending_courses_count) {
+              return alert(`Please fill all ${form.pending_courses_count} Pending course names.`);
+            }
+            if (form.pending_courses_names.some(name => !name || name.trim() === '')) {
+              return alert("All Pending course names must be filled.");
+            }
+          }
+    const emptyCourses = form.ra_courses_names.some(name => !name || name.trim() === '');
+    if (emptyCourses) {
+      return alert("All RA/Arrear course names must be filled.");
+    }
+  }
 
 
   setLoading(true);
@@ -539,31 +555,72 @@ const handleSubmit = async () => {
           </div>
         </div>
 
-        {/* RA / Arrear Courses */}
-<div>
-  <label className="block text-sm font-medium mb-2">RA / Arrear Courses<span className="text-red-500">*</span></label>
-  <input 
-    type="text" 
-    className="w-full px-4 py-3 border border-gray-300 rounded-2xl" 
-    value={form.ra_courses} 
-    onChange={e => setField('ra_courses', e.target.value)} 
-    placeholder="23XW45 - Artificial Intelligence"
-    disabled={isLocked && !isEditing} 
-  />
-</div>
+       {/* RA / Arrear Courses - Dynamic Fields */}
+  <div className="mt-6">
+    <label className="block text-sm font-medium mb-2">Number of RA / Arrear Courses </label>
+    <input 
+      type="number" 
+      min="0" 
+      className="w-full px-4 py-3 border border-gray-300 rounded-2xl" 
+      value={form.ra_courses_count || ''} 
+      onChange={e => setField('ra_courses_count', parseInt(e.target.value) || 0)} 
+    />
+  </div>
+
+  {/* Dynamic RA Course Name Fields */}
+        {form.ra_courses_count > 0 && (
+          <div className="mt-6">
+            <label className="block text-sm font-medium mb-3">RA / Arrear Course Names<span className="text-red-500">*</span></label>
+            <div className="space-y-3">
+              {Array.from({ length: form.ra_courses_count }).map((_, index) => (
+                <input
+                  key={index}
+                  type="text"
+                  className="w-full px-4 py-3 border border-gray-300 rounded-2xl"
+                  placeholder={`Course ${index + 1} Name (e.g. 23XW78 - Machine Learning)`}
+                  value={form.ra_courses_names?.[index] || ''}
+                  onChange={(e) => {
+                    const newNames = [...(form.ra_courses_names || [])];
+                    newNames[index] = e.target.value;
+                    setField('ra_courses_names', newNames);
+                  }}
+                />
+              ))}
+            </div>
+          </div>
+        )}
 
 {/* Pending Courses */}
-<div>
-  <label className="block text-sm font-medium mb-2">Pending Courses<span className="text-red-500">*</span></label>
-  <input 
-    type="text" 
-    className="w-full px-4 py-3 border border-gray-300 rounded-2xl" 
-    value={form.pending_courses} 
-    onChange={e => setField('pending_courses', e.target.value)} 
-    placeholder="23XW78 - Machine Learning"
-    disabled={isLocked && !isEditing} 
-  />
-</div>
+      <div className="mt-8">
+          <label className="block text-sm font-medium mb-2">Number of Pending Courses</label>
+          <input 
+            type="number" 
+            min="0" 
+            className="w-full px-4 py-3 border border-gray-300 rounded-2xl" 
+            value={form.pending_courses_count || 0} 
+            onChange={e => setField('pending_courses_count', parseInt(e.target.value) || 0)} 
+          />
+
+          {form.pending_courses_count > 0 && (
+            <div className="mt-4 space-y-3">
+              <label className="block text-sm font-medium mb-3">Pending Course Names</label>
+              {Array.from({ length: form.pending_courses_count }).map((_, index) => (
+                <input
+                  key={index}
+                  type="text"
+                  className="w-full px-4 py-3 border border-gray-300 rounded-2xl"
+                  placeholder={`Pending Course ${index + 1} Name`}
+                  value={form.pending_courses_names?.[index] || ''}
+                  onChange={(e) => {
+                    const newNames = [...(form.pending_courses_names || [])];
+                    newNames[index] = e.target.value;
+                    setField('pending_courses_names', newNames);
+                  }}
+                />
+              ))}
+            </div>
+          )}
+        </div>
       </div>
 
       {/* Faculty Tutor */}
