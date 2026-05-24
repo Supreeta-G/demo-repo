@@ -467,16 +467,60 @@ const handleSubmit = async () => {
         <h3 className="text-xl font-semibold mb-6 flex items-center gap-3">
           <User className="w-6 h-6 text-fern" /> Industry Guide
         </h3>
-        <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
-          <div>
-            <label className="block text-sm font-medium mb-2">Guide Name<span className="text-red-500">*</span></label>
-            <input className="w-full px-4 py-3 border border-gray-300 rounded-2xl" value={form.guide_name_industry} onChange={e => setField('guide_name_industry', e.target.value)} disabled={isLocked && !isEditing} />
-          </div>
-          <div>
-            <label className="block text-sm font-medium mb-2">Guide Contact</label>
-            <input className="w-full px-4 py-3 border border-gray-300 rounded-2xl" value={form.guide_contact} onChange={e => setField('guide_contact', e.target.value)} placeholder="Email / Phone" disabled={isLocked && !isEditing} />
-          </div>
+
+        <div className="mb-6">
+          <label className="block text-sm font-medium mb-2">
+            Guide Allocation Status <span className="text-red-500">*</span>
+          </label>
+          <select
+            className="w-full px-4 py-3 border border-gray-300 rounded-2xl"
+            value={form.guide_allocated ? "allocated" : "not_allocated"}
+            onChange={(e) => {
+              const isAllocated = e.target.value === "allocated";
+              setField('guide_allocated', isAllocated);
+              if (!isAllocated) {
+                setField('guide_name_industry', '');
+                setField('guide_contact', '');
+              }
+            }}
+            disabled={isLocked && !isEditing}
+          >
+            <option value="not_allocated">Yet to be Allocated</option>
+            <option value="allocated">Guide Allocated</option>
+          </select>
         </div>
+
+        {form.guide_allocated && (
+          <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+            <div>
+              <label className="block text-sm font-medium mb-2">
+                Guide Name <span className="text-red-500">*</span>
+              </label>
+              <input
+                className="w-full px-4 py-3 border border-gray-300 rounded-2xl"
+                value={form.guide_name_industry}
+                onChange={e => setField('guide_name_industry', e.target.value)}
+                disabled={isLocked && !isEditing}
+              />
+            </div>
+            <div>
+              <label className="block text-sm font-medium mb-2">Guide Contact</label>
+              <input
+                className="w-full px-4 py-3 border border-gray-300 rounded-2xl"
+                value={form.guide_contact}
+                onChange={e => setField('guide_contact', e.target.value)}
+                placeholder="Email / Phone"
+                disabled={isLocked && !isEditing}
+              />
+            </div>
+          </div>
+        )}
+
+        {!form.guide_allocated && (
+          <div className="bg-gray-50 border border-dashed border-gray-300 rounded-2xl p-6 text-center">
+            <p className="text-gray-500">Guide is yet to be allocated</p>
+          </div>
+        )}
       </div>
 
       {/* Academic Details */}
@@ -588,9 +632,24 @@ const handleSubmit = async () => {
       {/* Parent Permission Letter */}
 <div className="bg-white rounded-3xl shadow p-8 mb-6">
   <h3 className="text-xl font-semibold mb-6 flex items-center gap-3">
-    <FileDown className="w-6 h-6 text-fern" /> Parent Permission Letter <span className="text-red-500">*</span>
+    <FileDown className="w-6 h-6 text-fern" /> 
+    Parent Permission Letter
   </h3>
-  <p className="text-sm text-gray-600 mb-4">Upload signed parent's consent letter (PDF, max 5MB)</p>
+
+  <p className="text-sm text-gray-600 mb-4">
+    Upload signed parent's consent letter (PDF, max 5MB)
+  </p>
+
+  {/* Template Button - Corrected Path */}
+  <button
+    onClick={() => window.open('http://localhost:5001/uploads/parent_temp/Parent Consent Letter Template.pdf', '_blank')}
+    className="mb-6 w-full flex items-center justify-center gap-2 px-6 py-3.5 
+               bg-white border-2 border-dashed border-gray-300 hover:border-fern 
+               hover:bg-fern hover:text-white rounded-2xl text-sm font-medium 
+               transition-all"
+  >
+    📄 Show Parent Letter Template
+  </button>
 
   <input 
     type="file" 
@@ -607,6 +666,14 @@ const handleSubmit = async () => {
     <div className="mt-4 p-3 bg-green-50 border border-green-200 rounded-2xl flex items-center gap-3">
       <FileDown className="w-5 h-5 text-green-600" />
       <span className="text-sm">Parent Permission Letter Uploaded</span>
+      <a 
+        href={`http://localhost:5001${form.parent_permission_url}`} 
+        target="_blank" 
+        rel="noopener noreferrer" 
+        className="text-fern underline text-sm ml-auto flex items-center gap-1"
+      >
+        📄 View File
+      </a>
     </div>
   )}
 </div>

@@ -221,7 +221,7 @@ const AdminApplications = () => {
                           {app.duration_type === 'summer' ? ' Summer' : ' 6-Month'}
                         </span>
                       </td>
-
+                  
                       {/* Company */}
                       <td
                         className="px-4 py-3 max-w-[140px] truncate"
