@@ -41,6 +41,9 @@ const sendOtp = async (req, res) => {
 
   otpStore.set(lower, { otp, expiry });
 
+  // DEBUG: log OTP to terminal (remove in production)
+  console.log(`DEBUG OTP for ${lower} → ${otp}`);
+
   try {
     await sendOtpEmail(lower, otp);
     res.json({ success: true, message: 'OTP sent to your email.' });
@@ -67,13 +70,9 @@ const verifyOtp = (req, res) => {
     return res.status(400).json({ error: 'Invalid OTP.' });
   }
 
-  // Do NOT delete OTP here if you want to use it in resetPassword
-  // otpStore.delete(lower);   ← Comment this line or keep it — both work now
-
   res.json({ success: true, message: 'OTP verified.' });
 };
 
- 
 // ──────────────────────────────────────────────
 // RESET PASSWORD
 // ──────────────────────────────────────────────
@@ -87,13 +86,11 @@ const resetPassword = async (req, res) => {
   const lower = email.toLowerCase();
 
   try {
-    // Re-verify OTP (don't delete it yet)
     const stored = otpStore.get(lower);
     if (!stored || Date.now() > stored.expiry || stored.otp !== String(otp)) {
       return res.status(400).json({ error: 'Invalid or expired OTP.' });
     }
 
-    // Check user exists
     const userResult = await pool.query('SELECT user_id FROM users WHERE LOWER(email) = $1', [lower]);
     if (userResult.rows.length === 0) {
       return res.status(404).json({ error: 'User not found.' });
@@ -106,9 +103,7 @@ const resetPassword = async (req, res) => {
       [hash, lower]
     );
 
-    // Clean up OTP after successful reset
     otpStore.delete(lower);
-
     res.json({ success: true, message: 'Password reset successfully.' });
   } catch (err) {
     console.error(err);
@@ -117,52 +112,80 @@ const resetPassword = async (req, res) => {
 };
 
 // ──────────────────────────────────────────────
-// SIGNUP
+// SIGNUP  ← FIXED
 // ──────────────────────────────────────────────
 const signup = async (req, res) => {
-  const { email, password, full_name, phone } = req.body;
-  if (!email || !password || !full_name)
-    return res.status(400).json({ error: 'Email, password and full name are required.' });
+  // ✅ FIX 1: Don't check confirmPassword — frontend already validated it.
+  // Never trust confirmPassword from the body; just use password directly.
+  const { full_name, email, phone, password } = req.body;
+
+  // Basic server-side validation
+  if (!full_name || !email || !password) {
+    return res.status(400).json({ error: 'Name, email, and password are required.' });
+  }
+
+  if (password.length < 8) {
+    return res.status(400).json({ error: 'Password must be at least 8 characters.' });
+  }
 
   const lower = email.toLowerCase();
-  const role = detectRole(lower);
-  if (!role)
-    return res.status(400).json({ error: 'Only @psgtech.ac.in email addresses are allowed.' });
+
+  if (!lower.endsWith('@psgtech.ac.in')) {
+    return res.status(400).json({ error: 'Only @psgtech.ac.in emails are allowed.' });
+  }
 
   try {
-    const existing = await pool.query('SELECT user_id FROM users WHERE LOWER(email)=$1', [lower]);
-    if (existing.rows.length > 0)
-      return res.status(409).json({ error: 'An account with this email already exists.' });
-
-    const hash = await bcrypt.hash(password, 10);
-    let roll_number = null, prog_id = null;
-
-    if (role === 'student') {
-      roll_number = extractRollNumber(lower);
-      prog_id = extractProgId(roll_number);
-      if (prog_id) {
-        const pCheck = await pool.query('SELECT prog_id FROM programmes WHERE prog_id=$1', [prog_id]);
-        if (!pCheck.rows.length) prog_id = null;
-      }
+    // Check if user already exists
+    const existing = await pool.query(
+      'SELECT user_id FROM users WHERE LOWER(email) = $1',
+      [lower]
+    );
+    if (existing.rows.length > 0) {
+      return res.status(400).json({ error: 'An account with this email already exists.' });
     }
 
-    const { rows } = await pool.query(
-      `INSERT INTO users (email, password_hash, full_name, role, phone, roll_number, prog_id)
-       VALUES ($1,$2,$3,$4,$5,$6,$7)
-       RETURNING user_id, email, full_name, role, roll_number, prog_id`,
-      [lower, hash, full_name, role, phone || null, roll_number, prog_id]
-    );
+    // Hash password
+    const password_hash = await bcrypt.hash(password, 10);
 
-    await pool.query(
-      `INSERT INTO audit_log (user_id, action, details) VALUES ($1, 'signup', $2)`,
-      [rows[0].user_id, JSON.stringify({ email: lower, role })]
-    );
+    // Detect role from email pattern
+    const role = detectRole(lower); // 'student' or 'tutor'
 
-    res.status(201).json({ message: 'Account created successfully.', user: rows[0] });
+    // Extract roll number from email local part
+    const roll_number = extractRollNumber(lower);
+
+    // Try to extract prog_id from roll number (e.g. "24pw33" → "PW")
+    const prog_id = extractProgId(roll_number);
+
+    // ✅ FIX 2: Don't insert user_id — it's a serial INTEGER, DB auto-generates it
+    const { rows } = await pool.query(`
+      INSERT INTO users (
+        email, password_hash, full_name, role, phone,
+        roll_number, prog_id
+      ) VALUES ($1, $2, $3, $4, $5, $6, $7)
+      RETURNING user_id, full_name, email, role
+    `, [
+      lower,
+      password_hash,
+      full_name.trim(),
+      role || 'student',
+      phone?.trim() || null,
+      roll_number || null,
+      prog_id || null,
+    ]);
+
+    res.status(201).json({
+      message: 'Account created successfully! Please login.',
+      user: rows[0],
+    });
+
   } catch (err) {
-    console.error(err);
-    if (err.code === '23505')
-      return res.status(409).json({ error: 'Email or roll number already exists.' });
+    console.error('Signup Error:', err);
+
+    // Handle unique constraint violation gracefully
+    if (err.code === '23505') {
+      return res.status(400).json({ error: 'An account with this email already exists.' });
+    }
+
     res.status(500).json({ error: 'Server error. Please try again.' });
   }
 };
@@ -212,11 +235,12 @@ const login = async (req, res) => {
   }
 };
 
-module.exports = { 
-  sendOtp, 
-  verifyOtp, 
-  resetPassword,        // ← Added
-  signup, 
-  login, 
-  detectRole 
+module.exports = {
+  sendOtp,
+  verifyOtp,
+  resetPassword,
+  signup,
+  login,
+  detectRole,
 };
+

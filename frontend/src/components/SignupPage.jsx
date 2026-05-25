@@ -16,6 +16,7 @@ const SignupPage = () => {
   const [confirmPw, setConfirmPw] = useState('');
   const [phone, setPhone] = useState('');
   const [showPw, setShowPw] = useState(false);
+  const [showConfirmPw, setShowConfirmPw] = useState(false);
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState('');
   const [success, setSuccess] = useState('');
@@ -33,21 +34,29 @@ const SignupPage = () => {
 
   const handleSendOtp = async () => {
     if (!email.toLowerCase().endsWith('@psgtech.ac.in')) {
-      setError('Only @psgtech.ac.in email addresses are allowed.'); return;
+      setError('Only @psgtech.ac.in email addresses are allowed.');
+      return;
     }
-    setLoading(true); setError('');
+    setLoading(true);
+    setError('');
     try {
       await api.post('/auth/send-otp', { email });
       setOtpSent(true);
       setSuccess('OTP sent to your email. Please check your inbox.');
     } catch (err) {
       setError(err.response?.data?.error || 'Failed to send OTP.');
-    } finally { setLoading(false); }
+    } finally {
+      setLoading(false);
+    }
   };
 
   const handleVerifyOtp = async () => {
-    if (!otp || otp.length !== 6) { setError('Please enter the 6-digit OTP.'); return; }
-    setLoading(true); setError('');
+    if (!otp || otp.length !== 6) {
+      setError('Please enter the 6-digit OTP.');
+      return;
+    }
+    setLoading(true);
+    setError('');
     try {
       await api.post('/auth/verify-otp', { email, otp });
       setOtpVerified(true);
@@ -55,27 +64,61 @@ const SignupPage = () => {
       setStep(1);
     } catch (err) {
       setError(err.response?.data?.error || 'Invalid OTP.');
-    } finally { setLoading(false); }
+    } finally {
+      setLoading(false);
+    }
   };
 
   const handleSignup = async (e) => {
     e.preventDefault();
-    if (password !== confirmPw) { setError('Passwords do not match.'); return; }
-    if (password.length < 8) { setError('Password must be at least 8 characters.'); return; }
-    setLoading(true); setError('');
+    setError('');
+
+    // ── Validations (all done on frontend before any API call) ──
+    if (!fullName.trim()) {
+      setError('Please enter your full name.');
+      return;
+    }
+
+    if (password.length < 8) {
+      setError('Password must be at least 8 characters.');
+      return;
+    }
+
+    if (password !== confirmPw) {
+      setError('Passwords do not match.');
+      return;
+    }
+
+    setLoading(true);
+
     try {
-      await api.post('/auth/signup', { email, password, full_name: fullName, phone });
-      setSuccess('Account created! Redirecting to login...');
+      await api.post('/auth/signup', {
+        email: email.trim(),
+        password: password,           // send exactly what user typed
+        full_name: fullName.trim(),
+        phone: phone.trim() || null,
+      });
+
+      setSuccess('Account created successfully! Redirecting to login...');
       setTimeout(() => navigate('/'), 1800);
+
     } catch (err) {
-      setError(err.response?.data?.error || 'Signup failed.');
-    } finally { setLoading(false); }
+      console.error('Signup Error:', err);
+      setError(err.response?.data?.error || 'Signup failed. Please try again.');
+    } finally {
+      setLoading(false);
+    }
   };
 
+  // Live password match indicator
+  const passwordsMatch = confirmPw.length > 0 && password === confirmPw;
+  const passwordsMismatch = confirmPw.length > 0 && password !== confirmPw;
+
   return (
-    <div className="min-h-screen relative flex items-center justify-center overflow-hidden"
-      style={{ background: 'linear-gradient(135deg, #344E41 0%, #3A5A40 35%, #588157 70%, #A3B18A 100%)' }}>
-      
+    <div
+      className="min-h-screen relative flex items-center justify-center overflow-hidden"
+      style={{ background: 'linear-gradient(135deg, #344E41 0%, #3A5A40 35%, #588157 70%, #A3B18A 100%)' }}
+    >
       {/* Bg elements */}
       <div className="absolute top-[-10%] right-[-10%] w-96 h-96 rounded-full bg-white/5 blur-3xl" />
       <div className="absolute bottom-[-5%] left-[-5%] w-72 h-72 rounded-full bg-white/5 blur-3xl" />
@@ -92,7 +135,7 @@ const SignupPage = () => {
       </div>
 
       <div className="relative z-10 w-full max-w-md mx-4 mt-16 animate-slide-up">
-        
+
         {/* Progress */}
         <div className="flex items-center gap-2 mb-6 px-2">
           {STEPS.map((s, i) => (
@@ -112,7 +155,7 @@ const SignupPage = () => {
         </div>
 
         <div className="bg-white/10 backdrop-blur-xl rounded-3xl shadow-2xl border border-white/20 p-8">
-          
+
           <div className="text-center mb-7">
             <div className="inline-flex items-center justify-center w-14 h-14 rounded-2xl bg-white/15 border border-white/25 mb-4">
               <UserPlus className="w-7 h-7 text-white" />
@@ -134,7 +177,7 @@ const SignupPage = () => {
             </div>
           )}
 
-          {/* Step 0: Email + OTP */}
+          {/* ── STEP 0: Email + OTP ── */}
           {step === 0 && (
             <div className="space-y-4">
               <div>
@@ -157,8 +200,11 @@ const SignupPage = () => {
               </div>
 
               {!otpSent ? (
-                <button onClick={handleSendOtp} disabled={loading || !email}
-                  className="w-full py-3 bg-gradient-to-r from-fern to-hunter text-white font-bold rounded-xl transition-all flex items-center justify-center gap-2 text-sm disabled:opacity-50 shadow-lg hover:shadow-xl">
+                <button
+                  onClick={handleSendOtp}
+                  disabled={loading || !email}
+                  className="w-full py-3 bg-gradient-to-r from-fern to-hunter text-white font-bold rounded-xl transition-all flex items-center justify-center gap-2 text-sm disabled:opacity-50 shadow-lg hover:shadow-xl"
+                >
                   {loading
                     ? <span className="w-4 h-4 border-2 border-white/30 border-t-white rounded-full animate-spin" />
                     : <><Mail className="w-4 h-4" /> Send OTP</>}
@@ -178,14 +224,19 @@ const SignupPage = () => {
                       className="w-full px-4 py-3 rounded-xl bg-white/10 border border-white/20 text-white placeholder-white/30 text-sm focus:outline-none focus:ring-2 focus:ring-sage/50 tracking-[0.3em] text-center text-lg font-bold"
                     />
                   </div>
-                  <button onClick={handleVerifyOtp} disabled={loading || otp.length !== 6}
-                    className="w-full py-3 bg-gradient-to-r from-fern to-hunter text-white font-bold rounded-xl transition-all flex items-center justify-center gap-2 text-sm disabled:opacity-50">
+                  <button
+                    onClick={handleVerifyOtp}
+                    disabled={loading || otp.length !== 6}
+                    className="w-full py-3 bg-gradient-to-r from-fern to-hunter text-white font-bold rounded-xl transition-all flex items-center justify-center gap-2 text-sm disabled:opacity-50"
+                  >
                     {loading
                       ? <span className="w-4 h-4 border-2 border-white/30 border-t-white rounded-full animate-spin" />
                       : <><CheckCircle className="w-4 h-4" /> Verify OTP</>}
                   </button>
-                  <button onClick={() => { setOtpSent(false); setOtp(''); setError(''); }}
-                    className="w-full text-center text-white/40 hover:text-white/70 text-xs py-1 transition-colors">
+                  <button
+                    onClick={() => { setOtpSent(false); setOtp(''); setError(''); setSuccess(''); }}
+                    className="w-full text-center text-white/40 hover:text-white/70 text-xs py-1 transition-colors"
+                  >
                     Resend OTP
                   </button>
                 </div>
@@ -193,53 +244,117 @@ const SignupPage = () => {
             </div>
           )}
 
-          {/* Step 1: Create Account */}
+          {/* ── STEP 1: Create Account ── */}
           {step === 1 && (
             <form onSubmit={handleSignup} className="space-y-4">
+
+              {/* Full Name */}
               <div>
                 <label className="block text-white/60 text-xs font-semibold uppercase tracking-widest mb-2">Full Name</label>
-                <input type="text" required value={fullName} onChange={e => setFullName(e.target.value)}
+                <input
+                  type="text"
+                  required
+                  value={fullName}
+                  onChange={e => { setFullName(e.target.value); setError(''); }}
                   placeholder="Your full name"
-                  className="w-full px-4 py-3 rounded-xl bg-white/10 border border-white/20 text-white placeholder-white/30 text-sm focus:outline-none focus:ring-2 focus:ring-sage/50" />
+                  className="w-full px-4 py-3 rounded-xl bg-white/10 border border-white/20 text-white placeholder-white/30 text-sm focus:outline-none focus:ring-2 focus:ring-sage/50"
+                />
               </div>
+
+              {/* Phone */}
               <div>
-                <label className="block text-white/60 text-xs font-semibold uppercase tracking-widest mb-2">Phone (Optional)</label>
-                <input type="tel" value={phone} onChange={e => setPhone(e.target.value)}
+                <label className="block text-white/60 text-xs font-semibold uppercase tracking-widest mb-2">
+                  Phone Number <span className="normal-case text-white/30">(Optional)</span>
+                </label>
+                <input
+                  type="tel"
+                  value={phone}
+                  onChange={e => setPhone(e.target.value)}
                   placeholder="+91 98765 43210"
-                  className="w-full px-4 py-3 rounded-xl bg-white/10 border border-white/20 text-white placeholder-white/30 text-sm focus:outline-none focus:ring-2 focus:ring-sage/50" />
+                  className="w-full px-4 py-3 rounded-xl bg-white/10 border border-white/20 text-white placeholder-white/30 text-sm focus:outline-none focus:ring-2 focus:ring-sage/50"
+                />
               </div>
+
+              {/* Password */}
               <div>
                 <label className="block text-white/60 text-xs font-semibold uppercase tracking-widest mb-2">Password</label>
                 <div className="relative">
-                  <input type={showPw ? 'text' : 'password'} required value={password}
+                  <input
+                    type={showPw ? 'text' : 'password'}
+                    required
+                    value={password}
                     onChange={e => { setPassword(e.target.value); setError(''); }}
                     placeholder="Min 8 characters"
-                    className="w-full px-4 py-3 pr-12 rounded-xl bg-white/10 border border-white/20 text-white placeholder-white/30 text-sm focus:outline-none focus:ring-2 focus:ring-sage/50" />
-                  <button type="button" onClick={() => setShowPw(!showPw)}
-                    className="absolute right-3 top-1/2 -translate-y-1/2 text-white/40 hover:text-white/70 p-1">
+                    className="w-full px-4 py-3 pr-12 rounded-xl bg-white/10 border border-white/20 text-white placeholder-white/30 text-sm focus:outline-none focus:ring-2 focus:ring-sage/50"
+                  />
+                  <button
+                    type="button"
+                    onClick={() => setShowPw(!showPw)}
+                    className="absolute right-3 top-1/2 -translate-y-1/2 text-white/40 hover:text-white/70 p-1"
+                  >
                     {showPw ? <EyeOff className="w-4 h-4" /> : <Eye className="w-4 h-4" />}
                   </button>
                 </div>
+                {password.length > 0 && password.length < 8 && (
+                  <p className="mt-1 text-xs text-red-300">Password must be at least 8 characters</p>
+                )}
               </div>
+
+              {/* Confirm Password */}
               <div>
                 <label className="block text-white/60 text-xs font-semibold uppercase tracking-widest mb-2">Confirm Password</label>
-                <input type="password" required value={confirmPw}
-                  onChange={e => { setConfirmPw(e.target.value); setError(''); }}
-                  placeholder="Repeat your password"
-                  className="w-full px-4 py-3 rounded-xl bg-white/10 border border-white/20 text-white placeholder-white/30 text-sm focus:outline-none focus:ring-2 focus:ring-sage/50" />
+                <div className="relative">
+                  <input
+                    type={showConfirmPw ? 'text' : 'password'}
+                    required
+                    value={confirmPw}
+                    onChange={e => { setConfirmPw(e.target.value); setError(''); }}
+                    placeholder="Repeat your password"
+                    className={`w-full px-4 py-3 pr-12 rounded-xl bg-white/10 border text-white placeholder-white/30 text-sm focus:outline-none focus:ring-2 transition-all
+                      ${passwordsMismatch
+                        ? 'border-red-400/60 focus:ring-red-400/30'
+                        : passwordsMatch
+                        ? 'border-emerald-400/60 focus:ring-emerald-400/30'
+                        : 'border-white/20 focus:ring-sage/50'
+                      }`}
+                  />
+                  <button
+                    type="button"
+                    onClick={() => setShowConfirmPw(!showConfirmPw)}
+                    className="absolute right-3 top-1/2 -translate-y-1/2 text-white/40 hover:text-white/70 p-1"
+                  >
+                    {showConfirmPw ? <EyeOff className="w-4 h-4" /> : <Eye className="w-4 h-4" />}
+                  </button>
+                </div>
+
+                {/* Live match indicator */}
+                {passwordsMatch && (
+                  <p className="mt-1 text-xs text-emerald-300 flex items-center gap-1">
+                    <CheckCircle className="w-3 h-3" /> Passwords match
+                  </p>
+                )}
+                {passwordsMismatch && (
+                  <p className="mt-1 text-xs text-red-300">⚠️ Passwords do not match</p>
+                )}
               </div>
-              <button type="submit" disabled={loading}
-                className="w-full py-3 bg-gradient-to-r from-fern to-hunter text-white font-bold rounded-xl transition-all flex items-center justify-center gap-2 text-sm disabled:opacity-50 shadow-lg hover:shadow-xl mt-2">
+
+              <button
+                type="submit"
+                disabled={loading || passwordsMismatch || password.length < 8}
+                className="w-full py-3 bg-gradient-to-r from-fern to-hunter text-white font-bold rounded-xl transition-all flex items-center justify-center gap-2 text-sm disabled:opacity-50 shadow-lg hover:shadow-xl mt-2"
+              >
                 {loading
                   ? <span className="w-4 h-4 border-2 border-white/30 border-t-white rounded-full animate-spin" />
                   : <><UserPlus className="w-4 h-4" /> Create Account</>}
               </button>
+
             </form>
           )}
         </div>
 
         <p className="text-center text-white/30 text-xs mt-4">
-          Already have an account? <Link to="/" className="text-sage hover:text-white transition-colors">Sign In</Link>
+          Already have an account?{' '}
+          <Link to="/" className="text-sage hover:text-white transition-colors">Sign In</Link>
         </p>
       </div>
     </div>

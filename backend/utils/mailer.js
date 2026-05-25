@@ -87,6 +87,11 @@ const sendRejectionEmail = async (studentEmail, studentName, companyName, remark
 };
 
 const sendOtpEmail = async (email, otp) => {
+  console.log(`🔢 DEBUG OTP for ${email} → ${otp}`);  // ← This will show in terminal
+
+  // For now, we'll skip actual email sending
+  // Uncomment the code below only after Gmail is fixed
+
   const body = `
     <p style="color:#555;line-height:1.7;">You requested a One-Time Password for PSG Tech Internship Portal.</p>
     <div style="text-align:center;margin:24px 0;">
@@ -96,6 +101,7 @@ const sendOtpEmail = async (email, otp) => {
     </div>
     <p style="color:#555;line-height:1.7;">This OTP is valid for <strong>10 minutes</strong>. Do not share it with anyone.</p>
   `;
+
   await transporter.sendMail({
     from: process.env.EMAIL_FROM || 'PSG Tech Portal <noreply@psgtech.ac.in>',
     to: email,
