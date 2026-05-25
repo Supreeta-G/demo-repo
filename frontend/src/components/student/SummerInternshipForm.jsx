@@ -163,8 +163,11 @@ const handleSaveDraft = async () => {
   if (!form.company_phone || form.company_phone.length !== 10) {
     return alert("Phone number must be exactly 10 digits");
   }
+  if (!form.tutor_name?.trim() && !form.tutor_id) {
+    return alert("Please enter Tutor Name");
+  }
   if (!form.tutor_email) {
-    return alert("Tutor Email is required");
+    return alert("Please enter tutor email");
   }
   if (!form.offer_letter_url) {
     return alert("Please upload Offer Letter");
@@ -177,7 +180,9 @@ const handleSaveDraft = async () => {
   try {
     const payload = {
       ...form,
-      application_id: savedId || editId
+      application_id: savedId || editId,
+      status: 'draft',           // ← Important
+      locked: false
     };
 
     const { data } = await api.post('/applications/draft', payload);
@@ -219,6 +224,9 @@ const handleSaveDraft = async () => {
   if (!form.company_phone || form.company_phone.length !== 10) {
     return alert("Phone number must be exactly 10 digits");
   }
+  if (!form.tutor_name?.trim() && !form.tutor_id) {
+    return alert("Please enter Tutor Name or select a tutor");
+  }
   if (!form.tutor_email) return alert("Tutor Email is required");
   if (!form.offer_letter_url) return alert("Please upload Offer Letter");
   if (!form.parent_permission_url) return alert("Please upload Parent's Permission Letter");  
@@ -226,7 +234,9 @@ const handleSaveDraft = async () => {
   try {
     await api.post('/applications/submit', { 
       application_id: savedId || editId,  // ← Keep same ID
-      stipend_amount: form.stipend
+      stipend_amount: form.stipend,
+      tutor_name: form.tutor_name,
+  tutor_email: form.tutor_email
          
     });
     
@@ -548,34 +558,36 @@ const handleParentPermissionUpload = async (e) => {
   
 </div> */}
 
-{/* Tutor Email */}
+{/* Faculty Tutor Details */}
+{/* Faculty Tutor Details - Manual Entry */}
 <div className="bg-white rounded-3xl shadow p-8 mb-8">
   <h3 className="text-xl font-semibold mb-6 flex items-center gap-3">
-    <User className="w-6 h-6 text-fern" /> Tutor Details
+    <User className="w-6 h-6 text-fern" /> Faculty Tutor
   </h3>
 
-  {/* Tutor Name - Manual Input */}
-  <label className="block text-sm font-medium mb-2">Tutor Name <span className="text-red-500">*</span></label>
-  <input
-    type="text"
-    className="w-full px-4 py-3 border border-gray-300 rounded-2xl"
-    value={form.tutor_name || ''}           // Use tutor_name or adjust field name
-    onChange={e => setField('tutor_name', e.target.value)}   // or 'guide_name_industry' if you prefer
-    placeholder="Enter tutor full name"
-    disabled={isLocked && !isEditing}
-  />
-
-  {/* Tutor Email */}
-  <label className="block text-sm font-medium mb-2 mt-6">Tutor Email ID <span className="text-red-500">*</span></label>
-  <input
-    type="email"
-    className="w-full px-4 py-3 border border-gray-300 rounded-2xl"
-    value={form.tutor_email}
-    onChange={e => setField('tutor_email', e.target.value)}
-    placeholder="tutorname@psgtech.ac.in"
-    disabled={isLocked && !isEditing}
-  />
-  <p className="text-xs text-gray-500 mt-2">The application will be sent to this email</p>
+  <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+    <div>
+      <label className="block text-sm font-medium mb-2">Tutor Name <span className="text-red-500">*</span></label>
+      <input
+        className="w-full px-4 py-3 border border-gray-300 rounded-2xl"
+        value={form.tutor_name || ''}
+        onChange={e => setField('tutor_name', e.target.value)}
+        placeholder="Dr. V. S. K"
+        disabled={isLocked && !isEditing}
+      />
+    </div>
+    <div>
+      <label className="block text-sm font-medium mb-2">Tutor Email ID <span className="text-red-500">*</span></label>
+      <input
+        type="email"
+        className="w-full px-4 py-3 border border-gray-300 rounded-2xl"
+        value={form.tutor_email}
+        onChange={e => setField('tutor_email', e.target.value)}
+        placeholder="vsk@psgtech.ac.in"
+        disabled={isLocked && !isEditing}
+      />
+    </div>
+  </div>
 </div>
       <div className="bg-white rounded-3xl shadow p-8 mb-6">
         <h3 className="text-xl font-semibold mb-6 flex items-center gap-3">

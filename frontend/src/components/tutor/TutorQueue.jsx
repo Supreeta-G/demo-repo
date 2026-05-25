@@ -37,24 +37,31 @@ const TutorQueue = ({ filter }) => {
     load();
   }, [filter]);
 
-  const decide = async (appId, decision) => {
+const decide = async (appId, decision) => {
+    if (!appId) {
+      return showToast("Application ID not found!", 'error');
+    }
+
     const key = appId + decision;
     setActionLoading(key);
+
     try {
-      await api.post('/tutor/decision', {
-        application_id: appId,
+      await api.post('/tutor/decision', { 
+        application_id: appId, 
         decision: decision,
-        remarks: remarks[appId] || ''
+        remarks: remarks[appId] || '' 
       });
+      
       showToast(
-        `Application ${decision === 'approve' ? 'Approved' : 'Rejected'}`,
+        `Application ${decision === 'approve' ? '✅ Approved' : '❌ Rejected'}`, 
         decision === 'approve' ? 'success' : 'error'
       );
-      load();
+      
+      load();                    
       setExpanded(null);
       setRemarks(r => ({ ...r, [appId]: '' }));
     } catch (err) {
-      console.error(err);
+      console.error("Tutor Decision Error:", err);
       showToast(err.response?.data?.error || 'Action failed.', 'error');
     } finally {
       setActionLoading(null);
@@ -320,21 +327,21 @@ const TutorQueue = ({ filter }) => {
 
                         {isPending && (
                           <>
-                            <button
-                              onClick={() => decide(app.application_id, 'approve')}
-                              disabled={!!actionLoading}
-                              className="flex-1 bg-emerald-600 hover:bg-emerald-700 text-white py-4 rounded-2xl font-semibold disabled:opacity-50 transition-all"
-                            >
-                              ✅ Approve
-                            </button>
+                            <button 
+                            onClick={() => decide(app.application_id, 'approve')}
+                            disabled={actionLoading}
+                            className="flex-1 bg-emerald-600 hover:bg-emerald-700 text-white py-4 rounded-2xl font-semibold"
+                          >
+                               Approve 
+                          </button>
 
-                            <button
-                              onClick={() => decide(app.application_id, 'reject')}
-                              disabled={!!actionLoading}
-                              className="flex-1 bg-red-600 hover:bg-red-700 text-white py-4 rounded-2xl font-semibold disabled:opacity-50 transition-all"
-                            >
-                              ❌ Return
-                            </button>
+                          <button 
+                            onClick={() => decide(app.application_id, 'reject')}
+                            disabled={actionLoading}
+                            className="flex-1 bg-red-600 hover:bg-red-700 text-white py-4 rounded-2xl font-semibold"
+                          >
+                               Return 
+                          </button>
                           </>
                         )}
                       </div>

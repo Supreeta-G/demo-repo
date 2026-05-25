@@ -36,7 +36,8 @@ router.post('/applications/upload-parent-permission', authenticateToken, require
 // Tutor
 router.get('/tutor/queue', requireRole('tutor'), appCtrl.getTutorQueue);
 router.post('/tutor/decision', requireRole('tutor'), appCtrl.tutorDecision);
-
+// Tutor Decision Route
+router.post('/tutor/decision', authenticateToken, requireRole('tutor'), appCtrl.tutorDecision);
 // Admin
 router.get('/admin/stats', requireRole('admin'), appCtrl.getAdminStats);
 router.get('/admin/applications', requireRole('admin'), appCtrl.getAllApplications);

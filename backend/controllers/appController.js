@@ -132,9 +132,10 @@ const getApplicationById = async (req, res) => {
   }
 };
 
-// ==================== SAVE DRAFT - WITH YEARLY LIMIT ====================
+// ==================== SAVE DRAFT - FULL FUNCTION ====================
 const saveDraft = async (req, res) => {
   const {
+    application_id: existingId,
     company_id, company_name_manual, role_title, intern_type,
     company_address, company_city, company_state, company_country, company_phone,
     duration_type, work_mode, how_obtained,
@@ -142,37 +143,96 @@ const saveDraft = async (req, res) => {
     guide_name_industry, guide_department, guide_contact,
     cgpa, semester_completed, ra_courses, pending_courses,
     has_declined_other, declined_company_details,
-    stipend, student_note, tutor_id, tutor_email,           // ← stipend from frontend
-    parent_permission_url, offer_letter_url                 // ← Added
+    stipend, student_note, tutor_id, tutor_email,
+    parent_permission_url, offer_letter_url
   } = req.body;
 
   try {
     const year = new Date().getFullYear();
+    const student_id = req.user.user_id;
 
-    // Check limits
+    // ====================== EDIT MODE ======================
+    if (existingId) {
+      const { rowCount } = await pool.query(`
+        UPDATE internship_applications 
+        SET 
+          company_id = $1,
+          company_name_manual = $2,
+          role_title = $3,
+          intern_type = $4,
+          company_address = $5,
+          company_city = $6,
+          company_state = $7,
+          company_country = $8,
+          company_phone = $9,
+          duration_type = $10,
+          work_mode = $11,
+          how_obtained = $12,
+          start_date = $13,
+          end_date = $14,
+          attendance_days = $15,
+          guide_name_industry = $16,
+          guide_department = $17,
+          guide_contact = $18,
+          cgpa = $19,
+          semester_completed = $20,
+          ra_courses = $21,
+          pending_courses = $22,
+          has_declined_other = $23,
+          declined_company_details = $24,
+          stipend_amount = $25,
+          student_note = $26,
+          tutor_id = $27,
+          tutor_email = $28,
+          parent_permission_url = $29,
+          offer_letter_url = $30,
+          updated_at = NOW()
+        WHERE application_id = $31 AND student_id = $32
+      `, [
+        company_id || null, company_name_manual || null, role_title || null, intern_type || 'industry',
+        company_address || null, company_city || null, company_state || null,
+        company_country || 'India', company_phone || null,
+        duration_type || 'summer', work_mode || 'on_site', how_obtained || null,
+        start_date || null, end_date || null, attendance_days || null,
+        guide_name_industry || null, guide_department || null, guide_contact || null,
+        cgpa || null, semester_completed || null,
+        ra_courses || null, pending_courses || null,
+        has_declined_other || false, declined_company_details || null,
+        stipend || null,                    // stipend mapped to stipend_amount
+        student_note || null, 
+        tutor_id || null, tutor_email || null,
+        parent_permission_url || null,
+        offer_letter_url || null,
+        existingId, student_id
+      ]);
+
+      if (rowCount === 0) {
+        return res.status(404).json({ error: "Application not found" });
+      }
+
+      return res.json({ 
+        message: "Draft updated successfully", 
+        application_id: existingId 
+      });
+    }
+
+    // ====================== NEW DRAFT ======================
     const countRes = await pool.query(`
-      SELECT COUNT(*) as total 
-      FROM internship_applications 
+      SELECT COUNT(*) as total
+      FROM internship_applications
       WHERE student_id = $1 AND EXTRACT(YEAR FROM created_at) = $2
-    `, [req.user.user_id, year]);
-    const isEditing = !!req.body.application_id;   // ← Add this line
-    
-    if (!isEditing && parseInt(countRes.rows[0].total) >= 2) {
+    `, [student_id, year]);
+
+    if (parseInt(countRes.rows[0].total) >= 2) {
       return res.status(400).json({ error: "You can only apply for maximum 2 internships per year." });
     }
 
-    // Get roll number
-    const rollRes = await pool.query(
-      "SELECT roll_number FROM users WHERE user_id = $1", 
-      [req.user.user_id]
-    );
-
+    const rollRes = await pool.query("SELECT roll_number FROM users WHERE user_id = $1", [student_id]);
     const rollNumber = rollRes.rows[0]?.roll_number || "UNKNOWN";
     const totalApplications = parseInt(countRes.rows[0].total) + 1;
     const seq = String(totalApplications).padStart(2, '0');
     const application_id = `${rollNumber}/${year}/${seq}/${seq}`;
 
-    // Insert or Update
     const { rows } = await pool.query(`
       INSERT INTO internship_applications (
         application_id, student_id, company_id, company_name_manual, role_title, intern_type,
@@ -183,30 +243,9 @@ const saveDraft = async (req, res) => {
         has_declined_other, declined_company_details, stipend_amount, student_note,
         tutor_id, tutor_email, parent_permission_url, offer_letter_url, status, locked
       ) VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $12, $13, $14, $15, $16, $17, $18, $19, $20, $21, $22, $23, $24, $25, $26, $27, $28, $29, $30, $31, $32, 'draft', FALSE)
-      ON CONFLICT (application_id) DO UPDATE SET
-        company_id = EXCLUDED.company_id,
-        company_name_manual = EXCLUDED.company_name_manual,
-        role_title = EXCLUDED.role_title,
-        company_address = EXCLUDED.company_address,
-        company_city = EXCLUDED.company_city,
-        company_state = EXCLUDED.company_state,
-        company_phone = EXCLUDED.company_phone,
-        start_date = EXCLUDED.start_date,
-        end_date = EXCLUDED.end_date,
-        guide_name_industry = EXCLUDED.guide_name_industry,
-        guide_contact = EXCLUDED.guide_contact,
-        cgpa = EXCLUDED.cgpa,
-        semester_completed = EXCLUDED.semester_completed,
-        stipend_amount = EXCLUDED.stipend_amount,
-        student_note = EXCLUDED.student_note,
-        tutor_id = EXCLUDED.tutor_id,
-        tutor_email = EXCLUDED.tutor_email,
-        parent_permission_url = EXCLUDED.parent_permission_url,
-        offer_letter_url = EXCLUDED.offer_letter_url,
-        updated_at = NOW()
       RETURNING application_id
     `, [
-      application_id, req.user.user_id, company_id || null, company_name_manual || null,
+      application_id, student_id, company_id || null, company_name_manual || null,
       role_title || null, intern_type || 'industry',
       company_address || null, company_city || null, company_state || null,
       company_country || 'India', company_phone || null,
@@ -216,7 +255,7 @@ const saveDraft = async (req, res) => {
       cgpa || null, semester_completed || null,
       ra_courses || null, pending_courses || null,
       has_declined_other || false, declined_company_details || null,
-      stipend || null,                     // ← stipend mapped to stipend_amount
+      stipend || null,                    // stipend mapped to stipend_amount
       student_note || null, 
       tutor_id || null, tutor_email || null,
       parent_permission_url || null,
@@ -224,7 +263,7 @@ const saveDraft = async (req, res) => {
     ]);
 
     res.json({ 
-      message: 'Draft saved successfully', 
+      message: "Draft saved successfully", 
       application_id: rows[0].application_id 
     });
 
@@ -241,45 +280,55 @@ const submitForApproval = async (req, res) => {
 
   try {
     const { rows } = await pool.query(`
-      SELECT a.*,
-             s.full_name AS student_name,
-             s.email AS student_email,
-             COALESCE(a.tutor_email, u.email) AS tutor_email,
-             COALESCE(a.tutor_name, u.full_name) AS tutor_name
+      SELECT a.*, 
+             u.email as tutor_email, 
+             u.full_name as tutor_name
       FROM internship_applications a
-      JOIN users s ON a.student_id = s.user_id
       LEFT JOIN users u ON a.tutor_id = u.user_id
       WHERE a.application_id = $1 AND a.student_id = $2
     `, [application_id, student_id]);
 
-    if (rows.length === 0) return res.status(404).json({ error: 'Application not found' });
+    if (rows.length === 0) {
+      return res.status(404).json({ error: 'Application not found' });
+    }
 
     const app = rows[0];
 
+    // Allow manual tutor entry
+    if (!app.tutor_email && !req.body.tutor_email) {
+      return res.status(400).json({ error: 'Please enter Tutor Email' });
+    }
+
+    // Update with manual tutor details if provided
     await pool.query(`
       UPDATE internship_applications 
-      SET status = 'pending_tutor',
-          locked = TRUE,
-          submitted_at = NOW(),
-          updated_at = NOW()
-      WHERE application_id = $1
-    `, [application_id]);
+      SET 
+        status = 'pending_tutor',
+        locked = TRUE,
+        submitted_at = NOW(),
+        updated_at = NOW(),
+        tutor_email = COALESCE($1, tutor_email),
+        tutor_name = COALESCE($2, tutor_name)
+      WHERE application_id = $3
+    `, [req.body.tutor_email, req.body.tutor_name, application_id]);
 
-    if (app.tutor_email) {
+    // Send email to tutor
+    const finalTutorEmail = req.body.tutor_email || app.tutor_email;
+    if (finalTutorEmail) {
       try {
         await sendTutorNotificationEmail(
-          app.tutor_email,
-          app.tutor_name || 'Tutor',
-          app.student_name,
+          finalTutorEmail,
+          req.body.tutor_name || app.tutor_name || 'Tutor',
+          app.student_name || 'Student',
           app.company_name_manual || 'Company',
           application_id
         );
       } catch (mailErr) {
-        console.error("Tutor email failed:", mailErr.message);
+        console.error("Tutor notification failed:", mailErr.message);
       }
     }
 
-    res.json({ success: true, message: 'Application submitted successfully!' });
+    res.json({ success: true, message: 'Application submitted successfully for tutor approval!' });
 
   } catch (err) {
     console.error("Submit Error:", err);
@@ -332,9 +381,10 @@ const getTutorQueue = async (req, res) => {
       LEFT JOIN companies c ON a.company_id = c.company_id
       JOIN users s ON a.student_id = s.user_id
       LEFT JOIN programmes p ON s.prog_id = p.prog_id
-      WHERE a.tutor_id = $1 
+      WHERE (a.tutor_id = $1 OR a.tutor_email = $2)     -- ← Changed
+        AND a.status = 'pending_tutor'
       ORDER BY a.submitted_at DESC NULLS LAST, a.created_at DESC`, 
-      [req.user.user_id]
+      [req.user.user_id, req.user.email]   // Check both tutor_id and tutor_email
     );
     res.json(rows);
   } catch (err) { 
@@ -345,6 +395,9 @@ const getTutorQueue = async (req, res) => {
 
 const tutorDecision = async (req, res) => {
   const { application_id, decision, remarks = '' } = req.body;
+  if (!application_id) {
+    return res.status(400).json({ error: "Application ID is required" });
+  }
   const tutor_id = req.user.user_id;
 
   try {
@@ -352,15 +405,15 @@ const tutorDecision = async (req, res) => {
     const finalDecision = decision === 'approve' ? 'approved' : 'rejected';
 
     const { rows } = await pool.query(`
-      SELECT a.application_id,
-             a.company_name_manual,
-             s.full_name AS student_name, 
-             s.email AS student_email
-      FROM internship_applications a
-      JOIN users s ON a.student_id = s.user_id
-      WHERE a.application_id = $1 AND a.tutor_id = $2
-    `, [application_id, tutor_id]);
-
+  SELECT a.application_id,
+         a.company_name_manual,
+         s.full_name AS student_name, 
+         s.email AS student_email
+  FROM internship_applications a
+  JOIN users s ON a.student_id = s.user_id
+  WHERE a.application_id = $1 
+    AND (a.tutor_id = $2 OR a.tutor_email = $3)   -- ← fix
+`, [application_id, tutor_id, req.user.email]);
     if (rows.length === 0) {
       return res.status(404).json({ error: 'Application not found' });
     }

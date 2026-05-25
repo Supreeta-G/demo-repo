@@ -33,6 +33,7 @@ const SixMonthInternshipForm = () => {
     end_date: '',
     intern_type: 'industry',
     stipend: '',
+    guide_allocation_status: 'yet_to_be_allocated',   // ← Add this
     guide_name_industry: '',
     guide_contact: '',
     cgpa: '',
@@ -218,8 +219,10 @@ const handleSaveDraft = async () => {
   if (!form.end_date) 
     return alert("End Date is required");
 
-  if (!form.guide_name_industry || form.guide_name_industry.trim() === '') 
-    return alert("Guide Name is required");
+  if (form.guide_allocation_status === 'allocated' && 
+    (!form.guide_name_industry || form.guide_name_industry.trim() === '')) {
+  return alert("Guide Name is required when Guide is Allocated");
+}
 
   if (!form.parent_permission_url) 
     return alert("Parent Permission Letter is required *");
