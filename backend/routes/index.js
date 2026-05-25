@@ -35,9 +35,8 @@ router.post('/applications/upload-offer', requireRole('student'), appCtrl.upload
 router.post('/applications/upload-parent-permission', authenticateToken, requireRole('student'), appCtrl.uploadParentPermission);
 // Tutor
 router.get('/tutor/queue', requireRole('tutor'), appCtrl.getTutorQueue);
-router.post('/tutor/decision', requireRole('tutor'), appCtrl.tutorDecision);
-// Tutor Decision Route
-router.post('/tutor/decision', authenticateToken, requireRole('tutor'), appCtrl.tutorDecision);
+router.post('/tutor/decision', requireRole('tutor'), appCtrl.tutorDecision);router.get('/tutor/reviewed', requireRole('tutor'), appCtrl.getReviewedApplications);// make sure to destructure it in the require at the top too
+router.get('/tutor/reviewed', requireRole('tutor'), appCtrl.getReviewedApplications);
 // Admin
 router.get('/admin/stats', requireRole('admin'), appCtrl.getAdminStats);
 router.get('/admin/applications', requireRole('admin'), appCtrl.getAllApplications);

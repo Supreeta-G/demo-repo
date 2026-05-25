@@ -115,11 +115,8 @@ const resetPassword = async (req, res) => {
 // SIGNUP  ← FIXED
 // ──────────────────────────────────────────────
 const signup = async (req, res) => {
-  // ✅ FIX 1: Don't check confirmPassword — frontend already validated it.
-  // Never trust confirmPassword from the body; just use password directly.
   const { full_name, email, phone, password } = req.body;
 
-  // Basic server-side validation
   if (!full_name || !email || !password) {
     return res.status(400).json({ error: 'Name, email, and password are required.' });
   }
@@ -135,7 +132,6 @@ const signup = async (req, res) => {
   }
 
   try {
-    // Check if user already exists
     const existing = await pool.query(
       'SELECT user_id FROM users WHERE LOWER(email) = $1',
       [lower]
@@ -144,19 +140,12 @@ const signup = async (req, res) => {
       return res.status(400).json({ error: 'An account with this email already exists.' });
     }
 
-    // Hash password
     const password_hash = await bcrypt.hash(password, 10);
-
-    // Detect role from email pattern
-    const role = detectRole(lower); // 'student' or 'tutor'
-
-    // Extract roll number from email local part
+    const role = detectRole(lower);
     const roll_number = extractRollNumber(lower);
-
-    // Try to extract prog_id from roll number (e.g. "24pw33" → "PW")
     const prog_id = extractProgId(roll_number);
+    const normalizedProgId = prog_id?.toLowerCase() || null;  // ← only change
 
-    // ✅ FIX 2: Don't insert user_id — it's a serial INTEGER, DB auto-generates it
     const { rows } = await pool.query(`
       INSERT INTO users (
         email, password_hash, full_name, role, phone,
@@ -170,7 +159,7 @@ const signup = async (req, res) => {
       role || 'student',
       phone?.trim() || null,
       roll_number || null,
-      prog_id || null,
+      normalizedProgId,              // ← use this instead of prog_id
     ]);
 
     res.status(201).json({
@@ -180,12 +169,9 @@ const signup = async (req, res) => {
 
   } catch (err) {
     console.error('Signup Error:', err);
-
-    // Handle unique constraint violation gracefully
     if (err.code === '23505') {
       return res.status(400).json({ error: 'An account with this email already exists.' });
     }
-
     res.status(500).json({ error: 'Server error. Please try again.' });
   }
 };

@@ -17,21 +17,18 @@ const TutorQueue = ({ filter }) => {
   };
 
   const load = async () => {
-    setLoading(true);
-    try {
-      const { data } = await api.get('/tutor/queue');
-      if (filter === 'pending_tutor') {
-        setApps(data.filter(a => a.status === 'pending_tutor'));
-      } else {
-        setApps(data.filter(a => a.status !== 'pending_tutor'));
-      }
-    } catch (err) {
-      console.error(err);
-      showToast('Failed to load applications', 'error');
-    } finally {
-      setLoading(false);
-    }
-  };
+  setLoading(true);
+  try {
+    const endpoint = filter === 'pending_tutor' ? '/tutor/queue' : '/tutor/reviewed';
+    const { data } = await api.get(endpoint);
+    setApps(data);
+  } catch (err) {
+    console.error(err);
+    showToast('Failed to load applications', 'error');
+  } finally {
+    setLoading(false);
+  }
+};
 
   useEffect(() => {
     load();

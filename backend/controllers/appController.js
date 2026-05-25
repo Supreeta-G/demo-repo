@@ -455,6 +455,31 @@ const tutorDecision = async (req, res) => {
   }
 };
 
+const getReviewedApplications = async (req, res) => {
+  try {
+    const { rows } = await pool.query(`
+      SELECT a.*,
+             COALESCE(c.name, a.company_name_manual) AS company_name,
+             s.full_name AS student_name, 
+             s.roll_number, 
+             s.email AS student_email,
+             p.programme, 
+             p.department
+      FROM internship_applications a
+      LEFT JOIN companies c ON a.company_id = c.company_id
+      JOIN users s ON a.student_id = s.user_id
+      LEFT JOIN programmes p ON s.prog_id = p.prog_id
+      WHERE (a.tutor_id = $1 OR a.tutor_email = $2)
+        AND a.status IN ('approved', 'rejected')
+      ORDER BY a.updated_at DESC NULLS LAST
+    `, [req.user.user_id, req.user.email]);
+
+    res.json(rows);
+  } catch (err) { 
+    console.error('getReviewedApplications Error:', err);
+    res.status(500).json({ error: 'Failed to fetch reviewed applications' });
+  }
+};
 // ──── ADMIN ────
 const getAdminStats = async (req, res) => {
   try {
@@ -1001,6 +1026,7 @@ module.exports = {
   trackPdfDownload,
   getTutorQueue, 
   tutorDecision,
+  getReviewedApplications,
   getAdminStats, 
   getAllApplications, 
   getAdminUsers, 
