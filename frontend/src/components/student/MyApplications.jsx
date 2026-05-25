@@ -1,24 +1,23 @@
 import React, { useEffect, useState } from 'react';
 import { FileText, Clock, CheckCircle, XCircle, FileDown, Lock, Unlock, Building2 } from 'lucide-react';
 import api from '../../api.js';
-//import { generateInternshipPDF } from './pdfGenerator.js';
-import { useNavigate } from 'react-router-dom';   // ← Added for navigation
+import { useNavigate } from 'react-router-dom';
 
 const statusConfig = {
-  draft: { label: 'Draft', cls: 'badge-draft', Icon: FileText, emoji: '📝' },
-  pending_tutor: { label: 'Pending Tutor', cls: 'badge-pending', Icon: Clock, emoji: '⏳' },
-  approved: { label: 'Approved', cls: 'badge-approved', Icon: CheckCircle, emoji: '✅' },
-  rejected: { label: 'Rejected', cls: 'badge-rejected', Icon: XCircle, emoji: '❌' },
-  cancelled: { label: 'Cancelled', cls: 'badge-draft', Icon: XCircle, emoji: '🚫' },
+  draft:         { label: 'Draft',          cls: 'badge-draft',    Icon: FileText,    emoji: '📝' },
+  pending_tutor: { label: 'Pending Tutor',  cls: 'badge-pending',  Icon: Clock,       emoji: '⏳' },
+  approved:      { label: 'Approved',       cls: 'badge-approved', Icon: CheckCircle, emoji: '✅' },
+  rejected:      { label: 'Rejected',       cls: 'badge-rejected', Icon: XCircle,     emoji: '❌' },
+  cancelled:     { label: 'Cancelled',      cls: 'badge-draft',    Icon: XCircle,     emoji: '🚫' },
 };
 
 const MyApplications = () => {
-  const navigate = useNavigate();   // ← Added
+  const navigate = useNavigate();
 
-  const [apps, setApps] = useState([]);
-  const [loading, setLoading] = useState(true);
+  const [apps, setApps]           = useState([]);
+  const [loading, setLoading]     = useState(true);
   const [pdfLoading, setPdfLoading] = useState(null);
-  const [toast, setToast] = useState(null);
+  const [toast, setToast]         = useState(null);
 
   const showToast = (msg, type = 'success') => {
     setToast({ msg, type });
@@ -31,67 +30,72 @@ const MyApplications = () => {
       .catch(console.error)
       .finally(() => setLoading(false));
   }, []);
-    const handleDeleteRequest = async (app) => {
-      const reason = prompt("Why do you want to delete this application? (Optional)");
-      if (reason === null) return; // User cancelled
 
-      try {
-        await api.post('/applications/request-delete', {
-          application_id: app.application_id,
-          reason: reason || 'No reason provided'
-        });
-        showToast("Delete request sent to Admin successfully.", "success");
-      } catch (err) {
-        showToast(err.response?.data?.error || "Failed to send delete request", "error");
-      }
-    };
+  // ── Delete request ────────────────────────────────────────────────
+  const handleDeleteRequest = async (app) => {
+    const reason = prompt('Why do you want to delete this application? (Optional)');
+    if (reason === null) return;
+
+    try {
+      await api.post('/applications/request-delete', {
+        application_id: app.application_id,
+        reason: reason || 'No reason provided',
+      });
+      showToast('Delete request sent to Admin successfully.', 'success');
+    } catch (err) {
+      showToast(err.response?.data?.error || 'Failed to send delete request', 'error');
+    }
+  };
+
+  // ── PDF download ──────────────────────────────────────────────────
   const handlePDF = async (application_id) => {
-  try {
-    const { data } = await api.post('/applications/pdf-download', {
-      application_id: application_id
-    }, {
-      responseType: 'blob'
-    });
+    try {
+      const { data } = await api.post('/applications/pdf-download', { application_id }, {
+        responseType: 'blob',
+      });
 
-    const url = window.URL.createObjectURL(new Blob([data]));
-    const link = document.createElement('a');
-    link.href = url;
-    link.setAttribute('download', `PSG_Internship_${application_id}.pdf`);
-    document.body.appendChild(link);
-    link.click();
-    link.remove();
-    window.URL.revokeObjectURL(url);
+      const url  = window.URL.createObjectURL(new Blob([data]));
+      const link = document.createElement('a');
+      link.href  = url;
+      link.setAttribute('download', `PSG_Internship_${application_id}.pdf`);
+      document.body.appendChild(link);
+      link.click();
+      link.remove();
+      window.URL.revokeObjectURL(url);
 
-    alert("✅ PDF Downloaded Successfully!");
-  } catch (err) {
-    console.error(err);
-    alert("Failed to download PDF. Please try again.");
-  }
-};
+      showToast('PDF Downloaded Successfully!');
+    } catch (err) {
+      console.error(err);
+      showToast('Failed to download PDF. Please try again.', 'error');
+    }
+  };
 
-  // ==================== NEW: Edit Rejected Application ====================
-const handleEdit = (app) => {
-  if (app.status !== 'rejected') {
-    alert("Only rejected applications can be edited.");
-    return;
-  }
+  // ── Edit: draft OR rejected ───────────────────────────────────────
+  const handleEdit = (app) => {
+    if (app.status !== 'rejected' && app.status !== 'draft') {
+      showToast('Only draft or rejected applications can be edited.', 'error');
+      return;
+    }
 
-  // ✅ Correct routing based on duration_type
-  if (app.duration_type === 'six_month' || app.duration_type === 'sixmonth') {
-    navigate(`/student/apply/six-month?edit=${app.application_id}`);
-  } else {
-    navigate(`/student/apply/summer?edit=${app.application_id}`);
-  }
-};
+    if (app.duration_type === 'six_month' || app.duration_type === 'sixmonth') {
+      navigate(`/student/apply/six-month?edit=${app.application_id}`);
+    } else {
+      navigate(`/student/apply/summer?edit=${app.application_id}`);
+    }
+  };
 
+  // ── Loading ───────────────────────────────────────────────────────
   if (loading) return (
     <div className="flex items-center justify-center h-64">
       <span className="w-9 h-9 border-2 border-sage/30 border-t-fern rounded-full animate-spin" />
     </div>
   );
 
+  // ── Render ────────────────────────────────────────────────────────
   return (
     <div className="p-4 md:p-6 max-w-4xl mx-auto page-enter">
+
+      {/* Toast */}
       {toast && (
         <div className={`toast fixed top-5 right-5 z-[9999] ${toast.type === 'error' ? 'bg-red-600' : 'bg-fern'} text-white`}>
           {toast.type === 'error' ? <XCircle className="w-4 h-4" /> : <CheckCircle className="w-4 h-4" />}
@@ -99,9 +103,12 @@ const handleEdit = (app) => {
         </div>
       )}
 
+      {/* Page header */}
       <div className="mb-6">
         <h1 className="text-2xl font-bold font-display text-forest">My Applications</h1>
-        <p className="text-sage/80 text-sm mt-1">{apps.length} application{apps.length !== 1 ? 's' : ''} found</p>
+        <p className="text-sage/80 text-sm mt-1">
+          {apps.length} application{apps.length !== 1 ? 's' : ''} found
+        </p>
       </div>
 
       {apps.length === 0 ? (
@@ -113,69 +120,80 @@ const handleEdit = (app) => {
       ) : (
         <div className="space-y-4">
           {apps.map((app, i) => {
-            const cfg = statusConfig[app.status] || statusConfig.draft;
+            const cfg         = statusConfig[app.status] || statusConfig.draft;
             const canDownload = app.status === 'approved';
+            const canEdit     = app.status === 'draft' || app.status === 'rejected';  // ← draft + rejected
 
             return (
               <div key={app.application_id} className="card-hover animate-slide-up" style={{ animationDelay: `${i * 0.06}s` }}>
                 <div className="flex items-start gap-4">
+
                   {/* Status indicator bar */}
                   <div className={`w-1.5 self-stretch rounded-full flex-shrink-0 ${
-                    app.status === 'approved' ? 'bg-emerald-400' :
-                    app.status === 'rejected' ? 'bg-red-400' :
-                    app.status === 'pending_tutor' ? 'bg-amber-400' : 'bg-gray-300'
+                    app.status === 'approved'      ? 'bg-emerald-400' :
+                    app.status === 'rejected'      ? 'bg-red-400'     :
+                    app.status === 'pending_tutor' ? 'bg-amber-400'   :
+                    app.status === 'draft'         ? 'bg-blue-300'    : 'bg-gray-300'
                   }`} />
 
                   <div className="flex-1 min-w-0">
+
                     {/* Title row */}
                     <div className="flex items-start justify-between gap-3 mb-2">
                       <div>
                         <div className="flex items-center gap-2 flex-wrap mb-1">
                           <Building2 className="w-4 h-4 text-fern flex-shrink-0" />
-                          <h3 className="font-bold text-forest text-base">{app.company_name || app.company_name_manual || 'Draft Application'}</h3>
+                          <h3 className="font-bold text-forest text-base">
+                            {app.company_name || app.company_name_manual || 'Draft Application'}
+                          </h3>
                           <span className={`badge ${cfg.cls}`}>
                             {cfg.emoji} {cfg.label}
                           </span>
                         </div>
-                        {app.role_title && <p className="text-sm text-hunter/60 ml-6">{app.role_title}</p>}
+                        {app.role_title && (
+                          <p className="text-sm text-hunter/60 ml-6">{app.role_title}</p>
+                        )}
                       </div>
 
                       {/* PDF Button */}
                       <button
-                        onClick={() => handlePDF(app)}
+                        onClick={() => handlePDF(app.application_id)}
                         disabled={pdfLoading === app.application_id || !canDownload}
                         className={`flex-shrink-0 flex items-center gap-1.5 px-3 py-2 rounded-xl text-xs font-semibold border transition-all
                           ${canDownload
                             ? 'bg-fern/10 border-fern/30 text-fern hover:bg-fern hover:text-white cursor-pointer shadow-sm'
-                            : 'bg-gray-100 border-gray-200 text-gray-400 cursor-not-allowed'}`}
-                        title={canDownload ? 'Download PDF' : 'Available after approval'}>
+                            : 'bg-gray-100 border-gray-200 text-gray-400 cursor-not-allowed'
+                          }`}
+                        title={canDownload ? 'Download PDF' : 'Available after approval'}
+                      >
                         {pdfLoading === app.application_id
                           ? <span className="w-3 h-3 border-2 border-current/30 border-t-current rounded-full animate-spin" />
-                          : canDownload ? <Unlock className="w-3.5 h-3.5" /> : <Lock className="w-3.5 h-3.5" />}
+                          : canDownload
+                            ? <Unlock className="w-3.5 h-3.5" />
+                            : <Lock className="w-3.5 h-3.5" />
+                        }
                         {canDownload ? 'Download PDF' : 'PDF Locked'}
                       </button>
                     </div>
 
-                    {/* NEW: Edit Button for Rejected Applications */}
-                    {app.status === 'rejected' && (
-                      <button
-                        onClick={() => handleEdit(app)}
-                        className="ml-6 mb-3 px-5 py-2 bg-blue-600 hover:bg-blue-700 text-white text-sm font-medium rounded-xl flex items-center gap-2 transition-all"
-                      >
-                        ✏️ Edit Application
-                      </button>
+                    {/* Edit + Delete buttons side by side — draft OR rejected */}
+                    {canEdit && (
+                      <div className="ml-6 mb-3 flex items-center gap-3">
+                        <button
+                          onClick={() => handleEdit(app)}
+                          className="px-5 py-2 bg-blue-600 hover:bg-blue-700 text-white text-sm font-medium rounded-xl flex items-center gap-2 transition-all"
+                        >
+                          ✏️ {app.status === 'draft' ? 'Continue Editing' : 'Edit Application'}
+                        </button>
+                        <button
+                          onClick={() => handleDeleteRequest(app)}
+                          className="px-5 py-2 bg-red-600 hover:bg-red-700 text-white text-sm font-medium rounded-xl flex items-center gap-2 transition-all"
+                        >
+                          🗑 Request Delete
+                        </button>
+                      </div>
                     )}
-                    
-                    {/* Inside the map function, after the Edit button */}
-                    { (app.status === 'rejected' || app.status === 'draft') && (
-                      <button
-                        onClick={() => handleDeleteRequest(app)}
-                        className="ml-6 px-5 py-2 bg-red-600 hover:bg-red-700 text-white text-sm font-medium rounded-xl flex items-center gap-2 transition-all"
-                      >
-                        🗑 Request Delete
-                      </button>
-                    )}
-                    
+
                     {/* Meta chips */}
                     <div className="flex flex-wrap gap-2 ml-6 mb-3">
                       <span className="bg-fern/10 text-fern text-xs px-2.5 py-1 rounded-full font-medium">
@@ -215,7 +233,15 @@ const handleEdit = (app) => {
                       </div>
                     )}
 
-                    {/* PDF available notice */}
+                    {/* Draft notice */}
+                    {app.status === 'draft' && (
+                      <div className="ml-6 mt-2 flex items-center gap-2 text-xs text-blue-600 font-medium">
+                        <FileText className="w-3.5 h-3.5" />
+                        This application is saved as a draft. Continue editing and submit when ready.
+                      </div>
+                    )}
+
+                    {/* PDF ready notice */}
                     {app.status === 'approved' && (
                       <div className="ml-6 mt-2 flex items-center gap-2 text-xs text-emerald-700 font-medium">
                         <FileDown className="w-3.5 h-3.5" />
@@ -223,12 +249,14 @@ const handleEdit = (app) => {
                       </div>
                     )}
 
+                    {/* Pending notice */}
                     {app.status === 'pending_tutor' && (
                       <div className="ml-6 mt-2 flex items-center gap-2 text-xs text-amber-600">
                         <Clock className="w-3.5 h-3.5" />
                         Waiting for tutor review. You'll receive an email once decided.
                       </div>
                     )}
+
                   </div>
                 </div>
 
@@ -243,6 +271,7 @@ const handleEdit = (app) => {
                     <span>Downloaded {app.pdf_download_count} time{app.pdf_download_count > 1 ? 's' : ''}</span>
                   )}
                 </div>
+
               </div>
             );
           })}

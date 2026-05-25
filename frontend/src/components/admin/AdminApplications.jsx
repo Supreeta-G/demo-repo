@@ -3,13 +3,13 @@ import { Search, Download, Unlock, Trash2, FileDown } from 'lucide-react';
 import api from '../../api.js';
 
 const AdminApplications = () => {
-  const [applications, setApplications] = useState([]);
-  const [loading, setLoading]           = useState(true);
-  const [search, setSearch]             = useState('');
-  const [statusFilter, setStatusFilter] = useState('');
+  const [applications, setApplications]   = useState([]);
+  const [loading, setLoading]             = useState(true);
+  const [search, setSearch]               = useState('');
+  const [statusFilter, setStatusFilter]   = useState('');
   const [actionLoading, setActionLoading] = useState(null);
-  const [pdfLoading, setPdfLoading]     = useState(null);
-  const [toast, setToast]               = useState(null);
+  const [pdfLoading, setPdfLoading]       = useState(null);
+  const [toast, setToast]                 = useState(null);
 
   // ── Toast helper ──────────────────────────────────────────────────
   const showToast = (msg, type = 'success') => {
@@ -22,7 +22,6 @@ const AdminApplications = () => {
     setLoading(true);
     try {
       const params = {};
-      if (search)       params.search = search;
       if (statusFilter) params.status = statusFilter;
       const { data } = await api.get('/admin/applications', { params });
       setApplications(data);
@@ -34,7 +33,20 @@ const AdminApplications = () => {
     }
   };
 
-  useEffect(() => { fetchApplications(); }, [search, statusFilter]);
+  useEffect(() => { fetchApplications(); }, [statusFilter]);
+
+  // ── Client-side filter (search box matches name, company, roll number) ──
+  const filtered = applications.filter((app) => {
+    const q = search.trim().toLowerCase();
+    if (!q) return true;
+    return (
+      app.student_name?.toLowerCase().includes(q)        ||
+      app.company_name?.toLowerCase().includes(q)        ||
+      app.company_name_manual?.toLowerCase().includes(q) ||
+      app.roll_number?.toLowerCase().includes(q)         ||
+      app.ref_number?.toLowerCase().includes(q)
+    );
+  });
 
   // ── Actions ───────────────────────────────────────────────────────
   const handleUnlock = async (id) => {
@@ -140,16 +152,18 @@ const AdminApplications = () => {
         </div>
 
         <div className="flex flex-col sm:flex-row gap-3 w-full md:w-auto">
+          {/* Single search — matches name, company, roll number, ref number */}
           <div className="relative flex-1">
             <Search className="absolute left-3 top-3 w-4 h-4 text-sage" />
             <input
               type="text"
-              placeholder="Search student or company..."
+              placeholder="Search name, company or roll number..."
               value={search}
               onChange={(e) => setSearch(e.target.value)}
               className="form-input pl-10 w-full"
             />
           </div>
+
           <select
             value={statusFilter}
             onChange={(e) => setStatusFilter(e.target.value)}
@@ -171,7 +185,7 @@ const AdminApplications = () => {
         </div>
       ) : (
         <div className="card border border-sage/20 overflow-hidden">
-          {applications.length === 0 ? (
+          {filtered.length === 0 ? (
             <div className="text-center py-16 text-sage/70">No applications found</div>
           ) : (
             <div className="overflow-x-auto">
@@ -195,13 +209,13 @@ const AdminApplications = () => {
 
                 {/* ── Body ── */}
                 <tbody>
-                  {applications.map((app) => (
+                  {filtered.map((app) => (
                     <tr
                       key={app.application_id}
                       className="border-b border-sage/10 last:border-0 hover:bg-bone/40 transition-colors"
                     >
                       {/* Ref Number */}
-                      <td className="px-4 py-3 font-mono text-xs  whitespace-nowrap">
+                      <td className="px-4 py-3 font-mono text-xs whitespace-nowrap">
                         {app.ref_number || app.application_id || '—'}
                       </td>
 
@@ -218,10 +232,10 @@ const AdminApplications = () => {
                       {/* Type */}
                       <td className="px-4 py-3 whitespace-nowrap">
                         <span className="bg-sage/20 text-forest text-xs px-2.5 py-1 rounded-full">
-                          {app.duration_type === 'summer' ? ' Summer' : ' 6-Month'}
+                          {app.duration_type === 'summer' ? 'Summer' : '6-Month'}
                         </span>
                       </td>
-                  
+
                       {/* Company */}
                       <td
                         className="px-4 py-3 max-w-[140px] truncate"

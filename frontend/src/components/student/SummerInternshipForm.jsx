@@ -39,6 +39,7 @@ const SummerInternshipForm = () => {
     start_date: '',
     end_date: '',
     attendance_days: '',
+    guide_allocated: false,
     guide_name_industry: '',
     guide_contact: '',
     stipend: '',
@@ -97,6 +98,7 @@ useEffect(() => {
           start_date: data.start_date ? data.start_date.split('T')[0] : '',
           end_date: data.end_date ? data.end_date.split('T')[0] : '',
           attendance_days: data.attendance_days || '',
+          guide_allocated: data.guide_allocated || false,
           guide_name_industry: data.guide_name_industry || '',
           guide_contact: data.guide_contact || '',
           stipend: data.stipend || data.stipend_amount || '',
@@ -112,18 +114,31 @@ useEffect(() => {
   }
 }, [editId]);
   // Auto attendance calculation
-  useEffect(() => {
-    if (form.start_date && form.end_date) {
-      const diff = Math.ceil((new Date(form.end_date) - new Date(form.start_date)) / (1000 * 60 * 60 * 24));
-      if (diff > 0) setField('attendance_days', diff);
+ // Auto attendance calculation — excludes Saturdays & Sundays
+useEffect(() => {
+  if (form.start_date && form.end_date) {
+    const start = new Date(form.start_date);
+    const end   = new Date(form.end_date);
+    if (end <= start) return;
+
+    let workingDays = 0;
+    const current = new Date(start);
+
+    while (current <= end) {
+      const day = current.getDay(); // 0 = Sun, 6 = Sat
+      if (day !== 0 && day !== 6) workingDays++;
+      current.setDate(current.getDate() + 1);
     }
-  }, [form.start_date, form.end_date]);
+
+    setField('attendance_days', workingDays);
+  }
+}, [form.start_date, form.end_date]);
 
  // Updated Save Draft - Now allows upload first
 const handleSaveDraft = async () => {
   if (isLocked && !isEditing) return alert("This form is locked.");
 
-  // ====================== ALL MANDATORY FIELD VALIDATION ======================
+  // ====================== MANDATORY FIELD VALIDATION ======================
   if (!form.role_title || form.role_title.trim() === '') {
     return alert("Role / Position is required");
   }
@@ -141,15 +156,6 @@ const handleSaveDraft = async () => {
   }
   if (!form.end_date) {
     return alert("End Date is required");
-  }
-  if (!form.guide_name_industry || form.guide_name_industry.trim() === '') {
-    return alert("Guide Name is required");
-  }
-  if (!form.cgpa) {
-    return alert("CGPA is required");
-  }
-  if (!form.semester_completed) {
-    return alert("Semester Completed is required");
   }
   if (!form.company_city) {
     return alert("City is required");
@@ -176,12 +182,25 @@ const handleSaveDraft = async () => {
     return alert("Please upload Parent's Permission Letter");
   }
 
+  // ✅ NEW: Conditional Guide Name Validation
+  if (form.guide_allocated && (!form.guide_name_industry || form.guide_name_industry.trim() === '')) {
+    return alert("Guide Name is required when Guide is Allocated");
+  }
+
+  // CGPA and Semester (always required)
+  if (!form.cgpa) {
+    return alert("CGPA is required");
+  }
+  if (!form.semester_completed) {
+    return alert("Semester Completed is required");
+  }
+
   setLoading(true);
   try {
     const payload = {
       ...form,
       application_id: savedId || editId,
-      status: 'draft',           // ← Important
+      status: 'draft',
       locked: false
     };
 
@@ -215,7 +234,8 @@ const handleSaveDraft = async () => {
   if (!form.stipend?.trim()) return alert("Stipend field is required (enter 0 if none)");
   if (!form.start_date) return alert("Start Date is required");
   if (!form.end_date) return alert("End Date is required");
-  if (!form.guide_name_industry?.trim()) return alert("Guide Name is required");
+  if (form.guide_allocated && (!form.guide_name_industry || form.guide_name_industry.trim() === '')) {
+  return alert("Guide Name is required when Guide is Allocated");}
   if (!form.cgpa) return alert("CGPA is required");
   if (!form.semester_completed) return alert("Semester Completed is required");
   if (!form.company_city) return alert("City is required");
@@ -491,53 +511,100 @@ const handleParentPermissionUpload = async (e) => {
       </div>
       
 
-      {/* Industry Guide & Academic */}
-      <div className="bg-white rounded-3xl shadow p-8 mb-8">
-        <h3 className="text-xl font-semibold mb-6 flex items-center gap-3">
-          <User className="w-6 h-6 text-fern" /> Industry Guide & Academic Info
-        </h3>
-        <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
-          <div>
-            <label className="block text-sm font-medium mb-2">Guide Name <span className="text-red-500">*</span></label>
-            <input className="w-full px-4 py-3 border border-gray-300 rounded-2xl" value={form.guide_name_industry} onChange={e => setField('guide_name_industry', e.target.value)} disabled={isLocked && !isEditing} />
-          </div>
-          <div>
-            <label className="block text-sm font-medium mb-2">Guide Contact</label>
-            <input className="w-full px-4 py-3 border border-gray-300 rounded-2xl" value={form.guide_contact} onChange={e => setField('guide_contact', e.target.value)} placeholder="Email / Mobile" disabled={isLocked && !isEditing} />
-          </div>
-        </div>
-        <div className="grid grid-cols-1 md:grid-cols-2 gap-6 mt-6">
-        {/* CGPA */}
-<div>
-  <label className="block text-sm font-medium mb-2">CGPA <span className="text-red-500">*</span></label>
-  <input 
-    type="number" 
-    step="0.01" 
-    min="0" 
-    max="10"
-    className="w-full px-4 py-3 border border-gray-300 rounded-2xl" 
-    value={form.cgpa} 
-    onChange={e => setField('cgpa', e.target.value)}   // Keep as string
-    disabled={isLocked && !isEditing} 
-  />
+      {/* ==================== Industry Guide ==================== */}
+<div className="bg-white rounded-3xl shadow p-8 mb-6">
+  <h3 className="text-xl font-semibold mb-6 flex items-center gap-3">
+    <User className="w-6 h-6 text-fern" /> Industry Guide
+  </h3>
+
+  <div className="mb-6">
+    <label className="block text-sm font-medium mb-2">
+      Guide Allocation Status <span className="text-red-500">*</span>
+    </label>
+    <select
+      className="w-full px-4 py-3 border border-gray-300 rounded-2xl"
+      value={form.guide_allocated ? "allocated" : "not_allocated"}
+      onChange={(e) => {
+        const isAllocated = e.target.value === "allocated";
+        setField('guide_allocated', isAllocated);
+        if (!isAllocated) {
+          setField('guide_name_industry', '');
+          setField('guide_contact', '');
+        }
+      }}
+      disabled={isLocked && !isEditing}
+    >
+      <option value="not_allocated">Yet to be Allocated</option>
+      <option value="allocated">Guide Allocated</option>
+    </select>
+  </div>
+
+  {form.guide_allocated && (
+    <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+      <div>
+        <label className="block text-sm font-medium mb-2">
+          Guide Name <span className="text-red-500">*</span>
+        </label>
+        <input
+          className="w-full px-4 py-3 border border-gray-300 rounded-2xl"
+          value={form.guide_name_industry}
+          onChange={e => setField('guide_name_industry', e.target.value)}
+          disabled={isLocked && !isEditing}
+        />
+      </div>
+      <div>
+        <label className="block text-sm font-medium mb-2">Guide Contact</label>
+        <input
+          className="w-full px-4 py-3 border border-gray-300 rounded-2xl"
+          value={form.guide_contact}
+          onChange={e => setField('guide_contact', e.target.value)}
+          placeholder="Email / Phone"
+          disabled={isLocked && !isEditing}
+        />
+      </div>
+    </div>
+  )}
+
+  {!form.guide_allocated && (
+    <div className="bg-gray-50 border border-dashed border-gray-300 rounded-2xl p-6 text-center">
+      <p className="text-gray-500">Guide is yet to be allocated</p>
+    </div>
+  )}
 </div>
 
-{/* Semesters Completed */}
-<div>
-  <label className="block text-sm font-medium mb-2">Semesters Completed <span className="text-red-500">*</span></label>
-  <input 
-    type="number" 
-    min="1" 
-    max="8"
-    className="w-full px-4 py-3 border border-gray-300 rounded-2xl" 
-    value={form.semester_completed} 
-    onChange={e => setField('semester_completed', e.target.value)}   // Keep as string
-    disabled={isLocked && !isEditing} 
-  />
+{/* ==================== Academic Details ==================== */}
+<div className="bg-white rounded-3xl shadow p-8 mb-8">
+  <h3 className="text-xl font-semibold mb-6 flex items-center gap-3">
+    <User className="w-6 h-6 text-fern" /> Academic Details
+  </h3>
+  <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+    <div>
+      <label className="block text-sm font-medium mb-2">CGPA <span className="text-red-500">*</span></label>
+      <input 
+        type="number" 
+        step="0.01" 
+        min="0" 
+        max="10"
+        className="w-full px-4 py-3 border border-gray-300 rounded-2xl" 
+        value={form.cgpa} 
+        onChange={e => setField('cgpa', e.target.value)}
+        disabled={isLocked && !isEditing} 
+      />
+    </div>
+    <div>
+      <label className="block text-sm font-medium mb-2">Semesters Completed <span className="text-red-500">*</span></label>
+      <input 
+        type="number" 
+        min="1" 
+        max="8"
+        className="w-full px-4 py-3 border border-gray-300 rounded-2xl" 
+        value={form.semester_completed} 
+        onChange={e => setField('semester_completed', e.target.value)}
+        disabled={isLocked && !isEditing} 
+      />
+    </div>
+  </div>
 </div>
-          
-        </div>
-      </div>
 
 {/* Faculty Tutor Selection */}
 {/* <div className="bg-white rounded-3xl shadow p-8 mb-8">
