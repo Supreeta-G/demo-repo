@@ -4,188 +4,356 @@
   <meta charset="UTF-8">
   <title>PSG College of Technology - Summer Internship</title>
   <style>
+    @page {
+      size: A4;
+      margin: 0;
+    }
+
+    * {
+      box-sizing: border-box;
+      margin: 0;
+      padding: 0;
+    }
+
     body {
       font-family: Arial, Helvetica, sans-serif;
-      margin: 30px 50px;
-      line-height: 1.6;
       color: #000;
-      font-size: 11pt;
+      font-size: 9.5pt;
+      line-height: 1.35;
+      width: 210mm;
+      min-height: 297mm;
+      padding: 12mm 16mm 10mm 16mm;
+      background: #fff;
     }
+
+    /* ── HEADER ── */
     .header {
       text-align: center;
+      margin-bottom: 5px;
+    }
+    .header h1 {
+      font-size: 11pt;
       font-weight: bold;
-      margin-bottom: 10px;
+      margin-bottom: 2px;
     }
-    h1 { font-size: 14pt; margin: 6px 0; }
-    h2 { font-size: 12pt; margin: 4px 0; font-weight: bold; }
-    table {
-      width: 100%;
-      border-collapse: collapse;
-      margin: 12px 0;
+    .header h2 {
+      font-size: 10pt;
+      font-weight: bold;
     }
-    td, th {
-      border: 1px solid #000;
-      padding: 6px 8px;
-      vertical-align: top;
-      font-size: 10.5pt;
-    }
+
+    /* ── DATE ── */
     .date-line {
       text-align: right;
-      margin-bottom: 10px;
+      font-size: 9.5pt;
+      margin-top: 4px;
+      margin-bottom: 2px;
     }
-    ol {
-      margin: 8px 0;
-      padding-left: 20px;
+
+    /* ── BODY TEXT ── */
+    p {
+      font-size: 9.5pt;
+      margin: 3px 0;
+      line-height: 1.35;
     }
-    ol li {
-      margin-bottom: 4px;
-      font-size: 10.5pt;
+
+    .justify {
+      text-align: justify;
     }
-    .sig-row td {
+
+    .from-block {
+      margin: 3px 0 6px 0;
+      line-height: 1.5;
+      font-size: 9.5pt;
+    }
+
+    .to-block {
+      margin: 4px 0;
+      line-height: 1.55;
+      font-size: 9.5pt;
+    }
+
+    .through-line {
+      font-size: 9.5pt;
+      margin: 3px 0 2px 0;
+    }
+
+    .dear-line {
+      font-size: 9.5pt;
+      margin: 2px 0;
+    }
+
+    .sub-line {
+      font-size: 9.5pt;
+      margin: 3px 0;
+    }
+
+    /* ── TABLE ── */
+    table.main-table {
+      width: 100%;
+      border-collapse: collapse;
+      margin: 6px 0 4px 0;
+      font-size: 8.5pt;
+    }
+    table.main-table td,
+    table.main-table th {
+      border: 1px solid #000;
+      padding: 4px 5px;
+      vertical-align: middle;
+      font-size: 8.5pt;
+    }
+    table.main-table th {
+      font-weight: bold;
       text-align: center;
-      padding-top: 40px;
+      background-color: #f2f2f2;
+    }
+    table.main-table .data-row td {
+      vertical-align: top;
+    }
+
+    /* Mentor cell inner layout */
+    .mentor-inner {
+      display: flex;
+      flex-direction: column;
+      gap: 6px;
+    }
+    .mentor-inner .mentor-row {
+      display: flex;
+      gap: 4px;
+    }
+    .mentor-inner .mentor-label {
+      font-weight: bold;
+      white-space: nowrap;
+    }
+
+    /* ── CGPA ── */
+    .cgpa-line {
+      font-size: 9.5pt;
+      margin: 5px 0 3px 0;
+    }
+
+    /* ── UNDERTAKING LIST ── */
+    ol.undertaking {
+      margin: 3px 0 3px 16px;
+      padding: 0;
+    }
+    ol.undertaking li {
+      font-size: 9.5pt;
+      margin-bottom: 2px;
+      line-height: 1.35;
+      text-align: justify;
+    }
+
+    /* ── SIGNATURE ── */
+    .sig-right {
+      text-align: right;
+      font-size: 9.5pt;
+      margin-top: 10px;
+      margin-bottom: 4px;
+    }
+
+    /* ── SIGNATORY ROW ── */
+    table.sig-table {
+      width: 100%;
+      border-collapse: collapse;
+      margin-top: 6px;
+    }
+    table.sig-table td {
       border: none;
       border-top: 1px solid #000;
-      font-size: 10pt;
+      text-align: center;
+      padding-top: 3px;
+      font-size: 8.8pt;
+      width: 16.66%;
     }
+
+    /* ── PRINCIPAL ── */
     .principal-block {
       text-align: center;
       font-weight: bold;
-      margin-top: 20px;
-      font-size: 11pt;
-    }
-    .note {
-      margin-top: 16px;
       font-size: 10pt;
+      margin-top: 10px;
+      margin-bottom: 6px;
     }
-    .note strong { font-weight: bold; }
-    p { margin: 6px 0; font-size: 11pt; }
+
+    /* ── NOTE ── */
+    .note-section {
+      margin-top: 6px;
+      font-size: 8.8pt;
+      line-height: 1.35;
+    }
+    .note-grid {
+      display: table;
+      width: 100%;
+    }
+    .note-label-cell {
+      display: table-cell;
+      font-weight: bold;
+      font-size: 8.8pt;
+      white-space: nowrap;
+      padding-right: 6px;
+      vertical-align: top;
+    }
+    .note-content-cell {
+      display: table-cell;
+      vertical-align: top;
+      font-size: 8.8pt;
+    }
+    ol.note-list {
+      margin: 0;
+      padding-left: 16px;
+    }
+    ol.note-list li {
+      font-size: 8.8pt;
+      margin-bottom: 2px;
+      line-height: 1.35;
+    }
   </style>
 </head>
 <body>
 
+  <!-- HEADER -->
   <div class="header">
     <h1>PSG COLLEGE OF TECHNOLOGY, COIMBATORE 641 004</h1>
     <h2>Permission and Undertaking for Summer Internship / Short Duration Internship</h2>
   </div>
 
+  <!-- DATE -->
   <div class="date-line"><strong>Date:</strong> {{currentDate}}</div>
 
+  <!-- FROM -->
   <p><strong>From</strong></p>
-  <p style="margin-left:0; line-height:1.4;">
-    {{student_name}}<br>
-    {{roll_number}}<br>
-    {{programme}}, Department of {{department}}
-  </p>
+  <div class="from-block">
+    {{#if student_name}}{{student_name}}<br>{{/if}}
+    {{#if roll_number}}{{roll_number}}<br>{{/if}}
+    {{#if programme}}{{programme}}, Department of {{department}}{{/if}}
+  </div>
 
-  <br>
-
-  <p>
+  <!-- TO -->
+  <div class="to-block">
     To<br>
     The Principal<br>
     PSG College of Technology<br>
-    Coimbatore – 641004
+    Coimbatore - 641004
+  </div>
+
+  <!-- THROUGH -->
+  <p class="through-line">Through: The Head of the Department, Department of
+    {{#if department}}{{department}}{{else}}______________________________{{/if}}
   </p>
+  <p class="dear-line">Dear Sir,</p>
 
-  <p>Through :The Head of the Department, Department of {{department}}</p>
+  <!-- SUB -->
+  <p class="sub-line"><strong>Sub:</strong> Undertaking while pursuing Internship/Project Work II in Industry / Institutions.</p>
 
-  <p>Dear Sir,</p>
-
-  <p><strong>Sub:</strong> Undertaking while pursuing Internship/Project Work II in Industry / Institutions.</p>
-
-  <p>
-    I wish to inform that, I have been offered Summer internship/Short Duration internship in the organization, details
+  <!-- BODY -->
+  <p class="justify">
+    I wish to inform that I have been offered Summer Internship / Short Duration Internship in the organization, details
     of which are provided below. The activities carried out during this internship will be useful for my placement and
     final year project work.
   </p>
 
-  <table>
+  <!-- TABLE -->
+  <table class="main-table">
     <thead>
       <tr>
-        <th style="width:28%; text-align:center;">Name &amp; Address of the Industry / Institution with contact details &amp; Mobile number</th>
-        <th colspan="2" style="text-align:center;">Internship Period</th>
-        <th style="width:22%; text-align:center;">Name of Mentor/ Guide in the Industry &amp; Department</th>
-        <th colspan="2" style="text-align:center;">Duration for which Attendance needed</th>
-        <th style="width:10%; text-align:center;">Stipend receivable (if any)</th>
+        <th rowspan="2" style="width:24%;">Name &amp; Address of the Industry / Institution<br>(with Contact Details &amp; Mobile Number)</th>
+        <th colspan="2" style="width:18%;">Internship Period</th>
+        <th rowspan="2" style="width:22%;">Name of Mentor / Guide<br>(Industry &amp; Department)</th>
+        <th colspan="2" style="width:18%;">Duration for which <br>Attendance  needed </th>
+        <th rowspan="2" style="width:10%;">Stipend<br>Receivable<br>(if any)</th>
       </tr>
       <tr>
-        <th></th>
-        <th style="text-align:center; width:10%;">From (Date)</th>
-        <th style="text-align:center; width:10%;">To (Date)</th>
-        <th></th>
-        <th style="text-align:center; width:8%;">From</th>
-        <th style="text-align:center; width:8%;">To</th>
-        <th></th>
-      </tr>
-      <tr>
-        <th style="text-align:center;"></th>
-        <th></th>
-        <th></th>
-        <th style="text-align:left; font-weight:bold;">Industry<br><br>Department</th>
-        <th></th>
-        <th></th>
-        <th></th>
+        <th style="width:9%;">From (Date)</th>
+        <th style="width:9%;">To (Date)</th>
+        <th style="width:9%;">From</th>
+        <th style="width:9%;">To</th>
       </tr>
     </thead>
     <tbody>
-      <tr>
+      <tr class="data-row">
         <td>
-          <strong>{{company_name}}</strong><br>
-          {{company_address}}<br>
-          {{company_city}}, {{company_state}}<br>
-          {{guide_contact}}
+          {{#if company_name}}<strong>{{company_name}}</strong><br>{{/if}}
+          {{#if company_address}}{{company_address}}<br>{{/if}}
+          {{#if company_city}}{{company_city}}{{#if company_state}}, {{company_state}}{{/if}}<br>{{/if}}
+          {{#if guide_contact}}{{guide_contact}}{{/if}}
         </td>
         <td style="text-align:center;">{{start_date}}</td>
         <td style="text-align:center;">{{end_date}}</td>
         <td>
-          <strong>Industry:</strong> {{guide_name_industry}}<br><br>
-          <strong>Dept:</strong> —
+          <div class="mentor-inner">
+            <div class="mentor-row">
+              <span class="mentor-label">Industry:</span>
+              <span>{{#if guide_name_industry}}{{guide_name_industry}}{{else}}&mdash;{{/if}}</span>
+            </div>
+            <div class="mentor-row">
+              <span class="mentor-label">Dept:</span>
+              <span>{{#if guide_name_dept}}{{guide_name_dept}}{{else}}&mdash;{{/if}}</span>
+            </div>
+          </div>
         </td>
         <td style="text-align:center;">{{start_date}}</td>
         <td style="text-align:center;">{{end_date}}</td>
-        <td style="text-align:center;">₹ {{stipend_amount}}</td>
+        <td style="text-align:center;">
+          {{#if stipend_amount}}&#8377; {{stipend_amount}}{{else}}Nil{{/if}}
+        </td>
       </tr>
     </tbody>
   </table>
 
-  <p><strong>My CGPA up to semester _____ is _______</strong></p>
+  <!-- CGPA — filled via template variables -->
+  <p class="cgpa-line">
+    My CGPA up to Semester
+    <strong>{{#if cgpa_semester}}{{cgpa_semester}}{{else}}_____{{/if}}</strong>
+    is
+    <strong>{{#if cgpa_value}}{{cgpa_value}}{{else}}_______{{/if}}</strong>
+  </p>
 
-  <p>
+  <!-- REQUEST -->
+  <p class="justify">
     I request you to permit me to accept the offer of the above internship and provide attendance for the duration mentioned.
   </p>
 
-  <p><strong>I hereby undertake the following.</strong></p>
+  <!-- UNDERTAKING -->
+  <p style="margin: 4px 0 2px 0;"><strong>I hereby undertake the following:</strong></p>
 
-  <ol>
+  <ol class="undertaking">
     <li>I will be regular and sincere in carrying out my internship at the above organization and I will obey the Rules and Regulations of the organization.</li>
-    <li>I will obtain the attendance certificate and submit the same at academic section within a week from the last date of my internship and also submit the copy of the report of the internship to the HoD.</li>
-    <li>I will study on my own, the syllabi covered in the class during my internship.</li>
+    <li>I will obtain the attendance certificate and submit the same at the academic section within a week from the last date of my internship and also submit a copy of the internship report to the HoD.</li>
+    <li>I will study on my own the syllabi covered in class during my internship.</li>
     <li>Further, after return from internship, I will also complete the assessment components (except CA Test 1 if total CA tests are three) and laboratory experiments missed during the internship period after regular class hours.</li>
     <li>I have enclosed the offer letter for internship.</li>
-    <li>I have enclosed parent's consent Letter.</li>
+    <li>I have enclosed the parent's consent letter.</li>
   </ol>
 
-  <p style="text-align:right; margin-top:30px;">(Signature of the Student)</p>
+  <!-- STUDENT SIGNATURE -->
+  <div class="sig-right">(Signature of the Student)</div>
 
-  <table style="margin-top:30px; border:none;">
-    <tr class="sig-row">
-      <td style="border:none; border-top:1px solid #000; text-align:center; width:16%;">Tutor</td>
-      <td style="border:none; border-top:1px solid #000; text-align:center; width:16%;">Guide (Dept)</td>
-      <td style="border:none; border-top:1px solid #000; text-align:center; width:20%;">Programme Co-ordinator</td>
-      <td style="border:none; border-top:1px solid #000; text-align:center; width:16%;">HoD</td>
-      <td style="border:none; border-top:1px solid #000; text-align:center; width:16%;">Dean (P&amp;T)</td>
-      <td style="border:none; border-top:1px solid #000; text-align:center; width:16%;">Dean-Academic</td>
+  <!-- SIGNATORIES -->
+  <table class="sig-table">
+    <tr>
+      <td>Tutor</td>
+      <td>Guide (Dept)</td>
+      <td>Programme Co-ordinator</td>
+      <td>HoD</td>
+      <td>Dean (P&amp;T)</td>
+      <td>Dean-Academic</td>
     </tr>
   </table>
 
-  <div class="principal-block" style="margin-top:30px;">PRINCIPAL</div>
+  <!-- PRINCIPAL -->
+  <div class="principal-block">PRINCIPAL</div>
 
-  <div class="note">
-    <strong>NOTE:</strong>
-    <ol style="margin:4px 0; padding-left:20px;">
-      <li>Original Form shall be submitted to <strong>Placement Office</strong> and Photo copies to <strong>Academic Section</strong> and <strong>Head of the Department</strong>.</li>
-      <li>If Hostel required during vacation period then separate request letter shall be submitted for the hostel accommodation.</li>
-    </ol>
+  <!-- NOTE -->
+  <div class="note-section">
+    <div class="note-grid">
+      <div class="note-label-cell">NOTE:</div>
+      <div class="note-content-cell">
+        <ol class="note-list">
+          <li>Original Form shall be submitted to <strong>Placement Office</strong> and photocopies to <strong>Academic Section</strong> and <strong>Head of the Department</strong>.</li>
+          <li>If hostel accommodation is required during the vacation period, a separate request letter shall be submitted for the same.</li>
+        </ol>
+      </div>
+    </div>
   </div>
 
 </body>
