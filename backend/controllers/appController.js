@@ -100,21 +100,22 @@ const getApplicationById = async (req, res) => {
 
   try {
     const { rows } = await pool.query(
-      `SELECT a.*,
-              COALESCE(c.name, a.company_name_manual) AS company_display_name,
-              c.name AS company_name, c.address AS co_address,
-              c.city AS co_city, c.state AS co_state, c.country AS co_country,
-              u.full_name AS tutor_name, u.email AS tutor_email,
-              s.full_name AS student_name, s.roll_number, s.email AS student_email,
-              s.cgpa AS student_cgpa,
-              p.programme, p.department
-       FROM internship_applications a
-       LEFT JOIN companies c ON a.company_id = c.company_id
-       LEFT JOIN users u ON a.tutor_id = u.user_id
-       JOIN users s ON a.student_id = s.user_id
-       LEFT JOIN programmes p ON s.prog_id = p.prog_id
-       WHERE a.application_id = $1`, [application_id]
-    );
+  `SELECT a.*,
+          COALESCE(c.name, a.company_name_manual) AS company_display_name,
+          c.name AS company_name, c.address AS co_address,
+          c.city AS co_city, c.state AS co_state, c.country AS co_country,
+          COALESCE(u.full_name, a.tutor_name) AS tutor_name,
+          COALESCE(u.email, a.tutor_email) AS tutor_email,
+          s.full_name AS student_name, s.roll_number, s.email AS student_email,
+          s.cgpa AS student_cgpa,
+          p.programme, p.department
+   FROM internship_applications a
+   LEFT JOIN companies c ON a.company_id = c.company_id
+   LEFT JOIN users u ON a.tutor_id = u.user_id
+   JOIN users s ON a.student_id = s.user_id
+   LEFT JOIN programmes p ON s.prog_id = p.prog_id
+   WHERE a.application_id = $1`, [application_id]
+);
 
     if (!rows.length) return res.status(404).json({ error: 'Application not found' });
 
@@ -122,8 +123,10 @@ const getApplicationById = async (req, res) => {
 
     if (req.user.role === 'student' && app.student_id !== req.user.user_id)
       return res.status(403).json({ error: 'Forbidden' });
-    if (req.user.role === 'tutor' && app.tutor_id !== req.user.user_id)
-      return res.status(403).json({ error: 'Forbidden' });
+    if (req.user.role === 'tutor' && 
+    app.tutor_id !== req.user.user_id && 
+    app.tutor_email !== req.user.email)
+  return res.status(403).json({ error: 'Forbidden' });
 
     res.json(app);
   } catch (err) {
@@ -143,7 +146,7 @@ const saveDraft = async (req, res) => {
     guide_name_industry, guide_department, guide_contact,
     cgpa, semester_completed, ra_courses, pending_courses,
     has_declined_other, declined_company_details,
-    stipend, student_note, tutor_id, tutor_email,
+    stipend, student_note, tutor_id, tutor_email, tutor_name,
     parent_permission_url, offer_letter_url
   } = req.body;
 
@@ -572,8 +575,9 @@ const getAllApplications = async (req, res) => {
         s.cgpa        AS student_cgpa,
         p.programme,
         p.department,
-        COALESCE(u.full_name, 'Not Assigned') AS tutor_name,
-        u.email AS tutor_contact_email
+        a.tutor_email,
+        COALESCE(u.full_name, a.tutor_name, 'Not Assigned') AS tutor_name,
+        COALESCE(u.email, a.tutor_email) AS tutor_contact_email
       FROM internship_applications a
       LEFT JOIN companies  c ON a.company_id = c.company_id
       JOIN  users          s ON a.student_id = s.user_id

@@ -105,6 +105,7 @@ useEffect(() => {
           cgpa: data.cgpa || '',
           semester_completed: data.semester_completed || '',
           tutor_id: data.tutor_id || '',
+          tutor_name: data.tutor_name || '',  
           tutor_email: data.tutor_email || '',
           parent_permission_url: data.parent_permission_url || '',
           offer_letter_url: data.offer_letter_url || '',

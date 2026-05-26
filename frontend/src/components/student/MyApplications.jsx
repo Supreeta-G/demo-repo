@@ -4,11 +4,11 @@ import api from '../../api.js';
 import { useNavigate } from 'react-router-dom';
 
 const statusConfig = {
-  draft:         { label: 'Draft',          cls: 'badge-draft',    Icon: FileText,    emoji: '📝' },
-  pending_tutor: { label: 'Pending Tutor',  cls: 'badge-pending',  Icon: Clock,       emoji: '⏳' },
-  approved:      { label: 'Approved',       cls: 'badge-approved', Icon: CheckCircle, emoji: '✅' },
-  rejected:      { label: 'Rejected',       cls: 'badge-rejected', Icon: XCircle,     emoji: '❌' },
-  cancelled:     { label: 'Cancelled',      cls: 'badge-draft',    Icon: XCircle,     emoji: '🚫' },
+  draft:         { label: 'Draft',          cls: 'badge-draft',    Icon: FileText,    emoji: '' },
+  pending_tutor: { label: 'Pending Tutor',  cls: 'badge-pending',  Icon: Clock,       emoji: '' },
+  approved:      { label: 'Approved',       cls: 'badge-approved', Icon: CheckCircle, emoji: '' },
+  rejected:      { label: 'Returned',       cls: 'badge-rejected', Icon: XCircle,     emoji: '' },
+  cancelled:     { label: 'Cancelled',      cls: 'badge-draft',    Icon: XCircle,     emoji: '' },
 };
 
 const MyApplications = () => {
@@ -183,13 +183,13 @@ const MyApplications = () => {
                           onClick={() => handleEdit(app)}
                           className="px-5 py-2 bg-blue-600 hover:bg-blue-700 text-white text-sm font-medium rounded-xl flex items-center gap-2 transition-all"
                         >
-                          ✏️ {app.status === 'draft' ? 'Continue Editing' : 'Edit Application'}
+                           {app.status === 'draft' ? 'Continue Editing' : 'Edit Application'}
                         </button>
                         <button
                           onClick={() => handleDeleteRequest(app)}
                           className="px-5 py-2 bg-red-600 hover:bg-red-700 text-white text-sm font-medium rounded-xl flex items-center gap-2 transition-all"
                         >
-                          🗑 Request Delete
+                          Request Delete
                         </button>
                       </div>
                     )}
@@ -197,16 +197,16 @@ const MyApplications = () => {
                     {/* Meta chips */}
                     <div className="flex flex-wrap gap-2 ml-6 mb-3">
                       <span className="bg-fern/10 text-fern text-xs px-2.5 py-1 rounded-full font-medium">
-                        {app.duration_type === 'summer' ? '☀️ Summer' : '🎓 Final Semester'}
+                        {app.duration_type === 'summer' ? ' Summer' : ' Final Semester'}
                       </span>
                       {app.work_mode && (
                         <span className="bg-sage/20 text-forest text-xs px-2.5 py-1 rounded-full">
-                          {app.work_mode === 'on_site' ? '🏢' : app.work_mode === 'remote' ? '💻' : '🔄'} {app.work_mode.replace('_', '-')}
+                          {app.work_mode === 'on_site' ? '' : app.work_mode === 'remote' ? '' : ''} {app.work_mode.replace('_', '-')}
                         </span>
                       )}
                       {app.company_city && (
                         <span className="bg-sage/20 text-forest text-xs px-2.5 py-1 rounded-full">
-                          📍 {app.company_city}
+                           {app.company_city}
                         </span>
                       )}
                       {app.start_date && (
@@ -217,7 +217,7 @@ const MyApplications = () => {
                       )}
                       {app.tutor_name && (
                         <span className="bg-sage/20 text-forest text-xs px-2.5 py-1 rounded-full">
-                          👤 {app.tutor_name}
+                           {app.tutor_name}
                         </span>
                       )}
                     </div>

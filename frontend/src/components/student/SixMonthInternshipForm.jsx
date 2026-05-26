@@ -87,16 +87,16 @@ const SixMonthInternshipForm = () => {
 
          setForm({
   company_id: data.company_id || '',
-  company_name_manual: data.company_name_manual || data.company_display_name || data.company_name || '',
+  company_name_manual: data.company_name_manual || data.company_display_name || '',
   role_title: data.role_title || '',
-
   intern_type: data.intern_type || 'industry',
   how_obtained: data.how_obtained || '',
 
+  // ← Fix: copy company table values into manual fields if manual is empty
   company_address: data.company_address || data.co_address || '',
   company_city: data.company_city || data.co_city || '',
   company_state: data.company_state || data.co_state || '',
-  company_country: data.company_country || 'India',
+  company_country: data.company_country || data.co_country || 'India',
   company_phone: data.company_phone || '',
 
   duration_type: data.duration_type || 'six_month',
@@ -107,19 +107,27 @@ const SixMonthInternshipForm = () => {
   attendance_days: data.attendance_days || '',
 
   guide_name_industry: data.guide_name_industry || '',
+  guide_department: data.guide_department || '',   // ← was missing
   guide_contact: data.guide_contact || '',
 
-  // ✅ FIXED STIPEND, CGPA, SEMESTER
-  stipend: data.stipend_amount || data.stipend || '',
-  cgpa: data.cgpa || data.student_cgpa || '',
-  semester_completed: data.semester_completed || '',
+  stipend: data.stipend_amount ?? data.stipend ?? '',   // ← use ?? not ||
+  cgpa: data.cgpa ?? data.student_cgpa ?? '',           // ← use ?? not ||
+  semester_completed: data.semester_completed ?? '',    // ← use ?? not ||
   ra_courses: data.ra_courses || '',
   pending_courses: data.pending_courses || '',
-  tutor_id: data.tutor_id || '',
+  ra_courses_count: data.ra_courses ? data.ra_courses.split(',').length : 0,
+  ra_courses_names: data.ra_courses ? data.ra_courses.split(',').map(s => s.trim()) : [],
+  pending_courses_count: data.pending_courses ? data.pending_courses.split(',').length : 0,
+  pending_courses_names: data.pending_courses ? data.pending_courses.split(',').map(s => s.trim()) : [],
+
+  tutor_name: data.tutor_name || '',   // ← add this line
   tutor_email: data.tutor_email || '',
   offer_letter_url: data.offer_letter_url || '',
   parent_permission_url: data.parent_permission_url || '',
 
+  has_declined_other: data.has_declined_other || false,          // ← was missing
+  declined_company_details: data.declined_company_details || '', // ← was missing
+  student_note: data.student_note || '',                         // ← was missing
 });
         })
         .catch(err => {
@@ -257,16 +265,23 @@ const handleSaveDraft = async () => {
   setLoading(true);
   try {
     const payload = {
-      ...form,
-      application_id: savedId || editId,        // ← Critical for editing
-      duration_type: 'six_month',               // for six month form
+  ...form,
+  application_id: savedId || editId,
+  duration_type: 'six_month',
 
-      // Convert to proper types to avoid database errors
-      cgpa: form.cgpa ? Number(form.cgpa) : null,
-      semester_completed: form.semester_completed ? Number(form.semester_completed) : null,
-      stipend_amount: form.stipend ? Number(form.stipend) : null,
-      attendance_days: form.attendance_days ? Number(form.attendance_days) : null,
-    };
+  // ← Add these: convert arrays to comma-separated strings for DB
+  ra_courses: form.ra_courses_names?.length > 0 
+    ? form.ra_courses_names.join(', ') 
+    : null,
+  pending_courses: form.pending_courses_names?.length > 0 
+    ? form.pending_courses_names.join(', ') 
+    : null,
+
+  cgpa: form.cgpa ? Number(form.cgpa) : null,
+  semester_completed: form.semester_completed ? Number(form.semester_completed) : null,
+  stipend_amount: form.stipend ? Number(form.stipend) : null,
+  attendance_days: form.attendance_days ? Number(form.attendance_days) : null,
+};
 
     console.log("Saving with application_id:", payload.application_id); // Debug
 
@@ -294,7 +309,9 @@ const handleSubmit = async () => {
   setSubmitLoading(true);
   try {
     await api.post('/applications/submit', { 
-      application_id: savedId || editId 
+      application_id: savedId || editId,
+      tutor_email: form.tutor_email,        // ← add this
+      tutor_name: form.tutor_name || '',    // ← add this
     });
     alert("✅ Application Submitted Successfully!\nTutor has been notified.");
     navigate('/student/applications');

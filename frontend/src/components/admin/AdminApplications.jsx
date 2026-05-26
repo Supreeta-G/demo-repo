@@ -1,5 +1,6 @@
 import React, { useState, useEffect } from 'react';
-import { Search, Download, Unlock, Trash2, FileDown } from 'lucide-react';
+import { Search, Download, Unlock, Trash2, FileDown, FileSpreadsheet } from 'lucide-react';
+import * as XLSX from 'xlsx';
 import api from '../../api.js';
 
 const AdminApplications = () => {
@@ -10,14 +11,13 @@ const AdminApplications = () => {
   const [actionLoading, setActionLoading] = useState(null);
   const [pdfLoading, setPdfLoading]       = useState(null);
   const [toast, setToast]                 = useState(null);
+  const [selectedIds, setSelectedIds]     = useState(new Set());
 
-  // ── Toast helper ──────────────────────────────────────────────────
   const showToast = (msg, type = 'success') => {
     setToast({ msg, type });
     setTimeout(() => setToast(null), 4000);
   };
 
-  // ── Fetch applications ────────────────────────────────────────────
   const fetchApplications = async () => {
     setLoading(true);
     try {
@@ -35,7 +35,6 @@ const AdminApplications = () => {
 
   useEffect(() => { fetchApplications(); }, [statusFilter]);
 
-  // ── Client-side filter (search box matches name, company, roll number) ──
   const filtered = applications.filter((app) => {
     const q = search.trim().toLowerCase();
     if (!q) return true;
@@ -48,7 +47,63 @@ const AdminApplications = () => {
     );
   });
 
-  // ── Actions ───────────────────────────────────────────────────────
+  const toggleRow = (id) => {
+    setSelectedIds(prev => {
+      const next = new Set(prev);
+      next.has(id) ? next.delete(id) : next.add(id);
+      return next;
+    });
+  };
+
+  const toggleAll = () => {
+    if (selectedIds.size === filtered.length) {
+      setSelectedIds(new Set());
+    } else {
+      setSelectedIds(new Set(filtered.map(a => a.application_id)));
+    }
+  };
+
+  const handleExcelDownload = () => {
+    const toExport = filtered.filter(a => selectedIds.has(a.application_id));
+    if (toExport.length === 0) return showToast('Select at least one row', 'error');
+
+    const rows = toExport.map(app => ({
+      'Ref No.'       : app.application_id || '-',
+      'Roll No.'      : app.roll_number || '-',
+      'Student Name'  : app.student_name || '-',
+      'Programme'     : app.programme || '-',
+      'Department'    : app.department || '-',
+      'Type'          : app.duration_type === 'summer' ? 'Summer' : '6-Month',
+      'Company'       : app.company_name || app.company_name_manual || '-',
+      'Role'          : app.role_title || '-',
+      'Work Mode'     : app.work_mode || '-',
+      'Start Date'    : app.start_date ? app.start_date.split('T')[0] : '-',
+      'End Date'      : app.end_date   ? app.end_date.split('T')[0]   : '-',
+      'Stipend (Rs)'  : app.stipend_amount ?? '-',
+      'CGPA'          : app.cgpa || '-',
+      'Semesters'     : app.semester_completed || '-',
+      'Tutor Name'  : app.tutor_name || app.tutor_contact_email || '-',
+      'Tutor Email' : app.tutor_contact_email || app.tutor_email || '-',
+      'Status'        : app.status?.replace('_', ' ') || '-',
+      'Submitted At'  : app.submitted_at ? app.submitted_at.split('T')[0] : '-',
+      'Tutor Remarks' : app.tutor_remarks || '-',
+    }));
+
+    const ws = XLSX.utils.json_to_sheet(rows);
+
+    const colWidths = Object.keys(rows[0]).map(key => ({
+      wch: Math.max(key.length, ...rows.map(r => String(r[key] ?? '').length)) + 2
+    }));
+    ws['!cols'] = colWidths;
+
+    const wb = XLSX.utils.book_new();
+    XLSX.utils.book_append_sheet(wb, ws, 'Applications');
+
+    const fileName = 'PSG_Internship_Applications_' + new Date().toISOString().split('T')[0] + '.xlsx';
+    XLSX.writeFile(wb, fileName);
+    showToast('Downloaded ' + toExport.length + ' row(s) as Excel');
+  };
+
   const handleUnlock = async (id) => {
     if (!confirm('Unlock this application for student editing?')) return;
     setActionLoading(id);
@@ -67,7 +122,7 @@ const AdminApplications = () => {
     if (!confirm('Permanently delete this application?')) return;
     setActionLoading(id);
     try {
-      await api.delete(`/admin/applications/${id}`);
+      await api.delete('/admin/applications/' + id);
       showToast('Application deleted');
       fetchApplications();
     } catch {
@@ -77,7 +132,6 @@ const AdminApplications = () => {
     }
   };
 
-  // ── PDF Download ──────────────────────────────────────────────────
   const handlePDF = async (application_id) => {
     if (!application_id) return showToast('Application ID not found!', 'error');
     setPdfLoading(application_id);
@@ -87,38 +141,32 @@ const AdminApplications = () => {
         method: 'POST',
         headers: {
           'Content-Type': 'application/json',
-          'Authorization': `Bearer ${token}`,
+          'Authorization': 'Bearer ' + token,
         },
         body: JSON.stringify({ application_id }),
       });
-
       if (!response.ok) {
         const errData = await response.json().catch(() => ({}));
-        throw new Error(errData.error || `Server error: ${response.status}`);
+        throw new Error(errData.error || 'Server error: ' + response.status);
       }
-
       const blob = await response.blob();
       if (blob.size === 0) throw new Error('Received empty PDF from server.');
-
       const url  = URL.createObjectURL(blob);
       const link = document.createElement('a');
       link.href  = url;
-      link.download = `Internship_${String(application_id).replace(/\//g, '_')}.pdf`;
+      link.download = 'Internship_' + String(application_id).replace(/\//g, '_') + '.pdf';
       document.body.appendChild(link);
       link.click();
       document.body.removeChild(link);
       URL.revokeObjectURL(url);
-
       showToast('PDF Downloaded Successfully!');
     } catch (err) {
-      console.error('PDF Error:', err);
       showToast(err.message || 'Failed to generate PDF', 'error');
     } finally {
       setPdfLoading(null);
     }
   };
 
-  // ── Status badge helper ───────────────────────────────────────────
   const statusBadge = (status) => {
     const map = {
       approved:      'badge-approved',
@@ -129,17 +177,14 @@ const AdminApplications = () => {
     return map[status] || 'badge-pending';
   };
 
-  // ── Render ────────────────────────────────────────────────────────
+  const allSelected  = filtered.length > 0 && selectedIds.size === filtered.length;
+  const someSelected = selectedIds.size > 0;
+
   return (
     <div className="p-4 md:p-6 max-w-7xl mx-auto">
 
-      {/* Toast */}
       {toast && (
-        <div
-          className={`toast fixed top-5 right-5 z-[9999] ${
-            toast.type === 'error' ? 'bg-red-600' : 'bg-fern'
-          } text-white`}
-        >
+        <div className={['toast fixed top-5 right-5 z-[9999] text-white', toast.type === 'error' ? 'bg-red-600' : 'bg-fern'].join(' ')}>
           {toast.msg}
         </div>
       )}
@@ -152,7 +197,6 @@ const AdminApplications = () => {
         </div>
 
         <div className="flex flex-col sm:flex-row gap-3 w-full md:w-auto">
-          {/* Single search — matches name, company, roll number, ref number */}
           <div className="relative flex-1">
             <Search className="absolute left-3 top-3 w-4 h-4 text-sage" />
             <input
@@ -175,6 +219,16 @@ const AdminApplications = () => {
             <option value="approved">Approved</option>
             <option value="rejected">Rejected</option>
           </select>
+
+          <button
+            onClick={handleExcelDownload}
+            disabled={!someSelected}
+            className={['flex items-center gap-2 px-4 py-2 rounded-xl text-sm font-semibold transition-all', someSelected ? 'bg-emerald-600 hover:bg-emerald-700 text-white' : 'bg-gray-100 text-gray-400 cursor-not-allowed'].join(' ')}
+            title={someSelected ? 'Download ' + selectedIds.size + ' selected row(s)' : 'Select rows to download'}
+          >
+            <FileSpreadsheet className="w-4 h-4" />
+            {someSelected ? 'Excel (' + selectedIds.size + ')' : 'Excel'}
+          </button>
         </div>
       </div>
 
@@ -191,9 +245,17 @@ const AdminApplications = () => {
             <div className="overflow-x-auto">
               <table className="w-full text-sm border-collapse">
 
-                {/* ── Head ── */}
                 <thead>
                   <tr className="bg-bone border-b border-sage/20 text-xs text-sage/100 uppercase tracking-wide">
+                    <th className="px-4 py-3 text-left w-10">
+                      <input
+                        type="checkbox"
+                        checked={allSelected}
+                        onChange={toggleAll}
+                        className="w-4 h-4 accent-fern cursor-pointer"
+                        title="Select all"
+                      />
+                    </th>
                     <th className="px-4 py-3 text-left font-medium whitespace-nowrap">Ref No.</th>
                     <th className="px-4 py-3 text-left font-medium whitespace-nowrap">Roll No.</th>
                     <th className="px-4 py-3 text-left font-medium whitespace-nowrap">Name</th>
@@ -207,127 +269,108 @@ const AdminApplications = () => {
                   </tr>
                 </thead>
 
-                {/* ── Body ── */}
                 <tbody>
-                  {filtered.map((app) => (
-                    <tr
-                      key={app.application_id}
-                      className="border-b border-sage/10 last:border-0 hover:bg-bone/40 transition-colors"
-                    >
-                      {/* Ref Number */}
-                      <td className="px-4 py-3 font-mono text-xs whitespace-nowrap">
-                        {app.ref_number || app.application_id || '—'}
-                      </td>
-
-                      {/* Roll Number */}
-                      <td className="px-4 py-3 font-mono text-xs whitespace-nowrap">
-                        {app.roll_number || '—'}
-                      </td>
-
-                      {/* Name */}
-                      <td className="px-4 py-3 font-medium text-forest whitespace-nowrap">
-                        {app.student_name || '—'}
-                      </td>
-
-                      {/* Type */}
-                      <td className="px-4 py-3 whitespace-nowrap">
-                        <span className="bg-sage/20 text-forest text-xs px-2.5 py-1 rounded-full">
-                          {app.duration_type === 'summer' ? 'Summer' : '6-Month'}
-                        </span>
-                      </td>
-
-                      {/* Company */}
-                      <td
-                        className="px-4 py-3 max-w-[140px] truncate"
-                        title={app.company_name || app.company_name_manual}
+                  {filtered.map((app) => {
+                    const isSelected = selectedIds.has(app.application_id);
+                    return (
+                      <tr
+                        key={app.application_id}
+                        className={['border-b border-sage/10 last:border-0 transition-colors cursor-pointer', isSelected ? 'bg-emerald-50' : 'hover:bg-bone/40'].join(' ')}
+                        onClick={() => toggleRow(app.application_id)}
                       >
-                        {app.company_name || app.company_name_manual || '—'}
-                      </td>
+                        <td className="px-4 py-3" onClick={e => e.stopPropagation()}>
+                          <input
+                            type="checkbox"
+                            checked={isSelected}
+                            onChange={() => toggleRow(app.application_id)}
+                            className="w-4 h-4 accent-fern cursor-pointer"
+                          />
+                        </td>
 
-                      {/* Status */}
-                      <td className="px-4 py-3 whitespace-nowrap">
-                        <span className={`badge ${statusBadge(app.status)}`}>
-                          {app.status?.replace('_', ' ')}
-                        </span>
-                      </td>
-
-                      {/* Offer Letter */}
-                      <td className="px-4 py-3 whitespace-nowrap">
-                        {(app.offer_letter_full_url || app.offer_letter_url) ? (
-                          <a
-                            href={app.offer_letter_full_url || `http://localhost:5001${app.offer_letter_url}`}
-                            target="_blank"
-                            rel="noopener noreferrer"
-                            className="inline-flex items-center gap-1 text-xs text-fern hover:underline font-medium"
-                          >
-                            <FileDown className="w-3.5 h-3.5" /> View
-                          </a>
-                        ) : (
-                          <span className="text-sage/40 text-xs">—</span>
-                        )}
-                      </td>
-
-                      {/* Parent Form */}
-                      <td className="px-4 py-3 whitespace-nowrap">
-                        {app.parent_permission_url ? (
-                          <a
-                            href={`http://localhost:5001${app.parent_permission_url}`}
-                            target="_blank"
-                            rel="noopener noreferrer"
-                            className="inline-flex items-center gap-1 text-xs text-fern hover:underline font-medium"
-                          >
-                            <FileDown className="w-3.5 h-3.5" /> View
-                          </a>
-                        ) : (
-                          <span className="text-sage/40 text-xs">—</span>
-                        )}
-                      </td>
-
-                      {/* PDF Download */}
-                      <td className="px-4 py-3 whitespace-nowrap">
-                        <button
-                          onClick={() => handlePDF(app.application_id)}
-                          disabled={pdfLoading === app.application_id}
-                          className="btn-secondary text-xs px-3 py-1.5 flex items-center gap-1 disabled:opacity-50"
-                          title="Download PDF"
-                        >
-                          {pdfLoading === app.application_id ? (
-                            <span className="w-3.5 h-3.5 border-2 border-sage/30 border-t-fern rounded-full animate-spin" />
-                          ) : (
-                            <Download className="w-3.5 h-3.5" />
-                          )}
-                          PDF
-                        </button>
-                      </td>
-
-                      {/* Actions: Unlock + Delete */}
-                      <td className="px-4 py-3 whitespace-nowrap">
-                        <div className="flex items-center gap-2">
-                          {app.status !== 'approved' && (
-                            <button
-                              onClick={() => handleUnlock(app.application_id)}
-                              disabled={actionLoading === app.application_id}
-                              className="btn-secondary text-xs px-3 py-1.5 text-amber-600 hover:text-amber-700 disabled:opacity-50"
-                              title="Unlock for editing"
+                        <td className="px-4 py-3 font-mono text-xs whitespace-nowrap">
+                          {app.ref_number || app.application_id || '-'}
+                        </td>
+                        <td className="px-4 py-3 font-mono text-xs whitespace-nowrap">
+                          {app.roll_number || '-'}
+                        </td>
+                        <td className="px-4 py-3 font-medium text-forest whitespace-nowrap">
+                          {app.student_name || '-'}
+                        </td>
+                        <td className="px-4 py-3 whitespace-nowrap">
+                          <span className="bg-sage/20 text-forest text-xs px-2.5 py-1 rounded-full">
+                            {app.duration_type === 'summer' ? 'Summer' : '6-Month'}
+                          </span>
+                        </td>
+                        <td className="px-4 py-3 max-w-[140px] truncate" title={app.company_name || app.company_name_manual}>
+                          {app.company_name || app.company_name_manual || '-'}
+                        </td>
+                        <td className="px-4 py-3 whitespace-nowrap">
+                          <span className={statusBadge(app.status) + ' badge'}>
+                            {app.status?.replace('_', ' ')}
+                          </span>
+                        </td>
+                        <td className="px-4 py-3 whitespace-nowrap" onClick={e => e.stopPropagation()}>
+                          {(app.offer_letter_full_url || app.offer_letter_url) ? (
+                            <a
+                              href={app.offer_letter_full_url || 'http://localhost:5001' + app.offer_letter_url}
+                              target="_blank"
+                              rel="noopener noreferrer"
+                              className="inline-flex items-center gap-1 text-xs text-fern hover:underline font-medium"
                             >
-                              <Unlock className="w-3.5 h-3.5" />
-                            </button>
-                          )}
+                              <FileDown className="w-3.5 h-3.5" /> View
+                            </a>
+                          ) : <span className="text-sage/40 text-xs">-</span>}
+                        </td>
+                        <td className="px-4 py-3 whitespace-nowrap" onClick={e => e.stopPropagation()}>
+                          {app.parent_permission_url ? (
+                            <a
+                              href={'http://localhost:5001' + app.parent_permission_url}
+                              target="_blank"
+                              rel="noopener noreferrer"
+                              className="inline-flex items-center gap-1 text-xs text-fern hover:underline font-medium"
+                            >
+                              <FileDown className="w-3.5 h-3.5" /> View
+                            </a>
+                          ) : <span className="text-sage/40 text-xs">-</span>}
+                        </td>
+                        <td className="px-4 py-3 whitespace-nowrap" onClick={e => e.stopPropagation()}>
                           <button
-                            onClick={() => handleDelete(app.application_id)}
-                            disabled={actionLoading === app.application_id}
-                            className="btn-secondary text-xs px-3 py-1.5 text-red-600 hover:text-red-700 disabled:opacity-50"
-                            title="Delete Application"
+                            onClick={() => handlePDF(app.application_id)}
+                            disabled={pdfLoading === app.application_id}
+                            className="btn-secondary text-xs px-3 py-1.5 flex items-center gap-1 disabled:opacity-50"
                           >
-                            <Trash2 className="w-3.5 h-3.5" />
+                            {pdfLoading === app.application_id
+                              ? <span className="w-3.5 h-3.5 border-2 border-sage/30 border-t-fern rounded-full animate-spin" />
+                              : <Download className="w-3.5 h-3.5" />}
+                            PDF
                           </button>
-                        </div>
-                      </td>
-
-                    </tr>
-                  ))}
+                        </td>
+                        <td className="px-4 py-3 whitespace-nowrap" onClick={e => e.stopPropagation()}>
+                          <div className="flex items-center gap-2">
+                            {app.status !== 'approved' && (
+                              <button
+                                onClick={() => handleUnlock(app.application_id)}
+                                disabled={actionLoading === app.application_id}
+                                className="btn-secondary text-xs px-3 py-1.5 text-amber-600 hover:text-amber-700 disabled:opacity-50"
+                                title="Unlock for editing"
+                              >
+                                <Unlock className="w-3.5 h-3.5" />
+                              </button>
+                            )}
+                            <button
+                              onClick={() => handleDelete(app.application_id)}
+                              disabled={actionLoading === app.application_id}
+                              className="btn-secondary text-xs px-3 py-1.5 text-red-600 hover:text-red-700 disabled:opacity-50"
+                              title="Delete"
+                            >
+                              <Trash2 className="w-3.5 h-3.5" />
+                            </button>
+                          </div>
+                        </td>
+                      </tr>
+                    );
+                  })}
                 </tbody>
-
               </table>
             </div>
           )}
