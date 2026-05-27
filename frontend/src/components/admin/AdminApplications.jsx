@@ -12,6 +12,7 @@ const AdminApplications = () => {
   const [pdfLoading, setPdfLoading]       = useState(null);
   const [toast, setToast]                 = useState(null);
   const [selectedIds, setSelectedIds]     = useState(new Set());
+  const [workModeFilter, setWorkModeFilter] = useState('all');
 
   const showToast = (msg, type = 'success') => {
     setToast({ msg, type });
@@ -33,19 +34,23 @@ const AdminApplications = () => {
     }
   };
 
-  useEffect(() => { fetchApplications(); }, [statusFilter]);
+  useEffect(() => { 
+  setWorkModeFilter('all');
+  fetchApplications(); 
+}, [statusFilter]);
 
   const filtered = applications.filter((app) => {
-    const q = search.trim().toLowerCase();
-    if (!q) return true;
-    return (
-      app.student_name?.toLowerCase().includes(q)        ||
-      app.company_name?.toLowerCase().includes(q)        ||
-      app.company_name_manual?.toLowerCase().includes(q) ||
-      app.roll_number?.toLowerCase().includes(q)         ||
-      app.ref_number?.toLowerCase().includes(q)
-    );
-  });
+  const q = search.trim().toLowerCase();
+  const matchesSearch = !q || (
+    app.student_name?.toLowerCase().includes(q)        ||
+    app.company_name?.toLowerCase().includes(q)        ||
+    app.company_name_manual?.toLowerCase().includes(q) ||
+    app.roll_number?.toLowerCase().includes(q)         ||
+    app.ref_number?.toLowerCase().includes(q)
+  );
+  const matchesMode = workModeFilter === 'all' || app.work_mode?.toLowerCase().trim() === workModeFilter;
+  return matchesSearch && matchesMode;
+});
 
   const toggleRow = (id) => {
     setSelectedIds(prev => {
@@ -239,6 +244,21 @@ const AdminApplications = () => {
         </div>
       ) : (
         <div className="card border border-sage/20 overflow-hidden">
+          <div className="flex gap-2 p-4 border-b border-sage/20">
+  {['all', 'remote', 'hybrid', 'on_site'].map(mode => (
+    <button
+      key={mode}
+      onClick={() => setWorkModeFilter(mode)}
+      className={`px-4 py-1.5 rounded-full text-xs font-medium transition-all border ${
+        workModeFilter === mode
+          ? 'bg-fern text-white border-fern'
+          : 'bg-white text-sage border-sage/30 hover:border-fern hover:text-fern'
+      }`}
+    >
+      {mode === 'all' ? 'All' : mode === 'on_site' ? 'On Site' : mode.charAt(0).toUpperCase() + mode.slice(1)}
+    </button>
+  ))}
+</div>
           {filtered.length === 0 ? (
             <div className="text-center py-16 text-sage/70">No applications found</div>
           ) : (

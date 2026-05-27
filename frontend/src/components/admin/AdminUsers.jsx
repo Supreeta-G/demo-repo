@@ -1,7 +1,7 @@
 import React, { useState, useEffect } from 'react';
-import { Users, Plus, X, User, Shield, GraduationCap, Search } from 'lucide-react';
+import { Users, Plus, X, User, Shield, GraduationCap, Search, FileSpreadsheet } from 'lucide-react';
 import api from '../../api.js';
-
+import * as XLSX from 'xlsx';
 const roleIcons = { 
   student: GraduationCap, 
   tutor: User, 
@@ -20,6 +20,7 @@ const AdminUsers = () => {
   const [roleFilter, setRoleFilter] = useState('all');
   const [search, setSearch] = useState('');
   const [showAdd, setShowAdd] = useState(false);
+  const [selectedIds, setSelectedIds] = useState(new Set());
   const [form, setForm] = useState({ 
     email: '', password: '', full_name: '', role: 'student', roll_number: '', phone: '' 
   });
@@ -66,7 +67,46 @@ const AdminUsers = () => {
       setAddLoading(false);
     }
   };
+  const toggleRow = (id) => {
+  setSelectedIds(prev => {
+    const next = new Set(prev);
+    next.has(id) ? next.delete(id) : next.add(id);
+    return next;
+  });
+};
 
+const toggleAll = () => {
+  if (selectedIds.size === filtered.length) {
+    setSelectedIds(new Set());
+  } else {
+    setSelectedIds(new Set(filtered.map(u => u.user_id)));
+  }
+};
+
+const handleExcelDownload = () => {
+  const toExport = filtered.filter(u => selectedIds.has(u.user_id));
+  if (toExport.length === 0) return showToast('Select at least one row', 'error');
+
+  const rows = toExport.map(u => ({
+    'Full Name'   : u.full_name || '-',
+    'Email'       : u.email || '-',
+    'Role'        : u.role || '-',
+    'Roll Number' : u.roll_number || '-',
+    'Programme'   : u.programme || '-',
+    'Phone'       : u.phone || '-',
+    'Joined'      : u.created_at ? new Date(u.created_at).toLocaleDateString('en-IN') : '-',
+    'Last Login'  : u.last_login_at ? new Date(u.last_login_at).toLocaleDateString('en-IN') : 'Never',
+  }));
+
+  const ws = XLSX.utils.json_to_sheet(rows);
+  ws['!cols'] = Object.keys(rows[0]).map(key => ({
+    wch: Math.max(key.length, ...rows.map(r => String(r[key] ?? '').length)) + 2
+  }));
+  const wb = XLSX.utils.book_new();
+  XLSX.utils.book_append_sheet(wb, ws, 'Users');
+  XLSX.writeFile(wb, 'PSG_Users_' + new Date().toISOString().split('T')[0] + '.xlsx');
+  showToast('Downloaded ' + toExport.length + ' row(s) as Excel');
+};
   return (
     <div className="p-4 md:p-6 max-w-6xl mx-auto page-enter">
       {toast && (
@@ -83,6 +123,20 @@ const AdminUsers = () => {
         <button onClick={() => setShowAdd(true)} className="btn-primary flex items-center gap-2">
           <Plus className="w-4 h-4" /> Add New User
         </button>
+        <button
+  onClick={handleExcelDownload}
+  disabled={selectedIds.size === 0}
+  className={`flex items-center gap-2 px-4 py-2 rounded-xl text-sm font-semibold transition-all ${
+    selectedIds.size > 0
+      ? 'bg-emerald-600 hover:bg-emerald-700 text-white'
+      : 'bg-gray-100 text-gray-400 cursor-not-allowed'
+  }`}
+>
+  <FileSpreadsheet className="w-4 h-4" />
+  {selectedIds.size > 0 ? `Excel (${selectedIds.size})` : 'Excel'}
+</button>
+        
+
       </div>
 
       {/* Filters */}
@@ -123,6 +177,14 @@ const AdminUsers = () => {
             <table className="w-full text-sm">
               <thead>
                 <tr className="bg-forest/5 border-b border-sage/20">
+                <th className="px-4 py-4 w-10">
+      <input
+        type="checkbox"
+        checked={selectedIds.size === filtered.length && filtered.length > 0}
+        onChange={toggleAll}
+        className="w-4 h-4 accent-fern cursor-pointer"
+      />
+    </th>
                   {['Name', 'Email', 'Role', 'Roll No', 'Programme', 'Joined', 'Last Login'].map(h => (
                     <th key={h} className="text-left px-4 py-4 text-xs font-semibold text-hunter/60 uppercase tracking-wider">
                       {h}
@@ -134,7 +196,22 @@ const AdminUsers = () => {
                 {filtered.map((u, i) => {
                   const RoleIcon = roleIcons[u.role] || User;
                   return (
-                    <tr key={u.user_id} className="hover:bg-fern/5 transition-colors">
+                      <tr
+                        key={u.user_id}
+                        onClick={() => toggleRow(u.user_id)}
+                        className={`transition-colors cursor-pointer ${
+                          selectedIds.has(u.user_id) ? 'bg-emerald-50' : 'hover:bg-fern/5'
+                        }`}
+                        
+                      >   
+                      <td className="px-4 py-4" onClick={e => e.stopPropagation()}>
+                        <input
+                          type="checkbox"
+                          checked={selectedIds.has(u.user_id)}
+                          onChange={() => toggleRow(u.user_id)}
+                          className="w-4 h-4 accent-fern cursor-pointer"
+                        />
+                      </td>     
                       <td className="px-4 py-4 font-semibold text-forest">{u.full_name}</td>
                       <td className="px-4 py-4 text-xs text-hunter/70 font-mono">{u.email}</td>
                       <td className="px-4 py-4">

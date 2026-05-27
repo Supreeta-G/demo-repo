@@ -1,6 +1,7 @@
 import React, { useEffect, useState } from 'react';
-import { CheckCircle, XCircle, Clock, FileDown, ChevronDown, ChevronUp, Building2, Download } from 'lucide-react';
+import { CheckCircle, XCircle, Clock, FileDown, ChevronDown, ChevronUp, Building2, Download, FileSpreadsheet } from 'lucide-react';
 import api from '../../api.js';
+import * as XLSX from 'xlsx';
 
 const TutorQueue = ({ filter }) => {
   const [apps, setApps]               = useState([]);
@@ -10,6 +11,8 @@ const TutorQueue = ({ filter }) => {
   const [actionLoading, setActionLoading] = useState(null);
   const [pdfLoading, setPdfLoading]   = useState(null);
   const [toast, setToast]             = useState(null);
+  const [workModeFilter, setWorkModeFilter] = useState('all');
+  const [selectedIds, setSelectedIds] = useState(new Set());
 
   // Modal state
   const [approveModal, setApproveModal] = useState(null); // appId or null
@@ -152,7 +155,54 @@ const TutorQueue = ({ filter }) => {
       <span className="w-9 h-9 border-2 border-sage/30 border-t-fern rounded-full animate-spin" />
     </div>
   );
+ const filteredApps = filter !== 'pending_tutor'
+  ? (workModeFilter === 'all' ? apps : apps.filter(a => 
+      a.work_mode?.toLowerCase().trim() === workModeFilter.toLowerCase()
+    ))
+  : apps;
+  const toggleRow = (id) => {
+  setSelectedIds(prev => {
+    const next = new Set(prev);
+    next.has(id) ? next.delete(id) : next.add(id);
+    return next;
+  });
+};
 
+const toggleAll = () => {
+  if (selectedIds.size === filteredApps.length) {
+    setSelectedIds(new Set());
+  } else {
+    setSelectedIds(new Set(filteredApps.map(a => a.application_id)));
+  }
+};
+
+const handleExcelDownload = () => {
+  const toExport = filteredApps.filter(a => selectedIds.has(a.application_id));
+  if (toExport.length === 0) return showToast('Select at least one row', 'error');
+
+  const rows = toExport.map(a => ({
+    'Ref No.'       : a.ref_number || a.application_id || '-',
+    'Roll No.'      : a.roll_number || '-',
+    'Student Name'  : a.student_name || '-',
+    'Type'          : a.duration_type === 'summer' ? 'Summer' : '6-Month',
+    'Company'       : a.company_name || a.company_name_manual || '-',
+    'Work Mode'     : a.work_mode || '-',
+    'Start Date'    : a.start_date ? a.start_date.split('T')[0] : '-',
+    'End Date'      : a.end_date ? a.end_date.split('T')[0] : '-',
+    'Stipend (Rs)'  : a.stipend_amount ?? '-',
+    'Status'        : a.status?.replace('_', ' ') || '-',
+    'Tutor Remarks' : a.tutor_remarks || '-',
+  }));
+
+  const ws = XLSX.utils.json_to_sheet(rows);
+  ws['!cols'] = Object.keys(rows[0]).map(key => ({
+    wch: Math.max(key.length, ...rows.map(r => String(r[key] ?? '').length)) + 2
+  }));
+  const wb = XLSX.utils.book_new();
+  XLSX.utils.book_append_sheet(wb, ws, 'Reviewed');
+  XLSX.writeFile(wb, 'PSG_Reviewed_' + new Date().toISOString().split('T')[0] + '.xlsx');
+  showToast('Downloaded ' + toExport.length + ' row(s) as Excel');
+};
   return (
     <>
       {/* ── Approve Confirmation Modal ── */}
@@ -259,12 +309,26 @@ const TutorQueue = ({ filter }) => {
       {/* ── REVIEWED — tabular layout ── */}
       {filter !== 'pending_tutor' ? (
         <div className="p-4 md:p-6 max-w-7xl mx-auto">
-          <div className="mb-6">
-            <h1 className="text-2xl font-bold text-forest">Reviewed Applications</h1>
-            <p className="text-sage/70">
-              {apps.length} application{apps.length !== 1 ? 's' : ''} reviewed by you
-            </p>
-          </div>
+          <div className="flex items-center justify-between mb-6">
+  <div>
+    <h1 className="text-2xl font-bold text-forest">Reviewed Applications</h1>
+    <p className="text-sage/70">
+      {apps.length} application{apps.length !== 1 ? 's' : ''} reviewed by you
+    </p>
+  </div>
+  <button
+    onClick={handleExcelDownload}
+    disabled={selectedIds.size === 0}
+    className={`flex items-center gap-2 px-4 py-2 rounded-xl text-sm font-semibold transition-all ${
+      selectedIds.size > 0
+        ? 'bg-emerald-600 hover:bg-emerald-700 text-white'
+        : 'bg-gray-100 text-gray-400 cursor-not-allowed'
+    }`}
+  >
+    <FileSpreadsheet className="w-4 h-4" />
+    {selectedIds.size > 0 ? `Excel (${selectedIds.size})` : 'Excel'}
+  </button>
+</div>
 
           {apps.length === 0 ? (
             <div className="card flex flex-col items-center justify-center py-16 text-center">
@@ -272,26 +336,65 @@ const TutorQueue = ({ filter }) => {
               <p className="text-forest font-bold text-lg">No reviewed applications yet.</p>
             </div>
           ) : (
+            
             <div className="card border border-sage/20 overflow-hidden">
+              <div className="flex gap-2 mb-4">
+  {['all', 'remote', 'hybrid', 'on_site'].map(mode => (
+    <button
+      key={mode}
+      onClick={() => setWorkModeFilter(mode)}
+      className={`px-4 py-1.5 rounded-full text-xs font-medium capitalize transition-all border ${
+        workModeFilter === mode
+          ? 'bg-fern text-white border-fern'
+          : 'bg-white text-sage border-sage/30 hover:border-fern hover:text-fern'
+      }`}
+    >
+      {mode === 'all' ? 'All' : mode.charAt(0).toUpperCase() + mode.slice(1)}
+    </button>
+  ))}
+</div>
               <div className="overflow-x-auto">
                 <table className="w-full text-sm border-collapse">
                   <thead>
-                    <tr className="bg-bone border-b border-sage/20 text-xs text-sage/100 uppercase tracking-wide">
-                      <th className="px-4 py-3 text-left font-medium whitespace-nowrap">Ref No.</th>
-                      <th className="px-4 py-3 text-left font-medium whitespace-nowrap">Roll No.</th>
-                      <th className="px-4 py-3 text-left font-medium whitespace-nowrap">Name</th>
-                      <th className="px-4 py-3 text-left font-medium whitespace-nowrap">Type</th>
-                      <th className="px-4 py-3 text-left font-medium whitespace-nowrap">Company</th>
-                      <th className="px-4 py-3 text-left font-medium whitespace-nowrap">Status</th>
-                      <th className="px-4 py-3 text-left font-medium whitespace-nowrap">Offer Letter</th>
-                      <th className="px-4 py-3 text-left font-medium whitespace-nowrap">Parent Form</th>
-                      <th className="px-4 py-3 text-left font-medium whitespace-nowrap">Remarks</th>
-                      <th className="px-4 py-3 text-left font-medium whitespace-nowrap">PDF</th>
-                    </tr>
-                  </thead>
+  <tr className="bg-bone border-b border-sage/20 text-xs text-sage/100 uppercase tracking-wide">
+    <th className="px-4 py-3 w-10">
+      <input
+        type="checkbox"
+        checked={selectedIds.size === filteredApps.length && filteredApps.length > 0}
+        onChange={toggleAll}
+        className="w-4 h-4 accent-fern cursor-pointer"
+      />
+    </th>
+    <th className="px-4 py-3 text-left font-medium whitespace-nowrap">Ref No.</th>
+    <th className="px-4 py-3 text-left font-medium whitespace-nowrap">Roll No.</th>
+    <th className="px-4 py-3 text-left font-medium whitespace-nowrap">Name</th>
+    <th className="px-4 py-3 text-left font-medium whitespace-nowrap">Type</th>
+    <th className="px-4 py-3 text-left font-medium whitespace-nowrap">Company</th>
+    <th className="px-4 py-3 text-left font-medium whitespace-nowrap">Status</th>
+    <th className="px-4 py-3 text-left font-medium whitespace-nowrap">Offer Letter</th>
+    <th className="px-4 py-3 text-left font-medium whitespace-nowrap">Parent Form</th>
+    <th className="px-4 py-3 text-left font-medium whitespace-nowrap">Remarks</th>
+    <th className="px-4 py-3 text-left font-medium whitespace-nowrap">PDF</th>
+  </tr>
+</thead>
                   <tbody>
-                    {apps.map((app) => (
-                      <tr key={app.application_id} className="border-b border-sage/10 last:border-0 hover:bg-bone/40 transition-colors">
+                    {filteredApps.map((app) => (
+                        <tr
+                          key={app.application_id}
+                          onClick={() => toggleRow(app.application_id)}
+                          className={`border-b border-sage/10 last:border-0 transition-colors cursor-pointer ${
+                            selectedIds.has(app.application_id) ? 'bg-emerald-50' : 'hover:bg-bone/40'
+                          }`}
+                        >  
+                          <td className="px-4 py-3" onClick={e => e.stopPropagation()}>
+                        <input
+                          type="checkbox"
+                          checked={selectedIds.has(app.application_id)}
+                          onChange={() => toggleRow(app.application_id)}
+                          className="w-4 h-4 accent-fern cursor-pointer"
+                        />
+                      </td>
+                      
                         <td className="px-4 py-3 font-mono text-xs whitespace-nowrap">{app.ref_number || app.application_id || '—'}</td>
                         <td className="px-4 py-3 font-mono text-xs whitespace-nowrap">{app.roll_number || '—'}</td>
                         <td className="px-4 py-3 font-medium text-forest whitespace-nowrap">{app.student_name || '—'}</td>
