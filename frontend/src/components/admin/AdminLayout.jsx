@@ -19,6 +19,7 @@ import AdminApplications from './AdminApplications.jsx';
 import AdminUsers from './AdminUsers.jsx';
 import AdminCompanies from './AdminCompanies.jsx';
 import AdminDeleteRequests from './AdminDeleteRequests.jsx';
+import AdminHolidays from './Adminholidays.jsx';
 
 const AdminLayout = () => {
   const [sidebarOpen, setSidebarOpen] = useState(false);
@@ -40,6 +41,7 @@ const AdminLayout = () => {
     { to: '/admin/delete-requests', icon: Trash2, label: 'Delete Requests' },
     { to: '/admin/users', icon: Users, label: 'Users' },
     { to: '/admin/companies', icon: Building2, label: 'Companies' },
+    { to: '/admin/holidays', icon: Building2, label: 'holidays' },
   ];
 
   const Sidebar = ({ mobile = false }) => (
@@ -137,6 +139,7 @@ const AdminLayout = () => {
               <Route path="delete-requests" element={<AdminDeleteRequests />} />
               <Route path="users" element={<AdminUsers />} />
               <Route path="companies" element={<AdminCompanies />} />
+              <Route path="holidays" element={<AdminHolidays />} />
               <Route path="*" element={<Navigate to="dashboard" replace />} />
             </Routes>
           </div>

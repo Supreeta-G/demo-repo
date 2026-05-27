@@ -8,6 +8,7 @@ const fs = require('fs');
 const handlebars = require('handlebars');
 //const html_to_pdf = require('html-pdf-node');
 // Multer Setup
+
 const storage = multer.diskStorage({
   destination: (req, file, cb) => {
     const uploadPath = path.join(__dirname, '../uploads/offer_letters');
@@ -142,7 +143,7 @@ const saveDraft = async (req, res) => {
     company_id, company_name_manual, role_title, intern_type,
     company_address, company_city, company_state, company_country, company_phone,
     duration_type, work_mode, how_obtained,
-    start_date, end_date, attendance_days,
+    start_date, end_date, reopen_date, attendance_days,
     guide_name_industry, guide_department, guide_contact,
     cgpa, semester_completed, ra_courses, pending_courses,
     has_declined_other, declined_company_details,
@@ -173,7 +174,8 @@ const saveDraft = async (req, res) => {
           how_obtained = $12,
           start_date = $13,
           end_date = $14,
-          attendance_days = $15,
+          reopen_date = $15,
+          attendance_days = $16,
           guide_name_industry = $16,
           guide_department = $17,
           guide_contact = $18,
@@ -196,7 +198,7 @@ const saveDraft = async (req, res) => {
         company_address || null, company_city || null, company_state || null,
         company_country || 'India', company_phone || null,
         duration_type || 'summer', work_mode || 'on_site', how_obtained || null,
-        start_date || null, end_date || null, attendance_days || null,
+        start_date || null, end_date || null, reopen_date || null, attendance_days || null,
         guide_name_industry || null, guide_department || null, guide_contact || null,
         cgpa || null, semester_completed || null,
         ra_courses || null, pending_courses || null,
@@ -240,12 +242,12 @@ const saveDraft = async (req, res) => {
       INSERT INTO internship_applications (
         application_id, student_id, company_id, company_name_manual, role_title, intern_type,
         company_address, company_city, company_state, company_country, company_phone,
-        duration_type, work_mode, how_obtained, start_date, end_date, attendance_days,
+        duration_type, work_mode, how_obtained, start_date, end_date, reopen_date, attendance_days,
         guide_name_industry, guide_department, guide_contact,
         cgpa, semester_completed, ra_courses, pending_courses,
         has_declined_other, declined_company_details, stipend_amount, student_note,
         tutor_id, tutor_email, parent_permission_url, offer_letter_url, status, locked
-      ) VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $12, $13, $14, $15, $16, $17, $18, $19, $20, $21, $22, $23, $24, $25, $26, $27, $28, $29, $30, $31, $32, 'draft', FALSE)
+      ) VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $12, $13, $14, $15, $16, $17, $18, $19, $20, $21, $22, $23, $24, $25, $26, $27, $28, $29, $30, $31, $32,$33, 'draft', FALSE)
       RETURNING application_id
     `, [
       application_id, student_id, company_id || null, company_name_manual || null,
@@ -253,7 +255,7 @@ const saveDraft = async (req, res) => {
       company_address || null, company_city || null, company_state || null,
       company_country || 'India', company_phone || null,
       duration_type || 'summer', work_mode || 'on_site', how_obtained || null,
-      start_date || null, end_date || null, attendance_days || null,
+      start_date || null, end_date || null, reopen_date || null, attendance_days || null,
       guide_name_industry || null, guide_department || null, guide_contact || null,
       cgpa || null, semester_completed || null,
       ra_courses || null, pending_courses || null,
@@ -907,7 +909,45 @@ const uploadParentPermission = async (req, res) => {
   }
 };
 
-
+const getHolidays = async (req, res) => {
+  try {
+    const { rows } = await pool.query(
+      'SELECT * FROM college_holidays ORDER BY date ASC'
+    );
+    res.json(rows);
+  } catch (err) {
+    res.status(500).json({ error: err.message });
+  }
+};
+ 
+const addHoliday = async (req, res) => {
+  const { date, description } = req.body;
+  if (!date || !description) {
+    return res.status(400).json({ error: 'Date and description are required' });
+  }
+  try {
+    const { rows } = await pool.query(
+      `INSERT INTO college_holidays (date, description, created_by)
+       VALUES ($1, $2, $3)
+       ON CONFLICT (date) DO UPDATE SET description = $2
+       RETURNING *`,
+      [date, description, req.user.user_id]
+    );
+    res.json({ success: true, holiday: rows[0] });
+  } catch (err) {
+    res.status(500).json({ error: err.message });
+  }
+};
+ 
+const deleteHoliday = async (req, res) => {
+  const { id } = req.params;
+  try {
+    await pool.query('DELETE FROM college_holidays WHERE id = $1', [id]);
+    res.json({ success: true });
+  } catch (err) {
+    res.status(500).json({ error: err.message });
+  }
+};
 
 
 // ====================== PDF GENERATION WITH HANDLEBARS ====================
@@ -1046,4 +1086,7 @@ module.exports = {
   uploadOfferLetter,
   uploadParentPermission,
   upload,                    // ← Important
+  getHolidays, 
+  addHoliday, 
+  deleteHoliday,
 };

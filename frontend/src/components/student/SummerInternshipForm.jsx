@@ -20,6 +20,8 @@ const SummerInternshipForm = () => {
   const [isLocked, setIsLocked] = useState(false);
 
   const [parentPermissionUrl, setParentPermissionUrl] = useState('');
+  const [holidayDates, setHolidayDates]       = useState([]); // ← NEW
+  const [skippedHolidays, setSkippedHolidays] = useState([]); // ← NEW
 
   const [form, setForm] = useState({
     company_id: '',
@@ -38,6 +40,7 @@ const SummerInternshipForm = () => {
     work_mode: 'on_site',
     start_date: '',
     end_date: '',
+    reopen_date: '',       // ← NEW
     attendance_days: '',
     guide_allocated: false,
     guide_name_industry: '',
@@ -71,9 +74,8 @@ useEffect(() => {
       setField('cgpa', pRes.data?.cgpa || '');
     }
   }).catch(err => console.error(err));
-}, [editId]);   // ← Also added editId as dependency
+}, [editId]);
 
-// Load Existing Application when editing
 // Load Existing Application if editing
 useEffect(() => {
   if (editId) {
@@ -97,6 +99,7 @@ useEffect(() => {
           how_obtained: data.how_obtained || '',
           start_date: data.start_date ? data.start_date.split('T')[0] : '',
           end_date: data.end_date ? data.end_date.split('T')[0] : '',
+          reopen_date: data.reopen_date ? data.reopen_date.split('T')[0] : '', // ← NEW
           attendance_days: data.attendance_days || '',
           guide_allocated: data.guide_allocated || false,
           guide_name_industry: data.guide_name_industry || '',
@@ -114,26 +117,67 @@ useEffect(() => {
       .catch(err => console.error("Failed to load application for edit", err));
   }
 }, [editId]);
-  // Auto attendance calculation
- // Auto attendance calculation — excludes Saturdays & Sundays
+
+// ── Fetch public + emergency holidays once ── NEW
 useEffect(() => {
-  if (form.start_date && form.end_date) {
-    const start = new Date(form.start_date);
-    const end   = new Date(form.end_date);
-    if (end <= start) return;
+  const fetchHolidays = async () => {
+    try {
+      const year = new Date().getFullYear();
+      const nextYear = year + 1;
 
-    let workingDays = 0;
-    const current = new Date(start);
+      const [pubRes, pubNextRes] = await Promise.all([
+        fetch(`https://date.nager.at/api/v3/PublicHolidays/${year}/IN`),
+        fetch(`https://date.nager.at/api/v3/PublicHolidays/${nextYear}/IN`),
+      ]);
 
-    while (current <= end) {
-      const day = current.getDay(); // 0 = Sun, 6 = Sat
-      if (day !== 0 && day !== 6) workingDays++;
-      current.setDate(current.getDate() + 1);
+      const pub     = pubRes.ok     ? await pubRes.json()     : [];
+      const pubNext = pubNextRes.ok ? await pubNextRes.json() : [];
+      const publicDates = [...pub, ...pubNext].map(h => h.date);
+
+      let emergencyDates = [];
+      try {
+        const emergRes = await api.get('/holidays');
+        emergencyDates = emergRes.data.map(h => h.date.split('T')[0]);
+      } catch { /* route may not exist yet — fail silently */ }
+
+      setHolidayDates([...new Set([...publicDates, ...emergencyDates])]);
+    } catch (err) {
+      console.error('Failed to fetch holidays:', err);
     }
+  };
+  fetchHolidays();
+}, []);
 
-    setField('attendance_days', workingDays);
+// ── Attendance: skip weekends + holidays, start from reopen_date if set ── NEW
+useEffect(() => {
+  const effectiveStart = form.reopen_date || form.start_date;
+  if (!effectiveStart || !form.end_date) return;
+
+  const start = new Date(effectiveStart);
+  const end   = new Date(form.end_date);
+  if (end <= start) return;
+
+  let workingDays = 0;
+  const skipped   = [];
+  const current   = new Date(start);
+
+  while (current <= end) {
+    const day     = current.getDay();
+    const dateStr = current.toISOString().split('T')[0];
+    const isWeekend = day === 0 || day === 6;
+    const isHoliday = holidayDates.includes(dateStr);
+
+    if (!isWeekend && !isHoliday) {
+      workingDays++;
+    } else if (isHoliday && !isWeekend) {
+      skipped.push(dateStr);
+    }
+    current.setDate(current.getDate() + 1);
   }
-}, [form.start_date, form.end_date]);
+
+  setField('attendance_days', workingDays);
+  setSkippedHolidays(skipped);
+}, [form.start_date, form.end_date, form.reopen_date, holidayDates]);
 
  // Updated Save Draft - Now allows upload first
 const handleSaveDraft = async () => {
@@ -254,11 +298,10 @@ const handleSaveDraft = async () => {
   setSubmitLoading(true);
   try {
     await api.post('/applications/submit', { 
-      application_id: savedId || editId,  // ← Keep same ID
+      application_id: savedId || editId,
       stipend_amount: form.stipend,
       tutor_name: form.tutor_name,
-  tutor_email: form.tutor_email
-         
+      tutor_email: form.tutor_email
     });
     
     alert("✅ Application Submitted Successfully!\nTutor has been notified.");
@@ -276,6 +319,7 @@ const handleSaveDraft = async () => {
       alert(`✅ Request for "${name}" has been sent to Admin.`);
     }
   };
+
 const handleOfferLetterUpload = async (e) => {
   const file = e.target.files[0];
   if (!file) return;
@@ -302,6 +346,7 @@ const handleOfferLetterUpload = async (e) => {
     alert(err.response?.data?.error || "Upload failed");
   }
 };
+
 const handleParentPermissionUpload = async (e) => {
   const file = e.target.files[0];
   if (!file) return;
@@ -313,7 +358,6 @@ const handleParentPermissionUpload = async (e) => {
   const formData = new FormData();
   formData.append('parent_permission', file);
 
-  // If we have savedId or editId, send it. Otherwise backend will handle temp ID
   if (savedId || editId) {
     formData.append('application_id', savedId || editId);
   }
@@ -323,7 +367,6 @@ const handleParentPermissionUpload = async (e) => {
       headers: { 'Content-Type': 'multipart/form-data' }
     });
 
-    // Store the uploaded URL
     setForm(prev => ({ ...prev, parent_permission_url: data.url }));
 
     alert("✅ Parent Permission Letter uploaded successfully!");
@@ -331,7 +374,8 @@ const handleParentPermissionUpload = async (e) => {
     console.error(err);
     alert(err.response?.data?.error || "Failed to upload Parent Permission Letter");
   }
-};;
+};
+
   return (
     <div className="p-6 max-w-4xl mx-auto">
       <button onClick={() => navigate('/student/home')} className="flex items-center gap-2 text-fern mb-6 hover:underline">
@@ -400,18 +444,18 @@ const handleParentPermissionUpload = async (e) => {
             </select>
           </div>
           <div className="mt-6">
-  <label className="block text-sm font-medium mb-2">Work Mode <span className="text-red-500">*</span></label>
-  <select 
-    className="w-full px-4 py-3 border border-gray-300 rounded-2xl" 
-    value={form.work_mode} 
-    onChange={e => setField('work_mode', e.target.value)} 
-    disabled={isLocked && !isEditing}
-  >
-    <option value="on_site">On-Site</option>
-    <option value="remote">Remote</option>
-    <option value="hybrid">Hybrid</option>
-  </select>
-</div>
+            <label className="block text-sm font-medium mb-2">Work Mode <span className="text-red-500">*</span></label>
+            <select 
+              className="w-full px-4 py-3 border border-gray-300 rounded-2xl" 
+              value={form.work_mode} 
+              onChange={e => setField('work_mode', e.target.value)} 
+              disabled={isLocked && !isEditing}
+            >
+              <option value="on_site">On-Site</option>
+              <option value="remote">Remote</option>
+              <option value="hybrid">Hybrid</option>
+            </select>
+          </div>
         </div>
 
         <div className="mt-6">
@@ -419,46 +463,46 @@ const handleParentPermissionUpload = async (e) => {
           <textarea className="w-full px-4 py-3 border border-gray-300 rounded-2xl h-24" value={form.company_address} onChange={e => setField('company_address', e.target.value)} placeholder="Full address as per offer letter" disabled={isLocked && !isEditing} />
         </div>
 
-<div className="mt-6 grid grid-cols-1 md:grid-cols-3 gap-6">
-    <div>
-      <label className="block text-sm font-medium mb-2">City <span className="text-red-500">*</span></label>
-      <input className="w-full px-4 py-3 border border-gray-300 rounded-2xl" 
-             value={form.company_city} 
-             onChange={e => setField('company_city', e.target.value)} 
-             required 
-             disabled={isLocked && !isEditing} />
-    </div>
-    <div>
-      <label className="block text-sm font-medium mb-2">State <span className="text-red-500">*</span></label>
-      <input className="w-full px-4 py-3 border border-gray-300 rounded-2xl" 
-             value={form.company_state} 
-             onChange={e => setField('company_state', e.target.value)} 
-             required 
-             disabled={isLocked && !isEditing} />
-    </div>
-    <div>
-      <label className="block text-sm font-medium mb-2">Country <span className="text-red-500">*</span></label>
-      <input className="w-full px-4 py-3 border border-gray-300 rounded-2xl" 
-             value={form.company_country} 
-             onChange={e => setField('company_country', e.target.value)} 
-             placeholder="India" 
-             required 
-             disabled={isLocked && !isEditing} />
-    </div>
-  </div>
+        <div className="mt-6 grid grid-cols-1 md:grid-cols-3 gap-6">
+          <div>
+            <label className="block text-sm font-medium mb-2">City <span className="text-red-500">*</span></label>
+            <input className="w-full px-4 py-3 border border-gray-300 rounded-2xl" 
+                   value={form.company_city} 
+                   onChange={e => setField('company_city', e.target.value)} 
+                   required 
+                   disabled={isLocked && !isEditing} />
+          </div>
+          <div>
+            <label className="block text-sm font-medium mb-2">State <span className="text-red-500">*</span></label>
+            <input className="w-full px-4 py-3 border border-gray-300 rounded-2xl" 
+                   value={form.company_state} 
+                   onChange={e => setField('company_state', e.target.value)} 
+                   required 
+                   disabled={isLocked && !isEditing} />
+          </div>
+          <div>
+            <label className="block text-sm font-medium mb-2">Country <span className="text-red-500">*</span></label>
+            <input className="w-full px-4 py-3 border border-gray-300 rounded-2xl" 
+                   value={form.company_country} 
+                   onChange={e => setField('company_country', e.target.value)} 
+                   placeholder="India" 
+                   required 
+                   disabled={isLocked && !isEditing} />
+          </div>
+        </div>
 
-  <div className="mt-6">
-    <label className="block text-sm font-medium mb-2">Phone Number <span className="text-red-500">*</span></label>
-    <input 
-      type="tel" 
-      className="w-full px-4 py-3 border border-gray-300 rounded-2xl" 
-      value={form.company_phone} 
-      onChange={e => setField('company_phone', e.target.value)} 
-      placeholder="9876543210" 
-      maxLength={10}
-      disabled={isLocked && !isEditing} 
-    />
-  </div>
+        <div className="mt-6">
+          <label className="block text-sm font-medium mb-2">Phone Number <span className="text-red-500">*</span></label>
+          <input 
+            type="tel" 
+            className="w-full px-4 py-3 border border-gray-300 rounded-2xl" 
+            value={form.company_phone} 
+            onChange={e => setField('company_phone', e.target.value)} 
+            placeholder="9876543210" 
+            maxLength={10}
+            disabled={isLocked && !isEditing} 
+          />
+        </div>
       </div>
 
       {/* Internship Type & Period */}
@@ -479,6 +523,7 @@ const handleParentPermissionUpload = async (e) => {
             <input className="w-full px-4 py-3 border border-gray-300 rounded-2xl" value={form.stipend} onChange={e => setField('stipend', e.target.value)} placeholder="₹15,000 / month" disabled={isLocked && !isEditing} />
           </div>
         </div>
+
         <div className="grid grid-cols-1 md:grid-cols-2 gap-6 mt-6">
           {/* Start Date */}
           <div>
@@ -488,7 +533,7 @@ const handleParentPermissionUpload = async (e) => {
               className="w-full px-4 py-3 border border-gray-300 rounded-2xl" 
               value={form.start_date} 
               onChange={e => setField('start_date', e.target.value)} 
-              min={new Date().toISOString().split('T')[0]}   // ← Disable past dates
+              min={new Date().toISOString().split('T')[0]}
               disabled={isLocked && !isEditing} 
             />
           </div>
@@ -501,165 +546,197 @@ const handleParentPermissionUpload = async (e) => {
               className="w-full px-4 py-3 border border-gray-300 rounded-2xl" 
               value={form.end_date} 
               onChange={e => setField('end_date', e.target.value)} 
-              min={form.start_date || new Date().toISOString().split('T')[0]}   // ← Cannot be before start date
+              min={form.start_date || new Date().toISOString().split('T')[0]}
               disabled={isLocked && !isEditing} 
             />
           </div>
         </div>
-        {form.attendance_days && (
-          <p className="mt-4 text-emerald-600 font-medium">Expected Attendance: {form.attendance_days} days</p>
+
+        {/* ── College Reopen Date ── NEW */}
+        <div className="mt-6">
+          <label className="block text-sm font-medium mb-2">
+            College Reopen Date
+            <span className="text-gray-400 font-normal ml-2">(optional — attendance counted from this date if entered)</span>
+          </label>
+          <input
+            type="date"
+            className="w-full px-4 py-3 border border-gray-300 rounded-2xl"
+            value={form.reopen_date}
+            onChange={e => setField('reopen_date', e.target.value)}
+            min={form.start_date || new Date().toISOString().split('T')[0]}
+            max={form.end_date || undefined}
+            disabled={isLocked && !isEditing}
+          />
+          {form.reopen_date && (
+            <p className="text-xs text-amber-600 mt-1">
+              ⚠️ Attendance will be calculated from{' '}
+              {new Date(form.reopen_date).toLocaleDateString('en-IN', { day: '2-digit', month: 'short', year: 'numeric' })} instead of the start date.
+            </p>
+          )}
+        </div>
+
+        {/* ── Attendance Result ── NEW */}
+        {form.attendance_days > 0 && (
+          <div className="mt-4 p-4 bg-emerald-50 border border-emerald-200 rounded-2xl">
+            <p className="text-emerald-700 font-semibold">
+              ✅ Expected Working Days: <span className="text-emerald-800">{form.attendance_days} days</span>
+            </p>
+            <p className="text-xs text-emerald-600 mt-1">
+              Calculated from{' '}
+              <strong>
+                {form.reopen_date
+                  ? new Date(form.reopen_date).toLocaleDateString('en-IN', { day: '2-digit', month: 'short' })
+                  : new Date(form.start_date).toLocaleDateString('en-IN', { day: '2-digit', month: 'short' })}
+              </strong>
+              {' '}→{' '}
+              <strong>{new Date(form.end_date).toLocaleDateString('en-IN', { day: '2-digit', month: 'short', year: 'numeric' })}</strong>
+              {' '}(excluding weekends &amp; {skippedHolidays.length > 0 ? `${skippedHolidays.length} holiday${skippedHolidays.length > 1 ? 's' : ''}` : 'holidays'})
+            </p>
+            {skippedHolidays.length > 0 && (
+              <details className="mt-2">
+                <summary className="text-xs text-emerald-600 cursor-pointer hover:underline">View skipped holidays</summary>
+                <ul className="mt-1 text-xs text-emerald-700 space-y-0.5 pl-3">
+                  {skippedHolidays.map(d => (
+                    <li key={d}>• {new Date(d).toLocaleDateString('en-IN', { weekday: 'short', day: '2-digit', month: 'short', year: 'numeric' })}</li>
+                  ))}
+                </ul>
+              </details>
+            )}
+          </div>
         )}
       </div>
-      
 
       {/* ==================== Industry Guide ==================== */}
-<div className="bg-white rounded-3xl shadow p-8 mb-6">
-  <h3 className="text-xl font-semibold mb-6 flex items-center gap-3">
-    <User className="w-6 h-6 text-fern" /> Industry Guide
-  </h3>
-
-  <div className="mb-6">
-    <label className="block text-sm font-medium mb-2">
-      Guide Allocation Status <span className="text-red-500">*</span>
-    </label>
-    <select
-      className="w-full px-4 py-3 border border-gray-300 rounded-2xl"
-      value={form.guide_allocated ? "allocated" : "not_allocated"}
-      onChange={(e) => {
-        const isAllocated = e.target.value === "allocated";
-        setField('guide_allocated', isAllocated);
-        if (!isAllocated) {
-          setField('guide_name_industry', '');
-          setField('guide_contact', '');
-        }
-      }}
-      disabled={isLocked && !isEditing}
-    >
-      <option value="not_allocated">Yet to be Allocated</option>
-      <option value="allocated">Guide Allocated</option>
-    </select>
-  </div>
-
-  {form.guide_allocated && (
-    <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
-      <div>
-        <label className="block text-sm font-medium mb-2">
-          Guide Name <span className="text-red-500">*</span>
-        </label>
-        <input
-          className="w-full px-4 py-3 border border-gray-300 rounded-2xl"
-          value={form.guide_name_industry}
-          onChange={e => setField('guide_name_industry', e.target.value)}
-          disabled={isLocked && !isEditing}
-        />
-      </div>
-      <div>
-        <label className="block text-sm font-medium mb-2">Guide Contact</label>
-        <input
-          className="w-full px-4 py-3 border border-gray-300 rounded-2xl"
-          value={form.guide_contact}
-          onChange={e => setField('guide_contact', e.target.value)}
-          placeholder="Email / Phone"
-          disabled={isLocked && !isEditing}
-        />
-      </div>
-    </div>
-  )}
-
-  {!form.guide_allocated && (
-    <div className="bg-gray-50 border border-dashed border-gray-300 rounded-2xl p-6 text-center">
-      <p className="text-gray-500">Guide is yet to be allocated</p>
-    </div>
-  )}
-</div>
-
-{/* ==================== Academic Details ==================== */}
-<div className="bg-white rounded-3xl shadow p-8 mb-8">
-  <h3 className="text-xl font-semibold mb-6 flex items-center gap-3">
-    <User className="w-6 h-6 text-fern" /> Academic Details
-  </h3>
-  <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
-    <div>
-      <label className="block text-sm font-medium mb-2">CGPA <span className="text-red-500">*</span></label>
-      <input 
-        type="number" 
-        step="0.01" 
-        min="0" 
-        max="10"
-        className="w-full px-4 py-3 border border-gray-300 rounded-2xl" 
-        value={form.cgpa} 
-        onChange={e => setField('cgpa', e.target.value)}
-        disabled={isLocked && !isEditing} 
-      />
-    </div>
-    <div>
-      <label className="block text-sm font-medium mb-2">Semesters Completed <span className="text-red-500">*</span></label>
-      <input 
-        type="number" 
-        min="1" 
-        max="8"
-        className="w-full px-4 py-3 border border-gray-300 rounded-2xl" 
-        value={form.semester_completed} 
-        onChange={e => setField('semester_completed', e.target.value)}
-        disabled={isLocked && !isEditing} 
-      />
-    </div>
-  </div>
-</div>
-
-{/* Faculty Tutor Selection */}
-{/* <div className="bg-white rounded-3xl shadow p-8 mb-8">
-  <h3 className="text-xl font-semibold mb-6 flex items-center gap-3">
-    <User className="w-6 h-6 text-fern" /> Tutor Name
-  </h3>
-  <Select
-    options={tutors}
-    value={tutors.find(t => t.value === form.tutor_id) || null}
-    onChange={opt => {
-      setField('tutor_id', opt?.value || '');
-      // Auto fill email if tutor has email in data
-      if (opt) setField('tutor_email', opt.email || '');
-    }}
-    placeholder="Select your tutor..."
-    isDisabled={isLocked && !isEditing}
-  />
-  
-</div> */}
-
-{/* Faculty Tutor Details */}
-{/* Faculty Tutor Details - Manual Entry */}
-<div className="bg-white rounded-3xl shadow p-8 mb-8">
-  <h3 className="text-xl font-semibold mb-6 flex items-center gap-3">
-    <User className="w-6 h-6 text-fern" /> Faculty Tutor
-  </h3>
-
-  <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
-    <div>
-      <label className="block text-sm font-medium mb-2">Tutor Name <span className="text-red-500">*</span></label>
-      <input
-        className="w-full px-4 py-3 border border-gray-300 rounded-2xl"
-        value={form.tutor_name || ''}
-        onChange={e => setField('tutor_name', e.target.value)}
-        placeholder="Dr. V. S. K"
-        disabled={isLocked && !isEditing}
-      />
-    </div>
-    <div>
-      <label className="block text-sm font-medium mb-2">Tutor Email ID <span className="text-red-500">*</span></label>
-      <input
-        type="email"
-        className="w-full px-4 py-3 border border-gray-300 rounded-2xl"
-        value={form.tutor_email}
-        onChange={e => setField('tutor_email', e.target.value)}
-        placeholder="vsk@psgtech.ac.in"
-        disabled={isLocked && !isEditing}
-      />
-    </div>
-  </div>
-</div>
       <div className="bg-white rounded-3xl shadow p-8 mb-6">
         <h3 className="text-xl font-semibold mb-6 flex items-center gap-3">
-        <FileDown className="w-6 h-6 text-fern" /> Offer Letter <span className="text-red-500">*</span>        </h3>
+          <User className="w-6 h-6 text-fern" /> Industry Guide
+        </h3>
+
+        <div className="mb-6">
+          <label className="block text-sm font-medium mb-2">
+            Guide Allocation Status <span className="text-red-500">*</span>
+          </label>
+          <select
+            className="w-full px-4 py-3 border border-gray-300 rounded-2xl"
+            value={form.guide_allocated ? "allocated" : "not_allocated"}
+            onChange={(e) => {
+              const isAllocated = e.target.value === "allocated";
+              setField('guide_allocated', isAllocated);
+              if (!isAllocated) {
+                setField('guide_name_industry', '');
+                setField('guide_contact', '');
+              }
+            }}
+            disabled={isLocked && !isEditing}
+          >
+            <option value="not_allocated">Yet to be Allocated</option>
+            <option value="allocated">Guide Allocated</option>
+          </select>
+        </div>
+
+        {form.guide_allocated && (
+          <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+            <div>
+              <label className="block text-sm font-medium mb-2">
+                Guide Name <span className="text-red-500">*</span>
+              </label>
+              <input
+                className="w-full px-4 py-3 border border-gray-300 rounded-2xl"
+                value={form.guide_name_industry}
+                onChange={e => setField('guide_name_industry', e.target.value)}
+                disabled={isLocked && !isEditing}
+              />
+            </div>
+            <div>
+              <label className="block text-sm font-medium mb-2">Guide Contact</label>
+              <input
+                className="w-full px-4 py-3 border border-gray-300 rounded-2xl"
+                value={form.guide_contact}
+                onChange={e => setField('guide_contact', e.target.value)}
+                placeholder="Email / Phone"
+                disabled={isLocked && !isEditing}
+              />
+            </div>
+          </div>
+        )}
+
+        {!form.guide_allocated && (
+          <div className="bg-gray-50 border border-dashed border-gray-300 rounded-2xl p-6 text-center">
+            <p className="text-gray-500">Guide is yet to be allocated</p>
+          </div>
+        )}
+      </div>
+
+      {/* ==================== Academic Details ==================== */}
+      <div className="bg-white rounded-3xl shadow p-8 mb-8">
+        <h3 className="text-xl font-semibold mb-6 flex items-center gap-3">
+          <User className="w-6 h-6 text-fern" /> Academic Details
+        </h3>
+        <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+          <div>
+            <label className="block text-sm font-medium mb-2">CGPA <span className="text-red-500">*</span></label>
+            <input 
+              type="number" 
+              step="0.01" 
+              min="0" 
+              max="10"
+              className="w-full px-4 py-3 border border-gray-300 rounded-2xl" 
+              value={form.cgpa} 
+              onChange={e => setField('cgpa', e.target.value)}
+              disabled={isLocked && !isEditing} 
+            />
+          </div>
+          <div>
+            <label className="block text-sm font-medium mb-2">Semesters Completed <span className="text-red-500">*</span></label>
+            <input 
+              type="number" 
+              min="1" 
+              max="8"
+              className="w-full px-4 py-3 border border-gray-300 rounded-2xl" 
+              value={form.semester_completed} 
+              onChange={e => setField('semester_completed', e.target.value)}
+              disabled={isLocked && !isEditing} 
+            />
+          </div>
+        </div>
+      </div>
+
+      {/* Faculty Tutor Details - Manual Entry */}
+      <div className="bg-white rounded-3xl shadow p-8 mb-8">
+        <h3 className="text-xl font-semibold mb-6 flex items-center gap-3">
+          <User className="w-6 h-6 text-fern" /> Faculty Tutor
+        </h3>
+
+        <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+          <div>
+            <label className="block text-sm font-medium mb-2">Tutor Name <span className="text-red-500">*</span></label>
+            <input
+              className="w-full px-4 py-3 border border-gray-300 rounded-2xl"
+              value={form.tutor_name || ''}
+              onChange={e => setField('tutor_name', e.target.value)}
+              placeholder="Dr. V. S. K"
+              disabled={isLocked && !isEditing}
+            />
+          </div>
+          <div>
+            <label className="block text-sm font-medium mb-2">Tutor Email ID <span className="text-red-500">*</span></label>
+            <input
+              type="email"
+              className="w-full px-4 py-3 border border-gray-300 rounded-2xl"
+              value={form.tutor_email}
+              onChange={e => setField('tutor_email', e.target.value)}
+              placeholder="vsk@psgtech.ac.in"
+              disabled={isLocked && !isEditing}
+            />
+          </div>
+        </div>
+      </div>
+
+      {/* Offer Letter */}
+      <div className="bg-white rounded-3xl shadow p-8 mb-6">
+        <h3 className="text-xl font-semibold mb-6 flex items-center gap-3">
+          <FileDown className="w-6 h-6 text-fern" /> Offer Letter <span className="text-red-500">*</span>
+        </h3>
         <p className="text-sm text-gray-600 mb-4">Upload your official offer letter (PDF, max 5MB)</p>
 
         <input 
@@ -673,22 +750,23 @@ const handleParentPermissionUpload = async (e) => {
                      file:bg-fern file:text-white hover:file:bg-hunter cursor-pointer"
         />
 
-                {form.offer_letter_url && (
-                  <div className="mt-4 p-3 bg-green-50 border border-green-200 rounded-2xl flex items-center gap-3">
-                    <FileDown className="w-5 h-5 text-green-600" />
-                    <span className="text-sm">Offer Letter Uploaded</span>
-                    <a 
-                      href={`http://localhost:5001${form.offer_letter_url}`} 
-                      target="_blank" 
-                      rel="noopener noreferrer"
-                      className="text-fern underline text-sm ml-auto flex items-center gap-1"
-                    >
-                      📄 View File
-                    </a>
+        {form.offer_letter_url && (
+          <div className="mt-4 p-3 bg-green-50 border border-green-200 rounded-2xl flex items-center gap-3">
+            <FileDown className="w-5 h-5 text-green-600" />
+            <span className="text-sm">Offer Letter Uploaded</span>
+            <a 
+              href={`http://localhost:5001${form.offer_letter_url}`} 
+              target="_blank" 
+              rel="noopener noreferrer"
+              className="text-fern underline text-sm ml-auto flex items-center gap-1"
+            >
+              📄 View File
+            </a>
           </div>
         )}
       </div>
-     {/* Parents Permission Letter */}
+
+      {/* Parents Permission Letter */}
       <div className="bg-white rounded-3xl shadow p-8 mb-6">
         <h3 className="text-xl font-semibold mb-6 flex items-center gap-3">
           <FileDown className="w-6 h-6 text-fern" /> 
@@ -722,6 +800,7 @@ const handleParentPermissionUpload = async (e) => {
           </div>
         )}
       </div>
+
       <div className="flex gap-4">
         <button onClick={handleSaveDraft} disabled={loading || (isLocked && !isEditing)} className="flex-1 py-4 bg-gray-100 hover:bg-gray-200 rounded-2xl font-semibold">
           {loading ? 'Saving...' : 'Save Draft'}

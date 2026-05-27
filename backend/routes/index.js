@@ -50,4 +50,8 @@ router.get('/admin/delete-requests', requireRole('admin'), appCtrl.getDeleteRequ
 router.delete('/admin/applications/*', requireRole('admin'), appCtrl.adminDeleteApplication);
 router.post('/admin/unlock', requireRole('admin'), appCtrl.unlockForm);
 
+router.get('/holidays', authenticateToken, appCtrl.getHolidays);
+router.post('/admin/holidays', requireRole('admin'), appCtrl.addHoliday);
+router.delete('/admin/holidays/:id', requireRole('admin'), appCtrl.deleteHoliday);
+
 module.exports = router;
