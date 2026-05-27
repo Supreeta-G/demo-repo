@@ -1,7 +1,8 @@
 import React, { useEffect, useState } from 'react';
-import { CheckCircle, XCircle, Clock, FileDown, ChevronDown, ChevronUp, Building2, Download, FileSpreadsheet } from 'lucide-react';
-import api from '../../api.js';
+import { CheckCircle, XCircle, Clock, FileDown, ChevronDown, ChevronUp, Building2, Download, Search, FileSpreadsheet } from 'lucide-react';
 import * as XLSX from 'xlsx';
+import api from '../../api.js';
+import Pagination from '../../components/Pagination';
 
 const TutorQueue = ({ filter }) => {
   const [apps, setApps]               = useState([]);
@@ -11,12 +12,19 @@ const TutorQueue = ({ filter }) => {
   const [actionLoading, setActionLoading] = useState(null);
   const [pdfLoading, setPdfLoading]   = useState(null);
   const [toast, setToast]             = useState(null);
+  const [currentPage, setCurrentPage] = useState(1);
   const [workModeFilter, setWorkModeFilter] = useState('all');
+
+  // Search & selection (reviewed tab)
+  const [search, setSearch]           = useState('');
   const [selectedIds, setSelectedIds] = useState(new Set());
 
+  // Pending cards: 5 per page; Reviewed table: 10 per page
+  const itemsPerPage = filter === 'pending_tutor' ? 5 : 10;
+
   // Modal state
-  const [approveModal, setApproveModal] = useState(null); // appId or null
-  const [rejectModal, setRejectModal]   = useState(null); // appId or null
+  const [approveModal, setApproveModal] = useState(null);
+  const [rejectModal, setRejectModal]   = useState(null);
   const [rejectRemark, setRejectRemark] = useState('');
   const [checks, setChecks] = useState({
     date: false,
@@ -35,6 +43,7 @@ const TutorQueue = ({ filter }) => {
       const endpoint = filter === 'pending_tutor' ? '/tutor/queue' : '/tutor/reviewed';
       const { data } = await api.get(endpoint);
       setApps(data);
+      setCurrentPage(1);
     } catch (err) {
       console.error(err);
       showToast('Failed to load applications', 'error');
@@ -45,13 +54,96 @@ const TutorQueue = ({ filter }) => {
 
   useEffect(() => { load(); }, [filter]);
 
-  // Open approve modal
+  // ── Filtered list for reviewed tab ──
+  const filtered = apps.filter((app) => {
+    const workModeMatch =
+      workModeFilter === 'all' ||
+      app.work_mode?.toLowerCase().trim() === workModeFilter.toLowerCase();
+
+    const q = search.trim().toLowerCase();
+    const searchMatch = !q || (
+      app.student_name?.toLowerCase().includes(q)        ||
+      app.company_name?.toLowerCase().includes(q)        ||
+      app.company_name_manual?.toLowerCase().includes(q) ||
+      app.roll_number?.toLowerCase().includes(q)         ||
+      app.ref_number?.toLowerCase().includes(q)
+    );
+
+    return workModeMatch && searchMatch;
+  });
+
+  // Reset page when search or workModeFilter changes
+  useEffect(() => { setCurrentPage(1); }, [search, workModeFilter]);
+
+  // Pagination (uses filtered for reviewed, apps for pending)
+  const listToPage    = filter === 'pending_tutor' ? apps : filtered;
+  const totalPages    = Math.ceil(listToPage.length / itemsPerPage);
+  const paginatedApps = listToPage.slice(
+    (currentPage - 1) * itemsPerPage,
+    currentPage * itemsPerPage
+  );
+
+  // ── Selection helpers ──
+  const toggleRow = (id) => {
+    setSelectedIds(prev => {
+      const next = new Set(prev);
+      next.has(id) ? next.delete(id) : next.add(id);
+      return next;
+    });
+  };
+
+  const toggleAll = () => {
+    if (selectedIds.size === filtered.length) {
+      setSelectedIds(new Set());
+    } else {
+      setSelectedIds(new Set(filtered.map(a => a.application_id)));
+    }
+  };
+
+  const allSelected  = filtered.length > 0 && selectedIds.size === filtered.length;
+  const someSelected = selectedIds.size > 0;
+
+  // ── Excel export ──
+  const handleExcelDownload = () => {
+    const toExport = filtered.filter(a => selectedIds.has(a.application_id));
+    if (toExport.length === 0) return showToast('Select at least one row', 'error');
+
+    const rows = toExport.map(app => ({
+      'Ref No.'      : app.ref_number || app.application_id || '-',
+      'Roll No.'     : app.roll_number || '-',
+      'Student Name' : app.student_name || '-',
+      'Programme'    : app.programme || '-',
+      'Department'   : app.department || '-',
+      'Type'         : app.duration_type === 'summer' ? 'Summer' : '6-Month',
+      'Company'      : app.company_name || app.company_name_manual || '-',
+      'Role'         : app.role_title || '-',
+      'Work Mode'    : app.work_mode || '-',
+      'Start Date'   : app.start_date ? app.start_date.split('T')[0] : '-',
+      'End Date'     : app.end_date   ? app.end_date.split('T')[0]   : '-',
+      'Stipend (Rs)' : app.stipend_amount ?? '-',
+      'CGPA'         : app.cgpa || '-',
+      'Semesters'    : app.semester_completed || '-',
+      'Status'       : app.status?.replace('_', ' ') || '-',
+      'Tutor Remarks': app.tutor_remarks || '-',
+      'Submitted At' : app.submitted_at ? app.submitted_at.split('T')[0] : '-',
+    }));
+
+    const ws = XLSX.utils.json_to_sheet(rows);
+    ws['!cols'] = Object.keys(rows[0]).map(key => ({
+      wch: Math.max(key.length, ...rows.map(r => String(r[key] ?? '').length)) + 2
+    }));
+    const wb = XLSX.utils.book_new();
+    XLSX.utils.book_append_sheet(wb, ws, 'Reviewed');
+    XLSX.writeFile(wb, 'PSG_Reviewed_Applications_' + new Date().toISOString().split('T')[0] + '.xlsx');
+    showToast('Downloaded ' + toExport.length + ' row(s) as Excel');
+  };
+
+  // ── Modal handlers ──
   const openApproveModal = (appId) => {
     setChecks({ date: false, accommodation: false, stipend: false });
     setApproveModal(appId);
   };
 
-  // Open reject modal
   const openRejectModal = (appId) => {
     setRejectRemark(remarks[appId] || '');
     setRejectModal(appId);
@@ -141,11 +233,11 @@ const TutorQueue = ({ filter }) => {
 
   const statusBadge = (status) => {
     const map = {
-      approved: 'badge-approved',
-      rejected: 'badge-rejected',
-      returned: 'badge-rejected',
+      approved:      'badge-approved',
+      rejected:      'badge-rejected',
+      returned:      'badge-rejected',
       pending_tutor: 'badge-pending',
-      draft: 'badge-pending',
+      draft:         'badge-pending',
     };
     return map[status] || 'badge-pending';
   };
@@ -155,54 +247,7 @@ const TutorQueue = ({ filter }) => {
       <span className="w-9 h-9 border-2 border-sage/30 border-t-fern rounded-full animate-spin" />
     </div>
   );
- const filteredApps = filter !== 'pending_tutor'
-  ? (workModeFilter === 'all' ? apps : apps.filter(a => 
-      a.work_mode?.toLowerCase().trim() === workModeFilter.toLowerCase()
-    ))
-  : apps;
-  const toggleRow = (id) => {
-  setSelectedIds(prev => {
-    const next = new Set(prev);
-    next.has(id) ? next.delete(id) : next.add(id);
-    return next;
-  });
-};
 
-const toggleAll = () => {
-  if (selectedIds.size === filteredApps.length) {
-    setSelectedIds(new Set());
-  } else {
-    setSelectedIds(new Set(filteredApps.map(a => a.application_id)));
-  }
-};
-
-const handleExcelDownload = () => {
-  const toExport = filteredApps.filter(a => selectedIds.has(a.application_id));
-  if (toExport.length === 0) return showToast('Select at least one row', 'error');
-
-  const rows = toExport.map(a => ({
-    'Ref No.'       : a.ref_number || a.application_id || '-',
-    'Roll No.'      : a.roll_number || '-',
-    'Student Name'  : a.student_name || '-',
-    'Type'          : a.duration_type === 'summer' ? 'Summer' : '6-Month',
-    'Company'       : a.company_name || a.company_name_manual || '-',
-    'Work Mode'     : a.work_mode || '-',
-    'Start Date'    : a.start_date ? a.start_date.split('T')[0] : '-',
-    'End Date'      : a.end_date ? a.end_date.split('T')[0] : '-',
-    'Stipend (Rs)'  : a.stipend_amount ?? '-',
-    'Status'        : a.status?.replace('_', ' ') || '-',
-    'Tutor Remarks' : a.tutor_remarks || '-',
-  }));
-
-  const ws = XLSX.utils.json_to_sheet(rows);
-  ws['!cols'] = Object.keys(rows[0]).map(key => ({
-    wch: Math.max(key.length, ...rows.map(r => String(r[key] ?? '').length)) + 2
-  }));
-  const wb = XLSX.utils.book_new();
-  XLSX.utils.book_append_sheet(wb, ws, 'Reviewed');
-  XLSX.writeFile(wb, 'PSG_Reviewed_' + new Date().toISOString().split('T')[0] + '.xlsx');
-  showToast('Downloaded ' + toExport.length + ' row(s) as Excel');
-};
   return (
     <>
       {/* ── Approve Confirmation Modal ── */}
@@ -306,29 +351,54 @@ const handleExcelDownload = () => {
         </div>
       )}
 
-      {/* ── REVIEWED — tabular layout ── */}
+      {/* ══════════════════════════════════════════
+          REVIEWED — tabular layout with search + excel
+      ══════════════════════════════════════════ */}
       {filter !== 'pending_tutor' ? (
         <div className="p-4 md:p-6 max-w-7xl mx-auto">
-          <div className="flex items-center justify-between mb-6">
-  <div>
-    <h1 className="text-2xl font-bold text-forest">Reviewed Applications</h1>
-    <p className="text-sage/70">
-      {apps.length} application{apps.length !== 1 ? 's' : ''} reviewed by you
-    </p>
-  </div>
-  <button
-    onClick={handleExcelDownload}
-    disabled={selectedIds.size === 0}
-    className={`flex items-center gap-2 px-4 py-2 rounded-xl text-sm font-semibold transition-all ${
-      selectedIds.size > 0
-        ? 'bg-emerald-600 hover:bg-emerald-700 text-white'
-        : 'bg-gray-100 text-gray-400 cursor-not-allowed'
-    }`}
-  >
-    <FileSpreadsheet className="w-4 h-4" />
-    {selectedIds.size > 0 ? `Excel (${selectedIds.size})` : 'Excel'}
-  </button>
-</div>
+
+          {/* Header */}
+          <div className="flex flex-col md:flex-row justify-between items-start md:items-center mb-6 gap-4">
+            <div>
+              <h1 className="text-2xl font-bold text-forest">Reviewed Applications</h1>
+              <p className="text-sage/70">
+                {filtered.length} application{filtered.length !== 1 ? 's' : ''} reviewed by you
+                {filtered.length > 0 && (
+                  <span className="ml-2 text-sage/50">
+                    — showing {Math.min((currentPage - 1) * itemsPerPage + 1, filtered.length)}–{Math.min(currentPage * itemsPerPage, filtered.length)} of {filtered.length}
+                  </span>
+                )}
+              </p>
+            </div>
+
+            {/* Search + Excel toolbar */}
+            <div className="flex flex-col sm:flex-row gap-3 w-full md:w-auto">
+              <div className="relative flex-1">
+                <Search className="absolute left-3 top-3 w-4 h-4 text-sage" />
+                <input
+                  type="text"
+                  placeholder="Search name, company or roll number..."
+                  value={search}
+                  onChange={(e) => setSearch(e.target.value)}
+                  className="form-input pl-10 w-full"
+                />
+              </div>
+              <button
+                onClick={handleExcelDownload}
+                disabled={!someSelected}
+                className={[
+                  'flex items-center gap-2 px-4 py-2 rounded-xl text-sm font-semibold transition-all',
+                  someSelected
+                    ? 'bg-emerald-600 hover:bg-emerald-700 text-white'
+                    : 'bg-gray-100 text-gray-400 cursor-not-allowed'
+                ].join(' ')}
+                title={someSelected ? `Download ${selectedIds.size} selected row(s)` : 'Select rows to download'}
+              >
+                <FileSpreadsheet className="w-4 h-4" />
+                {someSelected ? `Excel (${selectedIds.size})` : 'Excel'}
+              </button>
+            </div>
+          </div>
 
           {apps.length === 0 ? (
             <div className="card flex flex-col items-center justify-center py-16 text-center">
@@ -336,124 +406,158 @@ const handleExcelDownload = () => {
               <p className="text-forest font-bold text-lg">No reviewed applications yet.</p>
             </div>
           ) : (
-            
-            <div className="card border border-sage/20 overflow-hidden">
-              <div className="flex gap-2 mb-4">
-  {['all', 'remote', 'hybrid', 'on_site'].map(mode => (
-    <button
-      key={mode}
-      onClick={() => setWorkModeFilter(mode)}
-      className={`px-4 py-1.5 rounded-full text-xs font-medium capitalize transition-all border ${
-        workModeFilter === mode
-          ? 'bg-fern text-white border-fern'
-          : 'bg-white text-sage border-sage/30 hover:border-fern hover:text-fern'
-      }`}
-    >
-      {mode === 'all' ? 'All' : mode.charAt(0).toUpperCase() + mode.slice(1)}
-    </button>
-  ))}
-</div>
-              <div className="overflow-x-auto">
-                <table className="w-full text-sm border-collapse">
-                  <thead>
-  <tr className="bg-bone border-b border-sage/20 text-xs text-sage/100 uppercase tracking-wide">
-    <th className="px-4 py-3 w-10">
-      <input
-        type="checkbox"
-        checked={selectedIds.size === filteredApps.length && filteredApps.length > 0}
-        onChange={toggleAll}
-        className="w-4 h-4 accent-fern cursor-pointer"
-      />
-    </th>
-    <th className="px-4 py-3 text-left font-medium whitespace-nowrap">Ref No.</th>
-    <th className="px-4 py-3 text-left font-medium whitespace-nowrap">Roll No.</th>
-    <th className="px-4 py-3 text-left font-medium whitespace-nowrap">Name</th>
-    <th className="px-4 py-3 text-left font-medium whitespace-nowrap">Type</th>
-    <th className="px-4 py-3 text-left font-medium whitespace-nowrap">Company</th>
-    <th className="px-4 py-3 text-left font-medium whitespace-nowrap">Status</th>
-    <th className="px-4 py-3 text-left font-medium whitespace-nowrap">Offer Letter</th>
-    <th className="px-4 py-3 text-left font-medium whitespace-nowrap">Parent Form</th>
-    <th className="px-4 py-3 text-left font-medium whitespace-nowrap">Remarks</th>
-    <th className="px-4 py-3 text-left font-medium whitespace-nowrap">PDF</th>
-  </tr>
-</thead>
-                  <tbody>
-                    {filteredApps.map((app) => (
-                        <tr
-                          key={app.application_id}
-                          onClick={() => toggleRow(app.application_id)}
-                          className={`border-b border-sage/10 last:border-0 transition-colors cursor-pointer ${
-                            selectedIds.has(app.application_id) ? 'bg-emerald-50' : 'hover:bg-bone/40'
-                          }`}
-                        >  
-                          <td className="px-4 py-3" onClick={e => e.stopPropagation()}>
-                        <input
-                          type="checkbox"
-                          checked={selectedIds.has(app.application_id)}
-                          onChange={() => toggleRow(app.application_id)}
-                          className="w-4 h-4 accent-fern cursor-pointer"
-                        />
-                      </td>
-                      
-                        <td className="px-4 py-3 font-mono text-xs whitespace-nowrap">{app.ref_number || app.application_id || '—'}</td>
-                        <td className="px-4 py-3 font-mono text-xs whitespace-nowrap">{app.roll_number || '—'}</td>
-                        <td className="px-4 py-3 font-medium text-forest whitespace-nowrap">{app.student_name || '—'}</td>
-                        <td className="px-4 py-3 whitespace-nowrap">
-                          <span className="bg-sage/20 text-forest text-xs px-2.5 py-1 rounded-full">
-                            {app.duration_type === 'summer' ? 'Summer' : '6-Month'}
-                          </span>
-                        </td>
-                        <td className="px-4 py-3 max-w-[140px] truncate" title={app.company_name || app.company_name_manual}>
-                          {app.company_name || app.company_name_manual || '—'}
-                        </td>
-                        <td className="px-4 py-3 whitespace-nowrap">
-                          <span className={`badge ${statusBadge(app.status)}`}>
-                            {app.status?.replace('_', ' ')}
-                          </span>
-                        </td>
-                        <td className="px-4 py-3 whitespace-nowrap">
-                          {(app.offer_letter_full_url || app.offer_letter_url) ? (
-                            <a href={app.offer_letter_full_url || `http://localhost:5001${app.offer_letter_url}`} target="_blank" rel="noopener noreferrer" className="inline-flex items-center gap-1 text-xs text-fern hover:underline font-medium">
-                              <FileDown className="w-3.5 h-3.5" /> View
-                            </a>
-                          ) : <span className="text-sage/40 text-xs">—</span>}
-                        </td>
-                        <td className="px-4 py-3 whitespace-nowrap">
-                          {app.parent_permission_url ? (
-                            <a href={`http://localhost:5001${app.parent_permission_url}`} target="_blank" rel="noopener noreferrer" className="inline-flex items-center gap-1 text-xs text-fern hover:underline font-medium">
-                              <FileDown className="w-3.5 h-3.5" /> View
-                            </a>
-                          ) : <span className="text-sage/40 text-xs">—</span>}
-                        </td>
-                        <td className="px-4 py-3 max-w-[180px]">
-                          {app.tutor_remarks
-                            ? <span className="text-xs text-hunter/70 line-clamp-2" title={app.tutor_remarks}>{app.tutor_remarks}</span>
-                            : <span className="text-sage/40 text-xs">—</span>}
-                        </td>
-                        <td className="px-4 py-3 whitespace-nowrap">
-                          <button onClick={() => handlePDF(app.application_id)} disabled={pdfLoading === app.application_id} className="btn-secondary text-xs px-3 py-1.5 flex items-center gap-1 disabled:opacity-50">
-                            {pdfLoading === app.application_id
-                              ? <span className="w-3.5 h-3.5 border-2 border-sage/30 border-t-fern rounded-full animate-spin" />
-                              : <Download className="w-3.5 h-3.5" />}
-                            PDF
-                          </button>
-                        </td>
+            <>
+              <div className="card border border-sage/20 overflow-hidden">
+
+                {/* Work Mode Filter */}
+                <div className="flex gap-2 mb-4 p-4 pb-0">
+                  {['all', 'remote', 'hybrid', 'on_site'].map(mode => (
+                    <button
+                      key={mode}
+                      onClick={() => setWorkModeFilter(mode)}
+                      className={`px-4 py-1.5 rounded-full text-xs font-medium capitalize transition-all border ${
+                        workModeFilter === mode
+                          ? 'bg-fern text-white border-fern'
+                          : 'bg-white text-sage border-sage/30 hover:border-fern hover:text-fern'
+                      }`}
+                    >
+                      {mode === 'all' ? 'All' : mode.charAt(0).toUpperCase() + mode.slice(1)}
+                    </button>
+                  ))}
+                </div>
+
+                <div className="overflow-x-auto">
+                  <table className="w-full text-sm border-collapse">
+                    <thead>
+                      <tr className="bg-bone border-b border-sage/20 text-xs text-sage/100 uppercase tracking-wide">
+                        <th className="px-4 py-3 w-10">
+                          <input
+                            type="checkbox"
+                            checked={allSelected}
+                            onChange={toggleAll}
+                            className="w-4 h-4 accent-fern cursor-pointer"
+                          />
+                        </th>
+                        <th className="px-4 py-3 text-left font-medium whitespace-nowrap">Ref No.</th>
+                        <th className="px-4 py-3 text-left font-medium whitespace-nowrap">Roll No.</th>
+                        <th className="px-4 py-3 text-left font-medium whitespace-nowrap">Name</th>
+                        <th className="px-4 py-3 text-left font-medium whitespace-nowrap">Type</th>
+                        <th className="px-4 py-3 text-left font-medium whitespace-nowrap">Company</th>
+                        <th className="px-4 py-3 text-left font-medium whitespace-nowrap">Status</th>
+                        <th className="px-4 py-3 text-left font-medium whitespace-nowrap">Offer Letter</th>
+                        <th className="px-4 py-3 text-left font-medium whitespace-nowrap">Parent Form</th>
+                        <th className="px-4 py-3 text-left font-medium whitespace-nowrap">Remarks</th>
+                        <th className="px-4 py-3 text-left font-medium whitespace-nowrap">PDF</th>
                       </tr>
-                    ))}
-                  </tbody>
-                </table>
+                    </thead>
+                    <tbody>
+                      {paginatedApps.map((app) => {
+                        const isSelected = selectedIds.has(app.application_id);
+                        return (
+                          <tr
+                            key={app.application_id}
+                            onClick={() => toggleRow(app.application_id)}
+                            className={`border-b border-sage/10 last:border-0 transition-colors cursor-pointer ${
+                              isSelected ? 'bg-emerald-50' : 'hover:bg-bone/40'
+                            }`}
+                          >
+                            <td className="px-4 py-3" onClick={e => e.stopPropagation()}>
+                              <input
+                                type="checkbox"
+                                checked={isSelected}
+                                onChange={() => toggleRow(app.application_id)}
+                                className="w-4 h-4 accent-fern cursor-pointer"
+                              />
+                            </td>
+                            <td className="px-4 py-3 font-mono text-xs whitespace-nowrap">{app.ref_number || app.application_id || '—'}</td>
+                            <td className="px-4 py-3 font-mono text-xs whitespace-nowrap">{app.roll_number || '—'}</td>
+                            <td className="px-4 py-3 font-medium text-forest whitespace-nowrap">{app.student_name || '—'}</td>
+                            <td className="px-4 py-3 whitespace-nowrap">
+                              <span className="bg-sage/20 text-forest text-xs px-2.5 py-1 rounded-full">
+                                {app.duration_type === 'summer' ? 'Summer' : '6-Month'}
+                              </span>
+                            </td>
+                            <td className="px-4 py-3 max-w-[140px] truncate" title={app.company_name || app.company_name_manual}>
+                              {app.company_name || app.company_name_manual || '—'}
+                            </td>
+                            <td className="px-4 py-3 whitespace-nowrap">
+                              <span className={`badge ${statusBadge(app.status)}`}>
+                                {app.status?.replace('_', ' ')}
+                              </span>
+                            </td>
+                            <td className="px-4 py-3 whitespace-nowrap" onClick={e => e.stopPropagation()}>
+                              {(app.offer_letter_full_url || app.offer_letter_url) ? (
+                                <a
+                                  href={app.offer_letter_full_url || `http://localhost:5001${app.offer_letter_url}`}
+                                  target="_blank"
+                                  rel="noopener noreferrer"
+                                  className="inline-flex items-center gap-1 text-xs text-fern hover:underline font-medium"
+                                >
+                                  <FileDown className="w-3.5 h-3.5" /> View
+                                </a>
+                              ) : <span className="text-sage/40 text-xs">—</span>}
+                            </td>
+                            <td className="px-4 py-3 whitespace-nowrap" onClick={e => e.stopPropagation()}>
+                              {app.parent_permission_url ? (
+                                <a
+                                  href={`http://localhost:5001${app.parent_permission_url}`}
+                                  target="_blank"
+                                  rel="noopener noreferrer"
+                                  className="inline-flex items-center gap-1 text-xs text-fern hover:underline font-medium"
+                                >
+                                  <FileDown className="w-3.5 h-3.5" /> View
+                                </a>
+                              ) : <span className="text-sage/40 text-xs">—</span>}
+                            </td>
+                            <td className="px-4 py-3 max-w-[180px]">
+                              {app.tutor_remarks
+                                ? <span className="text-xs text-hunter/70 line-clamp-2" title={app.tutor_remarks}>{app.tutor_remarks}</span>
+                                : <span className="text-sage/40 text-xs">—</span>}
+                            </td>
+                            <td className="px-4 py-3 whitespace-nowrap" onClick={e => e.stopPropagation()}>
+                              <button
+                                onClick={() => handlePDF(app.application_id)}
+                                disabled={pdfLoading === app.application_id}
+                                className="btn-secondary text-xs px-3 py-1.5 flex items-center gap-1 disabled:opacity-50"
+                              >
+                                {pdfLoading === app.application_id
+                                  ? <span className="w-3.5 h-3.5 border-2 border-sage/30 border-t-fern rounded-full animate-spin" />
+                                  : <Download className="w-3.5 h-3.5" />}
+                                PDF
+                              </button>
+                            </td>
+                          </tr>
+                        );
+                      })}
+                    </tbody>
+                  </table>
+                </div>
               </div>
-            </div>
+
+              <Pagination
+                currentPage={currentPage}
+                totalPages={totalPages}
+                onPageChange={setCurrentPage}
+              />
+            </>
           )}
         </div>
+
       ) : (
-        /* ── PENDING — card layout ── */
+        /* ══════════════════════════════════════════
+            PENDING — card layout
+        ══════════════════════════════════════════ */
         <div className="p-4 md:p-6 max-w-4xl mx-auto page-enter">
           <div className="mb-6">
             <h1 className="text-2xl font-bold font-display text-forest">Pending Approvals</h1>
             <p className="text-sage/80 text-sm mt-1">
               {apps.length} application{apps.length !== 1 ? 's' : ''}
               {apps.length > 0 && ' awaiting your review'}
+              {apps.length > itemsPerPage && (
+                <span className="ml-2 text-sage/50">
+                  — showing {Math.min((currentPage - 1) * itemsPerPage + 1, apps.length)}–{Math.min(currentPage * itemsPerPage, apps.length)}
+                </span>
+              )}
             </p>
           </div>
 
@@ -463,156 +567,164 @@ const handleExcelDownload = () => {
               <p className="text-forest font-bold text-lg">You're all caught up!</p>
             </div>
           ) : (
-            <div className="space-y-4">
-              {apps.map((app, i) => {
-                const isExpanded = expanded === app.application_id;
-                const isPending  = app.status === 'pending_tutor';
+            <>
+              <div className="space-y-4">
+                {paginatedApps.map((app, i) => {
+                  const isExpanded = expanded === app.application_id;
+                  const isPending  = app.status === 'pending_tutor';
 
-                return (
-                  <div key={app.application_id} className="card border border-sage/20 overflow-hidden animate-slide-up" style={{ animationDelay: `${i * 0.06}s` }}>
+                  return (
+                    <div key={app.application_id} className="card border border-sage/20 overflow-hidden animate-slide-up" style={{ animationDelay: `${i * 0.06}s` }}>
 
-                    {/* Card Header */}
-                    <div className="flex items-start gap-4 p-4">
-                      <div className={`w-1.5 self-stretch rounded-full flex-shrink-0 ${app.status === 'approved' ? 'bg-emerald-400' : app.status === 'returned' ? 'bg-red-400' : 'bg-amber-400'}`} />
-                      <div className="flex-1 min-w-0">
-                        <div className="flex items-center gap-2 flex-wrap mb-1">
-                          <span className="font-bold text-forest text-lg">{app.student_name}</span>
-                          <span className="text-sage/60 text-sm">· {app.roll_number}</span>
-                          <span className={`badge ${isPending ? 'badge-pending' : app.status === 'approved' ? 'badge-approved' : 'badge-rejected'}`}>
-                            {isPending ? 'Pending' : app.status === 'approved' ? 'Approved' : 'Returned'}
-                          </span>
+                      {/* Card Header */}
+                      <div className="flex items-start gap-4 p-4">
+                        <div className={`w-1.5 self-stretch rounded-full flex-shrink-0 ${app.status === 'approved' ? 'bg-emerald-400' : app.status === 'returned' ? 'bg-red-400' : 'bg-amber-400'}`} />
+                        <div className="flex-1 min-w-0">
+                          <div className="flex items-center gap-2 flex-wrap mb-1">
+                            <span className="font-bold text-forest text-lg">{app.student_name}</span>
+                            <span className="text-sage/60 text-sm">· {app.roll_number}</span>
+                            <span className={`badge ${isPending ? 'badge-pending' : app.status === 'approved' ? 'badge-approved' : 'badge-rejected'}`}>
+                              {isPending ? 'Pending' : app.status === 'approved' ? 'Approved' : 'Returned'}
+                            </span>
+                          </div>
+                          <p className="text-sm text-hunter/60 mb-2">{app.programme} · {app.department}</p>
+                          <div className="flex flex-wrap gap-2 text-xs">
+                            <span className="flex items-center gap-1 bg-fern/10 text-fern px-2.5 py-1 rounded-full">
+                              <Building2 className="w-3 h-3" /> {app.company_name || app.company_name_manual}
+                            </span>
+                            <span className="bg-sage/20 text-forest px-2.5 py-1 rounded-full">
+                              {app.duration_type === 'summer' ? 'Summer' : '6-Month'}
+                            </span>
+                          </div>
                         </div>
-                        <p className="text-sm text-hunter/60 mb-2">{app.programme} · {app.department}</p>
-                        <div className="flex flex-wrap gap-2 text-xs">
-                          <span className="flex items-center gap-1 bg-fern/10 text-fern px-2.5 py-1 rounded-full">
-                            <Building2 className="w-3 h-3" /> {app.company_name || app.company_name_manual}
-                          </span>
-                          <span className="bg-sage/20 text-forest px-2.5 py-1 rounded-full">
-                            {app.duration_type === 'summer' ? 'Summer' : '6-Month'}
-                          </span>
-                        </div>
+                        <button onClick={() => setExpanded(isExpanded ? null : app.application_id)} className="btn-secondary py-2 px-3 text-xs flex-shrink-0 flex items-center gap-1">
+                          {isExpanded ? <><ChevronUp className="w-4 h-4" /> Hide</> : <><ChevronDown className="w-4 h-4" /> Review</>}
+                        </button>
                       </div>
-                      <button onClick={() => setExpanded(isExpanded ? null : app.application_id)} className="btn-secondary py-2 px-3 text-xs flex-shrink-0 flex items-center gap-1">
-                        {isExpanded ? <><ChevronUp className="w-4 h-4" /> Hide</> : <><ChevronDown className="w-4 h-4" /> Review</>}
-                      </button>
-                    </div>
 
-                    {/* Expanded Content */}
-                    {isExpanded && (
-                      <div className="px-6 pb-8 pt-4 border-t border-sage/20 bg-white">
-                        <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
+                      {/* Expanded Content */}
+                      {isExpanded && (
+                        <div className="px-6 pb-8 pt-4 border-t border-sage/20 bg-white">
+                          <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
 
-                          {/* Student Info */}
-                          <div className="bg-bone p-6 rounded-3xl">
-                            <h4 className="font-semibold mb-4 flex items-center gap-2 text-forest">👤 Student Information</h4>
-                            <div className="space-y-3 text-sm">
-                              <p><strong>Name:</strong> {app.student_name}</p>
-                              <p><strong>Roll No:</strong> {app.roll_number}</p>
-                              <p><strong>Email:</strong> {app.student_email}</p>
-                              <p><strong>CGPA:</strong> {app.cgpa || app.student_cgpa || '—'}</p>
-                              <p><strong>Semesters Completed:</strong> {app.semester_completed || '—'}</p>
-                            </div>
-                          </div>
-
-                          {/* Internship Details */}
-                          <div className="bg-bone p-6 rounded-3xl">
-                            <h4 className="font-semibold mb-4 flex items-center gap-2 text-forest">
-                              <Building2 className="w-5 h-5" /> Internship Details
-                            </h4>
-                            <div className="space-y-3 text-sm">
-                              <p><strong>Company:</strong> {app.company_name || app.company_name_manual || '—'}</p>
-                              <p><strong>Role / Position:</strong> {app.role_title}</p>
-                              <p><strong>Type:</strong> {app.duration_type === 'summer' ? 'Summer Internship' : '6-Month Internship'}</p>
-                              <p><strong>Period:</strong> {app.start_date?.split('T')[0]} — {app.end_date?.split('T')[0]}</p>
-                              <p><strong>Work Mode:</strong> {app.work_mode}</p>
-                              <p><strong>Stipend:</strong> {app.stipend_amount ? `₹${app.stipend_amount} / month` : 'Not Mentioned'}</p>
-                            </div>
-                          </div>
-
-                          {/* Offer Letter */}
-                          {(app.offer_letter_url || app.offer_letter_full_url) && (
-                            <div className="lg:col-span-2 bg-green-50 border border-green-200 p-6 rounded-3xl">
-                              <h4 className="font-semibold mb-3">Offer Letter</h4>
-                              <a href={app.offer_letter_full_url || `http://localhost:5001${app.offer_letter_url}`} target="_blank" rel="noopener noreferrer" className="inline-flex items-center gap-2 text-green-600 hover:text-green-700 hover:underline font-medium">
-                                View Offer Letter <FileDown className="w-4 h-4" />
-                              </a>
-                            </div>
-                          )}
-
-                          {/* Parent Permission */}
-                          {app.parent_permission_url && (
-                            <div className="lg:col-span-2 bg-green-50 border border-green-200 p-6 rounded-3xl">
-                              <h4 className="font-semibold mb-3">Parent Permission Letter</h4>
-                              <a href={`http://localhost:5001${app.parent_permission_url}`} target="_blank" rel="noopener noreferrer" className="inline-flex items-center gap-2 text-green-600 hover:underline font-medium">
-                                View Parent Permission Letter <FileDown className="w-4 h-4" />
-                              </a>
-                            </div>
-                          )}
-
-                          {/* Academic Status — 6-Month only */}
-                          {app.duration_type === 'six_month' && (
-                            <div className="lg:col-span-2 bg-bone p-6 rounded-3xl">
-                              <h4 className="font-semibold mb-4">Academic Status</h4>
-                              <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
-                                <div>
-                                  <p className="text-xs font-medium text-hunter/60 mb-1">RA / Arrear Courses</p>
-                                  <p className="text-sm">{app.ra_courses || 'None'}</p>
-                                </div>
-                                <div>
-                                  <p className="text-xs font-medium text-hunter/60 mb-1">Pending Courses</p>
-                                  <p className="text-sm">{app.pending_courses || 'None'}</p>
-                                </div>
+                            {/* Student Info */}
+                            <div className="bg-bone p-6 rounded-3xl">
+                              <h4 className="font-semibold mb-4 flex items-center gap-2 text-forest">👤 Student Information</h4>
+                              <div className="space-y-3 text-sm">
+                                <p><strong>Name:</strong> {app.student_name}</p>
+                                <p><strong>Roll No:</strong> {app.roll_number}</p>
+                                <p><strong>Email:</strong> {app.student_email}</p>
+                                <p><strong>CGPA:</strong> {app.cgpa || app.student_cgpa || '—'}</p>
+                                <p><strong>Semesters Completed:</strong> {app.semester_completed || '—'}</p>
                               </div>
                             </div>
-                          )}
 
-                          {/* Company Address */}
-                          <div className="lg:col-span-2 bg-bone p-6 rounded-3xl">
-                            <h4 className="font-semibold mb-3">Company Address</h4>
-                            <p className="text-sm leading-relaxed whitespace-pre-wrap">
-                              {app.company_address || app.co_address || 'No address provided'}
-                            </p>
-                            <p className="mt-2 text-sm">{app.company_city}, {app.company_state}, {app.company_country}</p>
-                          </div>
-
-                          {/* Action Buttons */}
-                          {isPending && (
-                            <div className="lg:col-span-2 flex gap-4 pt-6">
-                              <button
-                                onClick={() => handlePDF(app.application_id)}
-                                disabled={pdfLoading === app.application_id}
-                                className="flex-1 py-4 border border-gray-400 hover:bg-gray-100 rounded-2xl font-medium flex items-center justify-center gap-2 disabled:opacity-50 disabled:cursor-not-allowed transition-all"
-                              >
-                                {pdfLoading === app.application_id
-                                  ? <><span className="w-4 h-4 border-2 border-gray-400 border-t-gray-700 rounded-full animate-spin" /> Generating...</>
-                                  : <><FileDown className="w-5 h-5" /> Download PDF</>}
-                              </button>
-
-                              <button
-                                onClick={() => openApproveModal(app.application_id)}
-                                disabled={!!actionLoading}
-                                className="flex-1 bg-emerald-600 hover:bg-emerald-700 text-white py-4 rounded-2xl font-semibold disabled:opacity-50"
-                              >
-                                ✅ Approve
-                              </button>
-
-                              <button
-                                onClick={() => openRejectModal(app.application_id)}
-                                disabled={!!actionLoading}
-                                className="flex-1 bg-red-600 hover:bg-red-700 text-white py-4 rounded-2xl font-semibold disabled:opacity-50"
-                              >
-                                ❌ Return
-                              </button>
+                            {/* Internship Details */}
+                            <div className="bg-bone p-6 rounded-3xl">
+                              <h4 className="font-semibold mb-4 flex items-center gap-2 text-forest">
+                                <Building2 className="w-5 h-5" /> Internship Details
+                              </h4>
+                              <div className="space-y-3 text-sm">
+                                <p><strong>Company:</strong> {app.company_name || app.company_name_manual || '—'}</p>
+                                <p><strong>Role / Position:</strong> {app.role_title}</p>
+                                <p><strong>Type:</strong> {app.duration_type === 'summer' ? 'Summer Internship' : '6-Month Internship'}</p>
+                                <p><strong>Period:</strong> {app.start_date?.split('T')[0]} — {app.end_date?.split('T')[0]}</p>
+                                <p><strong>Work Mode:</strong> {app.work_mode}</p>
+                                <p><strong>Stipend:</strong> {app.stipend_amount ? `₹${app.stipend_amount} / month` : 'Not Mentioned'}</p>
+                              </div>
                             </div>
-                          )}
 
+                            {/* Offer Letter */}
+                            {(app.offer_letter_url || app.offer_letter_full_url) && (
+                              <div className="lg:col-span-2 bg-green-50 border border-green-200 p-6 rounded-3xl">
+                                <h4 className="font-semibold mb-3">Offer Letter</h4>
+                                <a href={app.offer_letter_full_url || `http://localhost:5001${app.offer_letter_url}`} target="_blank" rel="noopener noreferrer" className="inline-flex items-center gap-2 text-green-600 hover:text-green-700 hover:underline font-medium">
+                                  View Offer Letter <FileDown className="w-4 h-4" />
+                                </a>
+                              </div>
+                            )}
+
+                            {/* Parent Permission */}
+                            {app.parent_permission_url && (
+                              <div className="lg:col-span-2 bg-green-50 border border-green-200 p-6 rounded-3xl">
+                                <h4 className="font-semibold mb-3">Parent Permission Letter</h4>
+                                <a href={`http://localhost:5001${app.parent_permission_url}`} target="_blank" rel="noopener noreferrer" className="inline-flex items-center gap-2 text-green-600 hover:underline font-medium">
+                                  View Parent Permission Letter <FileDown className="w-4 h-4" />
+                                </a>
+                              </div>
+                            )}
+
+                            {/* Academic Status — 6-Month only */}
+                            {app.duration_type === 'six_month' && (
+                              <div className="lg:col-span-2 bg-bone p-6 rounded-3xl">
+                                <h4 className="font-semibold mb-4">Academic Status</h4>
+                                <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+                                  <div>
+                                    <p className="text-xs font-medium text-hunter/60 mb-1">RA / Arrear Courses</p>
+                                    <p className="text-sm">{app.ra_courses || 'None'}</p>
+                                  </div>
+                                  <div>
+                                    <p className="text-xs font-medium text-hunter/60 mb-1">Pending Courses</p>
+                                    <p className="text-sm">{app.pending_courses || 'None'}</p>
+                                  </div>
+                                </div>
+                              </div>
+                            )}
+
+                            {/* Company Address */}
+                            <div className="lg:col-span-2 bg-bone p-6 rounded-3xl">
+                              <h4 className="font-semibold mb-3">Company Address</h4>
+                              <p className="text-sm leading-relaxed whitespace-pre-wrap">
+                                {app.company_address || app.co_address || 'No address provided'}
+                              </p>
+                              <p className="mt-2 text-sm">{app.company_city}, {app.company_state}, {app.company_country}</p>
+                            </div>
+
+                            {/* Action Buttons */}
+                            {isPending && (
+                              <div className="lg:col-span-2 flex gap-4 pt-6">
+                                <button
+                                  onClick={() => handlePDF(app.application_id)}
+                                  disabled={pdfLoading === app.application_id}
+                                  className="flex-1 py-4 border border-gray-400 hover:bg-gray-100 rounded-2xl font-medium flex items-center justify-center gap-2 disabled:opacity-50 disabled:cursor-not-allowed transition-all"
+                                >
+                                  {pdfLoading === app.application_id
+                                    ? <><span className="w-4 h-4 border-2 border-gray-400 border-t-gray-700 rounded-full animate-spin" /> Generating...</>
+                                    : <><FileDown className="w-5 h-5" /> Download PDF</>}
+                                </button>
+
+                                <button
+                                  onClick={() => openApproveModal(app.application_id)}
+                                  disabled={!!actionLoading}
+                                  className="flex-1 bg-emerald-600 hover:bg-emerald-700 text-white py-4 rounded-2xl font-semibold disabled:opacity-50"
+                                >
+                                  ✅ Approve
+                                </button>
+
+                                <button
+                                  onClick={() => openRejectModal(app.application_id)}
+                                  disabled={!!actionLoading}
+                                  className="flex-1 bg-red-600 hover:bg-red-700 text-white py-4 rounded-2xl font-semibold disabled:opacity-50"
+                                >
+                                  ❌ Return
+                                </button>
+                              </div>
+                            )}
+
+                          </div>
                         </div>
-                      </div>
-                    )}
-                  </div>
-                );
-              })}
-            </div>
+                      )}
+                    </div>
+                  );
+                })}
+              </div>
+
+              <Pagination
+                currentPage={currentPage}
+                totalPages={totalPages}
+                onPageChange={setCurrentPage}
+              />
+            </>
           )}
         </div>
       )}

@@ -1,13 +1,16 @@
 import React, { useState, useEffect } from 'react';
 import { Plus, Trash2, CalendarX, AlertCircle } from 'lucide-react';
 import api from '../../api.js';
+import Pagination from '../../components/Pagination';
 
 const AdminHolidays = () => {
-  const [holidays, setHolidays]   = useState([]);
-  const [loading, setLoading]     = useState(true);
-  const [form, setForm]           = useState({ date: '', description: '' });
-  const [saving, setSaving]       = useState(false);
-  const [toast, setToast]         = useState(null);
+  const [holidays, setHolidays]     = useState([]);
+  const [loading, setLoading]       = useState(true);
+  const [form, setForm]             = useState({ date: '', description: '' });
+  const [saving, setSaving]         = useState(false);
+  const [toast, setToast]           = useState(null);
+  const [currentPage, setCurrentPage] = useState(1);
+  const itemsPerPage = 1;
 
   const showToast = (msg, type = 'success') => {
     setToast({ msg, type });
@@ -19,6 +22,7 @@ const AdminHolidays = () => {
     try {
       const { data } = await api.get('/holidays');
       setHolidays(data);
+      setCurrentPage(1);
     } catch {
       showToast('Failed to load holidays', 'error');
     } finally {
@@ -28,8 +32,15 @@ const AdminHolidays = () => {
 
   useEffect(() => { fetchHolidays(); }, []);
 
+  // Pagination
+  const totalPages = Math.ceil(holidays.length / itemsPerPage);
+  const paginatedHolidays = holidays.slice(
+    (currentPage - 1) * itemsPerPage,
+    currentPage * itemsPerPage
+  );
+
   const handleAdd = async () => {
-    if (!form.date)        return showToast('Please select a date', 'error');
+    if (!form.date)               return showToast('Please select a date', 'error');
     if (!form.description.trim()) return showToast('Please enter a description', 'error');
 
     setSaving(true);
@@ -124,10 +135,15 @@ const AdminHolidays = () => {
 
       {/* Holiday List */}
       <div className="card border border-sage/20 overflow-hidden">
-        <div className="px-5 py-3 bg-bone border-b border-sage/20">
+        <div className="px-5 py-3 bg-bone border-b border-sage/20 flex items-center justify-between">
           <span className="text-xs font-medium uppercase tracking-wide text-sage">
             {holidays.length} Emergency Holiday{holidays.length !== 1 ? 's' : ''} Configured
           </span>
+          {holidays.length > itemsPerPage && (
+            <span className="text-xs text-sage/50">
+              Showing {Math.min((currentPage - 1) * itemsPerPage + 1, holidays.length)}–{Math.min(currentPage * itemsPerPage, holidays.length)}
+            </span>
+          )}
         </div>
 
         {loading ? (
@@ -139,45 +155,55 @@ const AdminHolidays = () => {
             No emergency holidays added yet.
           </div>
         ) : (
-          <table className="w-full text-sm border-collapse">
-            <thead>
-              <tr className="text-xs uppercase tracking-wide text-sage/80 bg-bone border-b border-sage/20">
-                <th className="px-5 py-3 text-left font-medium">Date</th>
-                <th className="px-5 py-3 text-left font-medium">Day</th>
-                <th className="px-5 py-3 text-left font-medium">Description</th>
-                <th className="px-5 py-3 text-left font-medium">Remove</th>
-              </tr>
-            </thead>
-            <tbody>
-              {holidays.map(h => {
-                const d = new Date(h.date);
-                const isPast = d < new Date();
-                return (
-                  <tr key={h.id} className={`border-b border-sage/10 last:border-0 hover:bg-bone/40 transition-colors ${isPast ? 'opacity-50' : ''}`}>
-                    <td className="px-5 py-3 font-mono text-xs whitespace-nowrap">
-                      {d.toLocaleDateString('en-IN', { day: '2-digit', month: 'short', year: 'numeric' })}
-                      {isPast && <span className="ml-2 text-sage/50">(past)</span>}
-                    </td>
-                    <td className="px-5 py-3 text-xs text-sage whitespace-nowrap">
-                      {d.toLocaleDateString('en-IN', { weekday: 'long' })}
-                    </td>
-                    <td className="px-5 py-3 text-forest">
-                      {h.description}
-                    </td>
-                    <td className="px-5 py-3 whitespace-nowrap">
-                      <button
-                        onClick={() => handleDelete(h.id)}
-                        className="btn-secondary text-xs px-3 py-1.5 text-red-600 hover:text-red-700"
-                        title="Remove holiday"
-                      >
-                        <Trash2 className="w-3.5 h-3.5" />
-                      </button>
-                    </td>
-                  </tr>
-                );
-              })}
-            </tbody>
-          </table>
+          <>
+            <table className="w-full text-sm border-collapse">
+              <thead>
+                <tr className="text-xs uppercase tracking-wide text-sage/80 bg-bone border-b border-sage/20">
+                  <th className="px-5 py-3 text-left font-medium">Date</th>
+                  <th className="px-5 py-3 text-left font-medium">Day</th>
+                  <th className="px-5 py-3 text-left font-medium">Description</th>
+                  <th className="px-5 py-3 text-left font-medium">Remove</th>
+                </tr>
+              </thead>
+              <tbody>
+                {paginatedHolidays.map(h => {
+                  const d = new Date(h.date);
+                  const isPast = d < new Date();
+                  return (
+                    <tr key={h.id} className={`border-b border-sage/10 last:border-0 hover:bg-bone/40 transition-colors ${isPast ? 'opacity-50' : ''}`}>
+                      <td className="px-5 py-3 font-mono text-xs whitespace-nowrap">
+                        {d.toLocaleDateString('en-IN', { day: '2-digit', month: 'short', year: 'numeric' })}
+                        {isPast && <span className="ml-2 text-sage/50">(past)</span>}
+                      </td>
+                      <td className="px-5 py-3 text-xs text-sage whitespace-nowrap">
+                        {d.toLocaleDateString('en-IN', { weekday: 'long' })}
+                      </td>
+                      <td className="px-5 py-3 text-forest">
+                        {h.description}
+                      </td>
+                      <td className="px-5 py-3 whitespace-nowrap">
+                        <button
+                          onClick={() => handleDelete(h.id)}
+                          className="btn-secondary text-xs px-3 py-1.5 text-red-600 hover:text-red-700"
+                          title="Remove holiday"
+                        >
+                          <Trash2 className="w-3.5 h-3.5" />
+                        </button>
+                      </td>
+                    </tr>
+                  );
+                })}
+              </tbody>
+            </table>
+
+            <div className="border-t border-sage/10">
+              <Pagination
+                currentPage={currentPage}
+                totalPages={totalPages}
+                onPageChange={setCurrentPage}
+              />
+            </div>
+          </>
         )}
       </div>
     </div>

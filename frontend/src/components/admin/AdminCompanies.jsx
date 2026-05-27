@@ -1,5 +1,6 @@
 import React, { useState, useEffect } from 'react';
 import { Building2, Plus, X, Search, Globe, MapPin } from 'lucide-react';
+import Pagination from '../../components/Pagination';
 import api from '../../api.js';
 
 const AdminCompanies = () => {
@@ -10,21 +11,54 @@ const AdminCompanies = () => {
   const [form, setForm] = useState({ name: '', address: '', city: '', state: '', country: 'India', website: '' });
   const [addLoading, setAddLoading] = useState(false);
   const [toast, setToast] = useState(null);
+  
+  const [currentPage, setCurrentPage] = useState(1);
+  const itemsPerPage = 12;
 
-  const showToast = (msg, type = 'success') => { setToast({ msg, type }); setTimeout(() => setToast(null), 4000); };
+  const showToast = (msg, type = 'success') => { 
+    setToast({ msg, type }); 
+    setTimeout(() => setToast(null), 4000); 
+  };
 
   const load = () => {
     setLoading(true);
-    api.get('/admin/companies').then(({ data }) => setCompanies(data)).finally(() => setLoading(false));
+    api.get('/admin/companies')
+      .then(({ data }) => {
+        setCompanies(data);
+        setCurrentPage(1);
+      })
+      .finally(() => setLoading(false));
   };
 
-  useEffect(load, []);
+  useEffect(() => {
+    load();
+  }, []);
 
-  const filtered = companies.filter(c =>
-    !search ||
-    c.name?.toLowerCase().includes(search.toLowerCase()) ||
-    c.city?.toLowerCase().includes(search.toLowerCase()) ||
-    c.state?.toLowerCase().includes(search.toLowerCase())
+  // Improved Search - matches anywhere + starts with priority
+  const filtered = companies.filter(c => {
+    if (!search) return true;
+    
+    const query = search.toLowerCase().trim();
+    const name = (c.name || '').toLowerCase();
+    const city = (c.city || '').toLowerCase();
+    const state = (c.state || '').toLowerCase();
+
+    return (
+      name.includes(query) || 
+      city.includes(query) || 
+      state.includes(query)
+    );
+  });
+
+  // Reset to first page when search changes
+  useEffect(() => {
+    setCurrentPage(1);
+  }, [search]);
+
+  const totalPages = Math.ceil(filtered.length / itemsPerPage);
+  const paginatedCompanies = filtered.slice(
+    (currentPage - 1) * itemsPerPage,
+    currentPage * itemsPerPage
   );
 
   const handleAdd = async (e) => {
@@ -38,7 +72,9 @@ const AdminCompanies = () => {
       load();
     } catch (err) {
       showToast(err.response?.data?.error || 'Failed to add company.', 'error');
-    } finally { setAddLoading(false); }
+    } finally { 
+      setAddLoading(false); 
+    }
   };
 
   return (
@@ -52,7 +88,9 @@ const AdminCompanies = () => {
       <div className="flex flex-wrap items-center justify-between gap-3 mb-6">
         <div>
           <h1 className="text-2xl font-bold font-display text-forest">Companies</h1>
-          <p className="text-sage/80 text-sm mt-0.5">{filtered.length} companies in database</p>
+          <p className="text-sage/80 text-sm mt-0.5">
+            {filtered.length} companies found
+          </p>
         </div>
         <button onClick={() => setShowAdd(true)} className="btn-primary">
           <Plus className="w-4 h-4" /> Add Company
@@ -62,8 +100,12 @@ const AdminCompanies = () => {
       <div className="card mb-5">
         <div className="relative">
           <Search className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-sage/60" />
-          <input className="form-input pl-9" value={search} onChange={e => setSearch(e.target.value)}
-            placeholder="Search company name, city, state..." />
+          <input 
+            className="form-input pl-9" 
+            value={search} 
+            onChange={e => setSearch(e.target.value)}
+            placeholder="Search company name, city, state..." 
+          />
         </div>
       </div>
 
@@ -72,42 +114,58 @@ const AdminCompanies = () => {
           <span className="w-9 h-9 border-2 border-sage/30 border-t-fern rounded-full animate-spin" />
         </div>
       ) : (
-        <div className="grid sm:grid-cols-2 lg:grid-cols-3 gap-4">
-          {filtered.map((c, i) => (
-            <div key={c.company_id} className="card-hover animate-slide-up" style={{ animationDelay: `${i * 0.04}s` }}>
-              <div className="flex items-start gap-3">
-                <div className="w-10 h-10 rounded-xl bg-fern/10 flex items-center justify-center flex-shrink-0">
-                  <Building2 className="w-5 h-5 text-fern" />
+        <>
+          <div className="grid sm:grid-cols-2 lg:grid-cols-3 gap-4">
+            {paginatedCompanies.length > 0 ? (
+              paginatedCompanies.map((c, i) => (
+                <div key={c.company_id} className="card-hover animate-slide-up" style={{ animationDelay: `${i * 0.04}s` }}>
+                  <div className="flex items-start gap-3">
+                    <div className="w-10 h-10 rounded-xl bg-fern/10 flex items-center justify-center flex-shrink-0">
+                      <Building2 className="w-5 h-5 text-fern" />
+                    </div>
+                    <div className="flex-1 min-w-0">
+                      <h3 className="font-bold text-forest text-sm truncate">{c.name}</h3>
+                      {(c.city || c.state) && (
+                        <p className="text-xs text-sage/70 flex items-center gap-1 mt-0.5">
+                          <MapPin className="w-3 h-3" />
+                          {[c.city, c.state].filter(Boolean).join(', ')}
+                        </p>
+                      )}
+                      {c.website && (
+                        <a href={c.website} target="_blank" rel="noopener noreferrer"
+                          className="text-xs text-fern hover:text-hunter flex items-center gap-1 mt-1 truncate transition-colors">
+                          <Globe className="w-3 h-3 flex-shrink-0" />
+                          <span className="truncate">
+                            {c.website.replace('https://', '').replace('http://', '')}
+                          </span>
+                        </a>
+                      )}
+                    </div>
+                  </div>
+                  <div className="mt-3 pt-3 border-t border-sage/10 flex items-center justify-between text-xs text-sage/50">
+                    <span>ID #{c.company_id}</span>
+                    <span className={`px-2 py-0.5 rounded-full ${c.is_active ? 'bg-emerald-100 text-emerald-700' : 'bg-red-100 text-red-600'}`}>
+                      {c.is_active ? 'Active' : 'Inactive'}
+                    </span>
+                  </div>
                 </div>
-                <div className="flex-1 min-w-0">
-                  <h3 className="font-bold text-forest text-sm truncate">{c.name}</h3>
-                  {(c.city || c.state) && (
-                    <p className="text-xs text-sage/70 flex items-center gap-1 mt-0.5">
-                      <MapPin className="w-3 h-3" />
-                      {[c.city, c.state].filter(Boolean).join(', ')}
-                    </p>
-                  )}
-                  {c.website && (
-                    <a href={c.website} target="_blank" rel="noopener noreferrer"
-                      className="text-xs text-fern hover:text-hunter flex items-center gap-1 mt-1 truncate transition-colors">
-                      <Globe className="w-3 h-3 flex-shrink-0" />
-                      <span className="truncate">{c.website.replace('https://', '').replace('http://', '')}</span>
-                    </a>
-                  )}
-                </div>
+              ))
+            ) : (
+              <div className="col-span-3 text-center py-12 text-sage/60">
+                No companies found matching "{search}"
               </div>
-              <div className="mt-3 pt-3 border-t border-sage/10 flex items-center justify-between text-xs text-sage/50">
-                <span>ID #{c.company_id}</span>
-                <span className={`px-2 py-0.5 rounded-full ${c.is_active ? 'bg-emerald-100 text-emerald-700' : 'bg-red-100 text-red-600'}`}>
-                  {c.is_active ? 'Active' : 'Inactive'}
-                </span>
-              </div>
-            </div>
-          ))}
-        </div>
+            )}
+          </div>
+
+          <Pagination 
+            currentPage={currentPage} 
+            totalPages={totalPages} 
+            onPageChange={setCurrentPage} 
+          />
+        </>
       )}
 
-      {/* Add Company Modal */}
+      {/* Add Company Modal - unchanged */}
       {showAdd && (
         <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/50 backdrop-blur-sm p-4">
           <div className="bg-white rounded-2xl shadow-2xl w-full max-w-md animate-slide-up">
