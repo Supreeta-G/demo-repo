@@ -4,137 +4,61 @@
   <meta charset="UTF-8">
   <title>PSG College of Technology - Final Semester Internship</title>
   <style>
-    @page {
-      size: A4;
-      margin: 12mm 16mm 10mm 16mm;
-    }
-
+    @page { size: A4; margin: 12mm 16mm 15mm 16mm; }
     * { box-sizing: border-box; margin: 0; padding: 0; }
-
     body {
       font-family: Arial, Helvetica, sans-serif;
       font-size: 9.5pt;
       color: #000;
-      line-height: 1.3;
+      line-height: 1.35;
       background: #fff;
     }
+    .page { width: 100%; page-break-after: always; }
+    .page:last-child { page-break-after: avoid; }
 
-    .page {
-      width: 100%;
-      page-break-after: always;
-    }
-    .page:last-child {
-      page-break-after: avoid;
-    }
+    /* ── Header ── */
+    .college-header { text-align: center; margin-bottom: 3px; }
+    .college-name { font-size: 11.5pt; font-weight: bold; letter-spacing: 0.3px; }
+    .form-title { font-size: 10pt; font-weight: bold; margin-top: 1px; }
 
-    /* ── College header ── */
-    .college-header {
-      text-align: center;
-      margin-bottom: 2px;
-    }
-    .college-name {
-      font-size: 11pt;
-      font-weight: bold;
-    }
-    .form-title {
-      font-size: 10pt;
-      font-weight: bold;
-    }
-
-    /* ── Paragraphs ── */
-    p {
-      margin: 2px 0;
-      font-size: 9.5pt;
-      line-height: 1.3;
-    }
+    p { margin: 2px 0; font-size: 9.5pt; line-height: 1.35; }
 
     /* ── Tables ── */
-    table {
-      width: 100%;
-      border-collapse: collapse;
-      margin: 3px 0;
-      font-size: 8.5pt;
-    }
-    td, th {
-      border: 1px solid #000;
-      padding: 2px 4px;
-      vertical-align: top;
-      line-height: 1.25;
-    }
-    th {
-      font-weight: bold;
-      text-align: center;
-      font-size: 8pt;
-      background-color: #f2f2f2;
-    }
-    .no-border td {
-      border: none;
-      padding: 0 2px;
-    }
+    table { width: 100%; border-collapse: collapse; margin: 3px 0; font-size: 8.5pt; }
+    td, th { border: 1px solid #000; padding: 2px 4px; vertical-align: top; line-height: 1.25; }
+    th { font-weight: bold; text-align: center; font-size: 8pt; background-color: #f2f2f2; }
+    .no-border td { border: none; padding: 1px 2px; }
 
     /* ── Lists ── */
-    ol {
-      margin: 2px 0 2px 16px;
-      padding: 0;
-    }
-    ol li {
-      font-size: 9pt;
-      margin-bottom: 4px;
-      line-height: 1.3;
-    }
-    ol.alpha {
-      list-style-type: lower-alpha;
-      margin-left: 20px;
-    }
+    ol { margin: 3px 0 3px 18px; padding: 0; }
+    ol li { font-size: 9pt; margin-bottom: 3px; line-height: 1.5; }
+    ol.alpha { list-style-type: lower-alpha; margin-left: 22px; }
 
-    /* ── Utility ── */
+    /* ── Utilities ── */
     .small   { font-size: 8pt; }
     .italic  { font-style: italic; }
     .bold    { font-weight: bold; }
     .center  { text-align: center; }
-    .right   { text-align: right; }
     .underline { text-decoration: underline; }
+    .right   { text-align: right; }
 
-    /* ── Sig lines ── */
-    .sig-cell {
-      text-align: center;
-      font-size: 8.5pt;
-      border-top: 1px solid #000 !important;
-      border-left: none !important;
-      border-right: none !important;
-      border-bottom: none !important;
+    /* ── Signature lines ── */
+    .sig-line-top {
+      border-top: 1px solid #000;
       padding-top: 2px;
-    }
-
-    /* ── CGPA table ── */
-    table.cgpa-table {
-      border-collapse: collapse;
-      margin: 4px 0 5px 0;
-      font-size: 8.5pt;
-      width: 100%;
-    }
-    table.cgpa-table td,
-    table.cgpa-table th {
-      border: 1px solid #000;
-      padding: 3px 6px;
       text-align: center;
       font-size: 8.5pt;
     }
-    table.cgpa-table th {
-      font-weight: bold;
-      background-color: #f2f2f2;
-    }
-    ol.undertaking li {
-  line-height: 1.6;  /* change from 1.35 to 1.6 */
-}
 
-    .page-footer { text-align: center; font-size: 8.5pt; margin-top: 4px; }
-    .pto { text-align: right; font-size: 8.5pt; font-weight: bold; }
+    /* ── Footer ── */
+    .page-footer { text-align: center; font-size: 8.5pt; margin-top: 5px; }
+    .pto { text-align: right; font-size: 8.5pt; font-weight: bold; margin-top: 1px; }
+    .date-stamp { text-align: right; font-size: 7.5pt; margin-top: 4px; color: #555; }
   </style>
 </head>
 <body>
 
-<!-- ═══════════════ PAGE 1 ═══════════════ -->
+<!-- ═══════════════════════════ PAGE 1 ═══════════════════════════ -->
 <div class="page">
 
   <div class="college-header">
@@ -142,71 +66,91 @@
     <div class="form-title">Undertaking for Pursuing Internship in the Final Semester (UG/PG)</div>
   </div>
 
-  <table class="no-border" style="margin:1px 0;">
+  <!-- From / Date row -->
+  <table class="no-border" style="margin:3px 0 0 0;">
     <tr>
       <td style="width:50%;">From</td>
       <td style="width:50%; text-align:right;"><strong>Date:</strong> {{currentDate}}</td>
     </tr>
   </table>
 
-  <p>{{student_name}}</p>
+  <!-- Student identity -->
+  <p style="margin-top:2px;">{{student_name}}</p>
   <p>{{roll_number}}</p>
-
-  <p style="margin-top:4px;">To</p>
+  {{#if programme}}<p>{{programme}}</p>{{/if}}
+  <br>
+  <!-- To -->
+  <p style="margin-top:5px;">To</p>
   <p>The Principal</p>
   <p>PSG College of Technology</p>
   <p>Coimbatore – 641004</p>
-
-  <p style="margin-top:2px;">Through: THE HEAD OF THE DEPARTMENT, DEPARTMENT OF
-    {{#if department}}{{department}}{{else}}------------------------------{{/if}}
+  <br>
+  <!-- Through -->
+  <p style="margin-top:3px;">
+    Through: THE HEAD OF THE DEPARTMENT, DEPARTMENT OF
+    <strong>{{#if department}}{{department}}{{else}}______________________________{{/if}}</strong>
   </p>
 
-  <p style="margin-top:2px;">Dear Sir,</p>
+  <p style="margin-top:3px;">Dear Sir,</p>
 
-  <p><strong>Sub:</strong> Undertaking while pursuing Internship/Project Work II in Industry / Institutions.</p>
+  <p style="margin-top:2px;">
+    <strong>Sub:</strong> Undertaking while pursuing Internship/Project Work II in Industry / Institutions.
+  </p>
 
-  <p>I wish to inform that, I have been offered internship in the organization, details of which are provided below. The activities carried out during this internship will be adequate for completing Project Work II (Code………………..) as per the recommendations of the Guide and the project review committee.</p>
-
-  <!-- Internship details table -->
-  <table>
+  <p style="margin-top:3px;">
+    I wish to inform that, I have been offered internship in the organization, details of which are provided
+    below. The activities carried out during this internship will be adequate for completing Project Work II
+    (Code……………….) as per the recommendations of the Guide and the project review committee.
+  </p>
+  <br>
+  <!-- ── Internship Details Table ── -->
+  <table style="margin-top:4px;">
     <thead>
       <tr>
-        <th rowspan="2" style="width:26%;">Name &amp; Address of the<br>Industry / Institution</th>
+        <th rowspan="2" style="width:27%;">Name &amp; Address of the<br>Industry / Institution</th>
         <th colspan="2">Internship Period</th>
-        <th rowspan="2" style="width:22%;">Guide from the Industry /<br>Institution with contact details</th>
-        <th rowspan="2" style="width:11%;">Guide in the<br>department</th>
-        <th rowspan="2" style="width:11%;">Stipend<br>receivable (if any)</th>
+        <th rowspan="2" style="width:22%;">Guide from the Industry / Institution<br>with contact details</th>
+        <th rowspan="2" style="width:12%;">Guide in the<br>department</th>
+        <th rowspan="2" style="width:11%;">Stipend<br>receivable<br>(if any)</th>
       </tr>
       <tr>
-        <th style="width:9%;">From (Date)</th>
-        <th style="width:9%;">To (Date)</th>
+        <th style="width:9%;">From<br>(Date)</th>
+        <th style="width:9%;">To<br>(Date)</th>
       </tr>
     </thead>
     <tbody>
       <tr>
-        <td style="height:40px;">
+        <td style="min-height:42px; padding:3px 4px;">
           {{#if company_name}}<strong>{{company_name}}</strong><br>{{/if}}
           {{#if company_address}}{{company_address}}<br>{{/if}}
           {{#if company_city}}{{company_city}}{{#if company_state}}, {{company_state}}{{/if}}{{/if}}
+          {{#if company_phone}}<br>Ph: {{company_phone}}{{/if}}
         </td>
-        <td style="text-align:center;">{{start_date}}</td>
-        <td style="text-align:center;">{{end_date}}</td>
-        <td>
-          {{#if guide_name_industry}}{{guide_name_industry}}<br>{{/if}}
-          {{#if guide_contact}}{{guide_contact}}{{/if}}
+        <td style="text-align:center; vertical-align:middle;">{{start_date}}</td>
+        <td style="text-align:center; vertical-align:middle;">{{end_date}}</td>
+        <td style="vertical-align:top; padding:3px 4px;">
+          {{#if guide_name_industry}}
+            {{guide_name_industry}}<br>
+            {{#if guide_contact}}{{guide_contact}}{{/if}}
+          {{else}}
+            Yet to be Allocated
+          {{/if}}
         </td>
-        <td style="text-align:center;">{{#if guide_name_dept}}{{guide_name_dept}}{{/if}}</td>
-        <td style="text-align:center;">{{#if stipend_amount}}&#8377; {{stipend_amount}}{{else}}NIL{{/if}}</td>
+        <td style="text-align:center; vertical-align:middle;">
+          {{#if guide_name_dept}}{{guide_name_dept}}{{else}}——{{/if}}
+        </td>
+        <td style="text-align:center; vertical-align:middle;">
+          {{#if stipend_amount}}&#8377;&nbsp;{{stipend_amount}} / month{{else}}NIL{{/if}}
+        </td>
       </tr>
     </tbody>
   </table>
+  <p style="margin-top:3px;">
+    I request you to permit me to accept the offer of internship and provide attendance for the duration mentioned.
+  </p>
+  <p style="margin-top:2px;"><strong>I hereby undertake the following.</strong></p>
 
- 
-
-  <p>I request you to permit me to accept the offer of internship and provide attendance for the duration mentioned.</p>
-  <p><strong>I hereby undertake the following.</strong></p>
-
-  <ol>
+  <ol style="margin-top:2px;">
     <li>I will be regular and sincere in carrying out my internship at the above organization and I will obey the Rules and Regulations of the organization.</li>
     <li>My attendance will be sent regularly to my department by the Industry / Institution.</li>
     <li>I will attend all the project work II reviews scheduled in the department and submit the report for my Project Work II on or before the deadline specified by the Department.</li>
@@ -220,48 +164,62 @@
     <li>*If I intend to receive stipend from the company, I am aware that, I will not be eligible to receive the PG Scholarship receiving from AICTE / State Government during the period of my paid internship.</li>
   </ol>
 
-  <p class="small" style="margin-top:3px;">*Strike out if not applicable.<br>
-  <sup>#</sup> PG GATE Student has to produce a letter from the company in their letter head to this effect.</p>
-
+  <p class="small" style="margin-top:3px;">
+    *Strike out if not applicable.<br>
+    <sup>#</sup> PG GATE Student has to produce a letter from the company in their letter head to this effect.
+  </p>
   <p class="small italic" style="margin-top:2px;">Note: Do not edit the format</p>
-
-  <!-- Page 1 sig row -->
-  <table class="no-border" style="margin-top:10px;">
+  <!-- Page 1 Signature Row -->
+  <table class="no-border" style="margin: top 18px;">
     <tr>
-      <td style="width:34%;">Tutor/Programme Co-ordinator</td>
-      <td style="width:22%; text-align:center;">Guide</td>
-      <td style="width:16%; text-align:center;">HoD</td>
-      <td style="width:28%; text-align:right;">(Signature of the Student)</td>
+      <td style="width:35%; vertical-align:top; padding-bottom:0;">
+        Tutor/Programme Co-ordinator<br>
+        <span style="font-size:8pt; color:#333;">{{guide_name_dept}}</span>
+      </td>
+      <td style="width:22%; text-align:center; vertical-align:top; padding-bottom:0;">Guide</td>
+      <td style="width:15%; text-align:center; vertical-align:top; padding-bottom:0;">HoD</td>
+      <td style="width:28%; text-align:right; vertical-align:top; padding-bottom:0;">
+        (Signature of the Student)
+      </td>
+    </tr>
+    <!-- Row 2: Page 1/2 centred, (PTO) right — tight below sig row -->
+    <br>
+    <br>
+    <tr style="margin: top 22px;">
+      <td style="width:35%; padding-top:2px;"></td>
+      <td style="width:22%; text-align:center; font-size:8.5pt; font-weight:bold; padding-top:6px;">Page 1/2</td>
+      <td style="width:15%; padding-top:2px;"></td>
+      <td style="width:28%; text-align:right; font-size:8.5pt; font-weight:bold; padding-top:6px;">(PTO)</td>
     </tr>
   </table>
 
-  <div class="page-footer">Page 1/2</div>
-  <div class="pto">(PTO)</div>
-
-</div><!-- end page 1 -->
+</div><!-- /page 1 -->
 
 
-<!-- ═══════════════ PAGE 2 ═══════════════ -->
+<!-- ═══════════════════════════ PAGE 2 ═══════════════════════════ -->
 <div class="page">
 
-  <!-- No college header on page 2 — starts directly with title -->
-  <p class="center underline bold" style="font-size:10pt; margin:2px 0 6px 0;">Recommendation from the department</p>
+  <p class="center underline bold" style="font-size:10.5pt; margin:2px 0 6px 0;">
+    Recommendation from the department
+  </p>
 
   <p><strong>Academic details of the student:</strong></p>
 
-  <!-- NAME, Roll Number, CGPA all on one line -->
-  <table class="no-border" style="margin:2px 0 4px 0;">
+  <!-- NAME / Roll / CGPA row -->
+  <table class="no-border" style="margin:3px 0 4px 0;">
     <tr>
-      <td style="width:8%;"><strong>NAME:</strong></td>
-      <td style="width:30%;">{{student_name}}</td>
-      <td style="width:16%; text-align:left;"><strong>Roll Number:</strong></td>
-      <td style="width:20%;">{{roll_number}}</td>
-      <td style="width:10%; text-align:left;"><strong>CGPA:</strong></td>
-      <td style="width:16%;">{{#if cgpa_value}}{{cgpa_value}}{{/if}}</td>
+      <td style="width:9%;"><strong>NAME:</strong></td>
+      <td style="width:33%;">{{student_name}}</td>
+      <td style="width:17%; text-align:left;"><strong>Roll Number:</strong></td>
+      <td style="width:22%;">{{roll_number}}</td>
+      <td style="width:7%; text-align:left;"><strong>CGPA:</strong></td>
+      <td style="width:12%;">
+        {{#if cgpa}}{{cgpa}}{{else}}{{#if student_cgpa}}{{student_cgpa}}{{else}}——{{/if}}{{/if}}
+      </td>
     </tr>
   </table>
 
-  <!-- Academic status table with 8 blank rows to match official -->
+  <!-- ── Academic Status Table ── -->
   <table>
     <thead>
       <tr>
@@ -272,35 +230,55 @@
       </tr>
     </thead>
     <tbody>
-      <tr style="height:22px;">
-        <td>{{#if redo_courses}}{{redo_courses}}{{/if}}</td>
-        <td>{{#if ra_courses}}{{ra_courses}}{{/if}}</td>
-        <td>{{#if pending_courses}}{{pending_courses}}{{/if}}</td>
-        <td></td>
-      </tr>
-      <tr style="height:22px;"><td></td><td></td><td></td><td></td></tr>
-      <tr style="height:22px;"><td></td><td></td><td></td><td></td></tr>
-      <tr style="height:22px;"><td></td><td></td><td></td><td></td></tr>
-      <tr style="height:22px;"><td></td><td></td><td></td><td></td></tr>
-      <tr style="height:22px;"><td></td><td></td><td></td><td></td></tr>
-      <tr style="height:22px;"><td></td><td></td><td></td><td></td></tr>
-      <tr style="height:22px;"><td></td><td></td><td></td><td></td></tr>
+      {{#if ra_courses_list}}
+        {{#each ra_courses_list}}
+        <tr style="height:20px;">
+          <td></td>
+          <td style="font-size:8pt;">{{this}}</td>
+          <td></td>
+          <td></td>
+        </tr>
+        {{/each}}
+        {{!-- pad remaining rows to always show at least 8 rows --}}
+        {{#each pending_pad_rows}}
+        <tr style="height:20px;"><td></td><td></td>
+          <td style="font-size:8pt;">{{this}}</td>
+          <td></td>
+        </tr>
+        {{/each}}
+      {{else}}
+        {{!-- fallback: 8 blank rows --}}
+        <tr style="height:20px;"><td></td><td></td><td></td><td></td></tr>
+        <tr style="height:20px;"><td></td><td></td><td></td><td></td></tr>
+        <tr style="height:20px;"><td></td><td></td><td></td><td></td></tr>
+        <tr style="height:20px;"><td></td><td></td><td></td><td></td></tr>
+        <tr style="height:20px;"><td></td><td></td><td></td><td></td></tr>
+        <tr style="height:20px;"><td></td><td></td><td></td><td></td></tr>
+        <tr style="height:20px;"><td></td><td></td><td></td><td></td></tr>
+        <tr style="height:20px;"><td></td><td></td><td></td><td></td></tr>
+      {{/if}}
     </tbody>
   </table>
 
-  <p style="margin-top:4px;">The work assigned by the industry / institution <strong>meets</strong> the academic standards for Project Work II.<br>
-  This student has not accepted any other internship.</p>
+  <p style="margin-top:5px;">
+    The work assigned by the industry / institution <strong>meets</strong> the academic standards for Project Work II.<br>
+    This student has not accepted any other internship.
+  </p>
 
-  <p style="margin-top:3px; font-size:8.8pt;">*This student has accepted another internship but has declined the same due to academic / health / financial reasons. The company / institution is informed of his inability to accept the offer through letter/email. The details of the organization is given below.</p>
+  <p style="margin-top:3px; font-size:8.8pt;">
+    *This student has accepted another internship but has declined the same due to academic / health / financial
+    reasons. The company / institution is informed of his inability to accept the offer through letter/email.
+    The details of the organization is given below.
+  </p>
 
-  <!-- Declined internship table -->
+  <!-- ── Declined Internship Table ── -->
   <table style="margin-top:3px;">
     <thead>
       <tr>
         <th rowspan="2" style="width:28%;">Name &amp; Address of the<br>Industry / Institution</th>
         <th colspan="2">Internship Period</th>
         <th rowspan="2" style="width:25%;">Guide from the Industry /<br>institution with contact details</th>
-        <th rowspan="2" style="width:13%;">Guide in the<br>department</th>
+        <th rowspan="2" style="width:14%;">Guide in the<br>department</th>
       </tr>
       <tr>
         <th style="width:11%;">From (Date)</th>
@@ -308,40 +286,56 @@
       </tr>
     </thead>
     <tbody>
-      <tr style="height:35px;">
-        <td></td><td></td><td></td><td></td><td></td>
+      <tr style="height:38px;">
+        <td>{{#if declined_company_name}}{{declined_company_name}}{{/if}}</td>
+        <td style="text-align:center;">
+          {{#if declined_start_date}}{{formatDate declined_start_date}}{{/if}}
+        </td>
+        <td style="text-align:center;">
+          {{#if declined_end_date}}{{formatDate declined_end_date}}{{/if}}
+        </td>
+        <td>{{#if declined_guide_name}}{{declined_guide_name}}{{/if}}</td>
+        <td></td>
       </tr>
     </tbody>
   </table>
 
-  <p style="margin-top:4px;">This student can be permitted to accept the internship and complete Project Work II within the specified time period.</p>
+  <p style="margin-top:5px;">
+    This student can be permitted to accept the internship and complete Project Work II within the specified time period.
+  </p>
 
-  <!-- Sig row 1 -->
-  <table class="no-border" style="margin-top:18px;">
+  <!-- ── Signature Row 1 ── -->
+  <table class="no-border" style="margin-top:26px;">
     <tr>
-      <td  style="width:24%;">Tutor/Programme Coordinator</td>
+      <td style="width:26%; padding-bottom:4px;">Tutor/Programme Coordinator<br>
+        <span style="font-size:8pt; color:#333;">{{guide_name_dept}}</span>
+      </td>
       <td style="width:2%;"></td>
-      <td  style="width:16%;">Guide</td>
-      <td style="width:2%; "></td>
-      <td  style="width:16%;">HoD</td>
-      <td style="width:2%; "></td>
-      <td  style="width:38%;">Dean, Placement &amp; Training</td>
+      <td style="width:18%; padding-bottom:4px;">Guide</td>
+      <td style="width:2%;"></td>
+      <td style="width:14%; padding-bottom:4px;">HoD</td>
+      <td style="width:2%;"></td>
+      <td style="width:36%; padding-bottom:4px;">Dean, Placement &amp; Training</td>
     </tr>
   </table>
 
-  <!-- Sig row 2 -->
-  <table class="no-border" style="margin-top:22px;">
+  <!-- ── Signature Row 2 ── -->
+  <table class="no-border" style="margin-top:28px;">
     <tr>
-      <td class="sig-cell" style="width:40%;">Dean - Academic</td>
+      <td style="width:40%; border-top:1px solid #000; padding-top:3px; text-align:center; font-size:8.5pt;">
+        Dean - Academic
+      </td>
       <td style="width:10%; border:none;"></td>
-      <td class="sig-cell" style="width:50%;">Principal</td>
+      <td style="width:50%; border-top:1px solid #000; padding-top:3px; text-align:center; font-size:8.5pt;">
+        Principal
+      </td>
     </tr>
   </table>
 
-  <p class="small" style="margin-top:5px;">*Strike out if not applicable.</p>
+  <p class="small" style="margin-top:7px;">*Strike out if not applicable.</p>
 
-  <!-- NOTE — normal document flow, not fixed -->
-  <div style="margin-top:8px; font-size:8.5pt; line-height:1.3;">
+  <!-- ── NOTE ── -->
+  <div style="margin-top:10px; font-size:8.5pt; line-height:1.4;">
     <strong>NOTE:</strong>
     <ol style="margin: 2px 0 0 16px;">
       <li style="font-size:8.5pt;">Original Form shall be submitted to <strong>Placement Office</strong></li>
@@ -354,9 +348,10 @@
     </ol>
   </div>
 
-  <div class="page-footer" style="margin-top:6px;">Page 2/2</div>
+  <div class="page-footer" style="margin-top:14px;">Page 2/2</div>
+  <div class="date-stamp" style="margin-top:4px;">{{currentDate}}</div>
 
-</div><!-- end page 2 -->
+</div><!-- /page 2 -->
 
 </body>
 </html>
