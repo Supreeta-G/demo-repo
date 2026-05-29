@@ -998,26 +998,28 @@ const generatePDF = async (req, res) => {
 
     console.log("🔍 Querying database...");
     const { rows } = await pool.query(`
-      SELECT a.*, 
-             s.full_name as student_name, 
-             s.roll_number,
-             s.department,
-             COALESCE(c.name, a.company_name_manual) as company_name
-      FROM internship_applications a
-      JOIN users s ON a.student_id = s.user_id
-      LEFT JOIN companies c ON a.company_id = c.company_id
-      WHERE a.application_id = $1
-    `, [application_id]);
+  SELECT a.*, 
+         s.full_name as student_name, 
+         s.roll_number,
+         p.programme,
+         p.department,
+         COALESCE(c.name, a.company_name_manual) as company_name,
+         COALESCE(u.full_name, a.tutor_name) as resolved_tutor_name
+  FROM internship_applications a
+  JOIN users s ON a.student_id = s.user_id
+  LEFT JOIN companies c ON a.company_id = c.company_id
+  LEFT JOIN programmes p ON s.prog_id = p.prog_id
+  LEFT JOIN users u ON a.tutor_id = u.user_id
+  WHERE a.application_id = $1
+`, [application_id]);
 
-    if (rows.length === 0) {
-      console.log("❌ Application not found");
-      return res.status(404).json({ error: "Application not found" });
-    }
+const app = rows[0];
+console.log("🧑‍🏫 resolved_tutor_name:", app.resolved_tutor_name);
+console.log("🧑‍🏫 tutor_name:", app.tutor_name);
 
-    const app = rows[0];
-    console.log("✅ Data loaded. Duration:", app.duration_type);
-
-    app.currentDate = new Date();
+app.tutor_name = app.resolved_tutor_name || app.tutor_name || '';
+app.currentDate = new Date();
+    app.tutor_name = app.resolved_tutor_name || app.tutor_name || '';
 
     let templateName = 'summer-internship.hbs';
     if (app.duration_type === 'six_month') {
