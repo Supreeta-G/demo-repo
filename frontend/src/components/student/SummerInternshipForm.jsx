@@ -773,7 +773,16 @@ const handleParentPermissionUpload = async (e) => {
           Parents Permission Letter <span className="text-red-500">*</span>
         </h3>
         <p className="text-sm text-gray-600 mb-4">Upload signed parent's consent letter (PDF, max 5MB)</p>
-
+        {/* Template Button - Corrected Path */}
+  <button
+    onClick={() => window.open('http://localhost:5001/uploads/parent_temp/Parent Consent Letter Template.pdf', '_blank')}
+    className="mb-6 w-full flex items-center justify-center gap-2 px-6 py-3.5 
+               bg-white border-2 border-dashed border-gray-300 hover:border-fern 
+               hover:bg-fern hover:text-white rounded-2xl text-sm font-medium 
+               transition-all"
+  >
+    📄 Show Parent Letter Template
+  </button>
         <input 
           type="file" 
           accept=".pdf" 
