@@ -679,7 +679,50 @@ const TutorQueue = ({ filter }) => {
                               </p>
                               <p className="mt-2 text-sm">{app.company_city}, {app.company_state}, {app.company_country}</p>
                             </div>
-
+                            {/* Declined Offer Details */}
+                            {app.has_declined_other && (
+                              <div className="lg:col-span-2 bg-red-50 border border-red-200 p-6 rounded-3xl">
+                                <h4 className="font-semibold mb-4 flex items-center gap-2 text-red-700">
+                                  Declined Other Offer Details
+                                </h4>
+                                <p className="text-xs text-gray-500 mb-4">
+                                  This student has accepted another internship but declined it due to 
+                                  academic/health/financial reasons. Details below.
+                                </p>
+                                <div className="overflow-x-auto">
+                                  <table className="w-full border border-red-200 text-sm rounded-xl overflow-hidden">
+                                    <thead>
+                                      <tr className="bg-red-100 text-red-800 text-xs uppercase">
+                                        <th className="border border-red-200 px-4 py-3 text-left">Name & Address</th>
+                                        <th className="border border-red-200 px-4 py-3 text-left">From</th>
+                                        <th className="border border-red-200 px-4 py-3 text-left">To</th>
+                                        <th className="border border-red-200 px-4 py-3 text-left">Industry Guide</th>
+                                        <th className="border border-red-200 px-4 py-3 text-left">Dept. Guide</th>
+                                      </tr>
+                                    </thead>
+                                    <tbody>
+                                      <tr className="bg-white">
+                                        <td className="border border-red-200 px-4 py-3">
+                                          {app.declined_company_details || '—'}
+                                        </td>
+                                        <td className="border border-red-200 px-4 py-3 whitespace-nowrap">
+                                          {app.declined_start_date ? app.declined_start_date.split('T')[0] : '—'}
+                                        </td>
+                                        <td className="border border-red-200 px-4 py-3 whitespace-nowrap">
+                                          {app.declined_end_date ? app.declined_end_date.split('T')[0] : '—'}
+                                        </td>
+                                        <td className="border border-red-200 px-4 py-3">
+                                          {app.declined_guide_name || '—'}
+                                        </td>
+                                        <td className="border border-red-200 px-4 py-3">
+                                          {app.declined_dept_guide || '—'}
+                                        </td>
+                                      </tr>
+                                    </tbody>
+                                  </table>
+                                </div>
+                              </div>
+                            )}
                             {/* Action Buttons */}
                             {isPending && (
                               <div className="lg:col-span-2 flex gap-4 pt-6">

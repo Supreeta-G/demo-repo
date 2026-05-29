@@ -219,7 +219,12 @@
 
   <!-- DATE -->
   <div class="date-line"><strong>Date:</strong> {{currentDate}}</div>
-
+  <!-- INTERNSHIP META -->
+  <div style="margin-bottom: 6px; font-size: 9.5pt; line-height: 1.8;">
+    <p><strong>Role / Position:</strong> {{#if role_title}}{{role_title}}{{else}}—{{/if}}</p>
+    <p><strong>How Obtained:</strong> {{#if how_obtained}}{{how_obtained}}{{else}}—{{/if}}</p>
+    <p><strong>Work Mode:</strong> {{#if work_mode}}{{work_mode}}{{else}}—{{/if}}</p>
+  </div>
   <!-- FROM -->
   <p><strong>From</strong></p>
   <div class="from-block">
@@ -256,17 +261,18 @@
   <table class="main-table">
     <thead>
       <tr>
-        <th rowspan="2" style="width:24%;">Name &amp; Address of the Industry / Institution<br>(with Contact Details &amp; Mobile Number)</th>
-        <th colspan="2" style="width:18%;">Internship Period</th>
-        <th rowspan="2" style="width:22%;">Name of Mentor / Guide<br>(Industry &amp; Department)</th>
-        <th colspan="2" style="width:18%;">Duration for which <br>Attendance  needed </th>
+        <th rowspan="2" style="width:22%;">Name &amp; Address of the Industry / Institution<br>(with Contact Details &amp; Mobile Number)</th>
+        <th colspan="2" style="width:16%;">Internship Period</th>
+        <th rowspan="2" style="width:10%;">Expected Date<br>of Joining</th>
+        <th rowspan="2" style="width:20%;">Name of Mentor / Guide<br>(Industry &amp; Department)</th>
+        <th colspan="2" style="width:16%;">Duration for which <br>Attendance needed</th>
         <th rowspan="2" style="width:10%;">Stipend<br>Receivable<br>(if any)</th>
       </tr>
       <tr>
-        <th style="width:9%;">From (Date)</th>
-        <th style="width:9%;">To (Date)</th>
-        <th style="width:9%;">From</th>
-        <th style="width:9%;">To</th>
+        <th style="width:8%;">From (Date)</th>
+        <th style="width:8%;">To (Date)</th>
+        <th style="width:8%;">From</th>
+        <th style="width:8%;">To</th>
       </tr>
     </thead>
     <tbody>
@@ -277,8 +283,11 @@
           {{#if company_city}}{{company_city}}{{#if company_state}}, {{company_state}}{{/if}}<br>{{/if}}
           {{#if guide_contact}}{{guide_contact}}{{/if}}
         </td>
-        <td style="text-align:center;">{{start_date}}</td>
-        <td style="text-align:center;">{{end_date}}</td>
+        <td style="text-align:center;">{{formatDate start_date}}</td>
+        <td style="text-align:center;">{{formatDate end_date}}</td>
+        <td style="text-align:center;">
+          {{#if start_date}}{{formatDate start_date}}{{else}}&mdash;{{/if}}
+        </td>
         <td>
           <div class="mentor-inner">
             <div class="mentor-row">
@@ -287,12 +296,16 @@
             </div>
             <div class="mentor-row">
               <span class="mentor-label">Dept:</span>
-              <span>{{#if guide_name_dept}}{{guide_name_dept}}{{else}}&mdash;{{/if}}</span>
+              <span>{{#if guide_department}}{{guide_department}}{{else}}N/A{{/if}}</span>
             </div>
           </div>
         </td>
-        <td style="text-align:center;">{{start_date}}</td>
-        <td style="text-align:center;">{{end_date}}</td>
+        {{!-- <td style="text-align:center;">{{start_date}}</td> --}}
+        <td style="text-align:center;">{{formatDate start_date}}</td>
+        <td style="text-align:center;">
+          {{formatDate end_date}}<br>
+          <span style="font-size:7.5pt; color:#333;">({{calcDays start_date end_date}})</span>
+        </td>
         <td style="text-align:center;">
           {{#if stipend_amount}}&#8377; {{stipend_amount}}{{else}}Nil{{/if}}
         </td>
@@ -303,9 +316,9 @@
   <!-- CGPA — filled via template variables -->
   <p class="cgpa-line">
     My CGPA up to Semester
-    <strong>{{#if cgpa_semester}}{{cgpa_semester}}{{else}}_____{{/if}}</strong>
+    <strong>{{#if semester_completed}}{{semester_completed}}{{else}}_____{{/if}}</strong>
     is
-    <strong>{{#if cgpa_value}}{{cgpa_value}}{{else}}_______{{/if}}</strong>
+    <strong>{{#if cgpa}}{{cgpa}}{{else}}_______{{/if}}</strong>
   </p>
 
   <!-- REQUEST -->
@@ -330,15 +343,19 @@
 
   <!-- SIGNATORIES -->
   <table class="sig-table">
-    <tr>
-      <td>Tutor</td>
-      <td>Guide (Dept)</td>
-      <td>Programme Co-ordinator</td>
-      <td>HoD</td>
-      <td>Dean (P&amp;T)</td>
-      <td>Dean-Academic</td>
-    </tr>
-  </table>
+  <tr>
+    <td>
+  Tutor<br>
+  {{#if tutor_name}}<span style="font-size:8pt; font-weight:bold;">{{tutor_name}}</span>
+  {{else}}<span style="font-size:8pt; font-weight:bold;">{{tutor_name_manual}}</span>{{/if}}
+</td>
+    <td>Guide (Dept)</td>
+    <td>Programme Co-ordinator</td>
+    <td>HoD</td>
+    <td>Dean (P&amp;T)</td>
+    <td>Dean-Academic</td>
+  </tr>
+</table>
 
   <!-- PRINCIPAL -->
   <div class="principal-block">PRINCIPAL</div>

@@ -147,6 +147,8 @@ const saveDraft = async (req, res) => {
     guide_name_industry, guide_department, guide_contact,
     cgpa, semester_completed, ra_courses, pending_courses,
     has_declined_other, declined_company_details,
+    declined_start_date, declined_end_date,
+    declined_guide_name, declined_dept_guide,
     stipend, student_note, tutor_id, tutor_email, tutor_name,
     parent_permission_url, offer_letter_url
   } = req.body;
@@ -176,23 +178,27 @@ const saveDraft = async (req, res) => {
           end_date = $14,
           reopen_date = $15,
           attendance_days = $16,
-          guide_name_industry = $16,
-          guide_department = $17,
-          guide_contact = $18,
-          cgpa = $19,
-          semester_completed = $20,
-          ra_courses = $21,
-          pending_courses = $22,
-          has_declined_other = $23,
-          declined_company_details = $24,
-          stipend_amount = $25,
-          student_note = $26,
-          tutor_id = $27,
-          tutor_email = $28,
-          parent_permission_url = $29,
-          offer_letter_url = $30,
+          guide_name_industry = $17,
+          guide_department = $18,
+          guide_contact = $19,
+          cgpa = $20,
+          semester_completed = $21,
+          ra_courses = $22,
+          pending_courses = $23,
+          has_declined_other = $24,
+          declined_company_details = $25,
+          declined_start_date = $26,
+          declined_end_date = $27,
+          declined_guide_name = $28,
+          declined_dept_guide = $29,
+          stipend_amount = $30,
+          student_note = $31,
+          tutor_id = $32,
+          tutor_email = $33,
+          parent_permission_url = $34,
+          offer_letter_url = $35,
           updated_at = NOW()
-        WHERE application_id = $31 AND student_id = $32
+        WHERE application_id = $36 AND student_id = $37
       `, [
         company_id || null, company_name_manual || null, role_title || null, intern_type || 'industry',
         company_address || null, company_city || null, company_state || null,
@@ -203,8 +209,10 @@ const saveDraft = async (req, res) => {
         cgpa || null, semester_completed || null,
         ra_courses || null, pending_courses || null,
         has_declined_other || false, declined_company_details || null,
-        stipend || null,                    // stipend mapped to stipend_amount
-        student_note || null, 
+        declined_start_date || null, declined_end_date || null,
+        declined_guide_name || null, declined_dept_guide || null,
+        stipend || null,
+        student_note || null,
         tutor_id || null, tutor_email || null,
         parent_permission_url || null,
         offer_letter_url || null,
@@ -245,9 +253,16 @@ const saveDraft = async (req, res) => {
         duration_type, work_mode, how_obtained, start_date, end_date, reopen_date, attendance_days,
         guide_name_industry, guide_department, guide_contact,
         cgpa, semester_completed, ra_courses, pending_courses,
-        has_declined_other, declined_company_details, stipend_amount, student_note,
+        has_declined_other, declined_company_details,
+        declined_start_date, declined_end_date,
+        declined_guide_name, declined_dept_guide,
+        stipend_amount, student_note,
         tutor_id, tutor_email, parent_permission_url, offer_letter_url, status, locked
-      ) VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $12, $13, $14, $15, $16, $17, $18, $19, $20, $21, $22, $23, $24, $25, $26, $27, $28, $29, $30, $31, $32,$33, 'draft', FALSE)
+      ) VALUES (
+        $1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $12, $13, $14, $15, $16, $17, $18,
+        $19, $20, $21, $22, $23, $24, $25, $26, $27, $28, $29, $30, $31, $32, $33, $34, $35, $36, $37,
+        'draft', FALSE
+      )
       RETURNING application_id
     `, [
       application_id, student_id, company_id || null, company_name_manual || null,
@@ -260,8 +275,10 @@ const saveDraft = async (req, res) => {
       cgpa || null, semester_completed || null,
       ra_courses || null, pending_courses || null,
       has_declined_other || false, declined_company_details || null,
-      stipend || null,                    // stipend mapped to stipend_amount
-      student_note || null, 
+      declined_start_date || null, declined_end_date || null,
+      declined_guide_name || null, declined_dept_guide || null,
+      stipend || null,
+      student_note || null,
       tutor_id || null, tutor_email || null,
       parent_permission_url || null,
       offer_letter_url || null
@@ -954,13 +971,12 @@ const deleteHoliday = async (req, res) => {
 
 
 // Register date helper
-handlebars.registerHelper('formatDate', function(date) {
-  if (!date) return 'N/A';
-  return new Date(date).toLocaleDateString('en-IN', { 
-    day: '2-digit', 
-    month: 'long', 
-    year: 'numeric' 
-  });
+handlebars.registerHelper('calcDays', function(start, end) {
+  if (!start || !end) return '—';
+  const s = new Date(start);
+  const e = new Date(end);
+  const diff = Math.round((e - s) / (1000 * 60 * 60 * 24)) + 1;
+  return diff > 0 ? diff + ' days' : '—';
 });
 
 

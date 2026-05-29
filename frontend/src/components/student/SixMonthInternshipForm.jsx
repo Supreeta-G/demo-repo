@@ -629,18 +629,27 @@ const SixMonthInternshipForm = () => {
         </div>
       </div>
       {/* Checkbox to enable Declined Offer Details */}
-<div className="mb-6 bg-white rounded-3xl shadow p-6">
-  <label className="flex items-center gap-3 cursor-pointer text-sm">
-    <input 
-      type="checkbox" 
-      checked={form.has_declined_other} 
-      onChange={e => setField('has_declined_other', e.target.checked)}
-      disabled={isLocked && !isEditing}
-      className="w-5 h-5 accent-fern"
-    />
-    <span>This student has declined another internship offer</span>
-  </label>
-</div>
+      <div className="mb-6 bg-white rounded-3xl shadow p-6">
+        <label className="flex items-center gap-3 cursor-pointer text-sm">
+          <input 
+            type="checkbox" 
+            checked={form.has_declined_other} 
+            onChange={e => {
+  setField('has_declined_other', e.target.checked);
+  if (!e.target.checked) {
+    setField('declined_company_details', '');
+    setField('declined_start_date', '');
+    setField('declined_end_date', '');
+    setField('declined_guide_name', '');
+    setField('declined_dept_guide', '');
+  }
+}}
+            disabled={isLocked && !isEditing}
+            className="w-5 h-5 accent-fern"
+          />
+          <span>This student has declined another internship offer</span>
+        </label>
+      </div>
 
 {/* Declined Other Offer Details Table - Shows only when checkbox is ticked */}
 {form.has_declined_other && (
@@ -760,7 +769,15 @@ const SixMonthInternshipForm = () => {
         </h3>
 
         <p className="text-sm text-gray-600 mb-4">Upload signed parent's consent letter (PDF, max 5MB)</p>
-
+        <button
+          onClick={() => window.open('http://localhost:5001/uploads/parent_temp/Parent Consent Letter Template.pdf', '_blank')}
+          className="mb-6 w-full flex items-center justify-center gap-2 px-6 py-3.5 
+                    bg-white border-2 border-dashed border-gray-300 hover:border-fern 
+                    hover:bg-fern hover:text-white rounded-2xl text-sm font-medium 
+                    transition-all"
+        >
+          📄 Show Parent Letter Template
+        </button>
         <input
           type="file"
           accept=".pdf"
