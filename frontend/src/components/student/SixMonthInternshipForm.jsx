@@ -26,6 +26,7 @@ const SixMonthInternshipForm = () => {
     company_address: '',
     company_city: '',
     company_state: '',
+    company_country: 'India',
     company_phone: '',
     how_obtained: '',
     work_mode: 'on_site',
@@ -33,7 +34,7 @@ const SixMonthInternshipForm = () => {
     end_date: '',
     intern_type: 'industry',
     stipend: '',
-    guide_allocation_status: 'yet_to_be_allocated',   // ← Add this
+    guide_allocated: false,
     guide_name_industry: '',
     guide_contact: '',
     cgpa: '',
@@ -48,8 +49,9 @@ const SixMonthInternshipForm = () => {
     declined_end_date: '',
     declined_guide_name: '',
     tutor_id: '',
+    tutor_name: '',
     tutor_email: '',
-    duration_type: 'six_month', // Defaults to six_month, changes dynamically on edit
+    duration_type: 'six_month',
     offer_letter_url: '',
     parent_permission_url: '',
   });
@@ -77,7 +79,7 @@ const SixMonthInternshipForm = () => {
   useEffect(() => {
     if (editId) {
       setIsEditing(true);
-      
+
       api.get(`/applications/${editId}`)
         .then(({ data }) => {
           console.log("✅ Loaded edit data:", data);
@@ -85,50 +87,50 @@ const SixMonthInternshipForm = () => {
           setSavedId(data.application_id);
           setIsLocked(data.locked || false);
 
-         setForm({
-  company_id: data.company_id || '',
-  company_name_manual: data.company_name_manual || data.company_display_name || '',
-  role_title: data.role_title || '',
-  intern_type: data.intern_type || 'industry',
-  how_obtained: data.how_obtained || '',
+          setForm({
+            company_id: data.company_id || '',
+            company_name_manual: data.company_name_manual || data.company_display_name || '',
+            role_title: data.role_title || '',
+            intern_type: data.intern_type || 'industry',
+            how_obtained: data.how_obtained || '',
 
-  // ← Fix: copy company table values into manual fields if manual is empty
-  company_address: data.company_address || data.co_address || '',
-  company_city: data.company_city || data.co_city || '',
-  company_state: data.company_state || data.co_state || '',
-  company_country: data.company_country || data.co_country || 'India',
-  company_phone: data.company_phone || '',
+            company_address: data.company_address || data.co_address || '',
+            company_city: data.company_city || data.co_city || '',
+            company_state: data.company_state || data.co_state || '',
+            company_country: data.company_country || data.co_country || 'India',
+            company_phone: data.company_phone || '',
 
-  duration_type: data.duration_type || 'six_month',
-  work_mode: data.work_mode || 'on_site',
+            duration_type: data.duration_type || 'six_month',
+            work_mode: data.work_mode || 'on_site',
 
-  start_date: data.start_date ? data.start_date.split('T')[0] : '',
-  end_date: data.end_date ? data.end_date.split('T')[0] : '',
-  attendance_days: data.attendance_days || '',
+            start_date: data.start_date ? data.start_date.split('T')[0] : '',
+            end_date: data.end_date ? data.end_date.split('T')[0] : '',
+            attendance_days: data.attendance_days || '',
 
-  guide_name_industry: data.guide_name_industry || '',
-  guide_department: data.guide_department || '',   // ← was missing
-  guide_contact: data.guide_contact || '',
+            guide_allocated: data.guide_allocated || false,
+            guide_name_industry: data.guide_name_industry || '',
+            guide_department: data.guide_department || '',
+            guide_contact: data.guide_contact || '',
 
-  stipend: data.stipend_amount ?? data.stipend ?? '',   // ← use ?? not ||
-  cgpa: data.cgpa ?? data.student_cgpa ?? '',           // ← use ?? not ||
-  semester_completed: data.semester_completed ?? '',    // ← use ?? not ||
-  ra_courses: data.ra_courses || '',
-  pending_courses: data.pending_courses || '',
-  ra_courses_count: data.ra_courses ? data.ra_courses.split(',').length : 0,
-  ra_courses_names: data.ra_courses ? data.ra_courses.split(',').map(s => s.trim()) : [],
-  pending_courses_count: data.pending_courses ? data.pending_courses.split(',').length : 0,
-  pending_courses_names: data.pending_courses ? data.pending_courses.split(',').map(s => s.trim()) : [],
+            stipend: data.stipend_amount ?? data.stipend ?? '',
+            cgpa: data.cgpa ?? data.student_cgpa ?? '',
+            semester_completed: data.semester_completed ?? '',
+            ra_courses: data.ra_courses || '',
+            pending_courses: data.pending_courses || '',
+            ra_courses_count: data.ra_courses ? data.ra_courses.split(',').length : 0,
+            ra_courses_names: data.ra_courses ? data.ra_courses.split(',').map(s => s.trim()) : [],
+            pending_courses_count: data.pending_courses ? data.pending_courses.split(',').length : 0,
+            pending_courses_names: data.pending_courses ? data.pending_courses.split(',').map(s => s.trim()) : [],
 
-  tutor_name: data.tutor_name || '',   // ← add this line
-  tutor_email: data.tutor_email || '',
-  offer_letter_url: data.offer_letter_url || '',
-  parent_permission_url: data.parent_permission_url || '',
+            tutor_name: data.tutor_name || '',
+            tutor_email: data.tutor_email || '',
+            offer_letter_url: data.offer_letter_url || '',
+            parent_permission_url: data.parent_permission_url || '',
 
-  has_declined_other: data.has_declined_other || false,          // ← was missing
-  declined_company_details: data.declined_company_details || '', // ← was missing
-  student_note: data.student_note || '',                         // ← was missing
-});
+            has_declined_other: data.has_declined_other || false,
+            declined_company_details: data.declined_company_details || '',
+            student_note: data.student_note || '',
+          });
         })
         .catch(err => {
           console.error("Failed to load application for edit", err);
@@ -136,192 +138,192 @@ const SixMonthInternshipForm = () => {
         });
     }
   }, [editId]);
-const handleOfferLetterUpload = async (e) => {
-  const file = e.target.files[0];
-  if (!file) return;
-  if (file.size > 5 * 1024 * 1024) {
-    return alert("File size must be less than 5MB");
-  }
 
-  const formData = new FormData();
-  formData.append('offer_letter', file);
-
-  if (savedId || editId) {
-    formData.append('application_id', savedId || editId);
-  }
-
-  try {
-    const { data } = await api.post('/applications/upload-offer', formData, {
-      headers: { 'Content-Type': 'multipart/form-data' }
-    });
-
-    setForm(prev => ({ ...prev, offer_letter_url: data.url }));
-    alert("✅ Offer Letter uploaded successfully!");
-  } catch (err) {
-    console.error(err);
-    alert(err.response?.data?.error || "Upload failed");
-  }
-};
-// Parent Permission Upload
-const handleParentPermissionUpload = async (e) => {
-  const file = e.target.files[0];
-  if (!file) return;
-
-  if (file.size > 5 * 1024 * 1024) {
-    return alert("File size must be less than 5MB");
-  }
-
-  const formData = new FormData();
-  formData.append('parent_permission', file);
-
-  if (savedId || editId) {
-    formData.append('application_id', savedId || editId);
-  }
-
-  try {
-    const { data } = await api.post('/applications/upload-parent-permission', formData, {
-      headers: { 'Content-Type': 'multipart/form-data' }
-    });
-
-    setForm(prev => ({ ...prev, parent_permission_url: data.url }));
-    alert("✅ Parent Permission Letter uploaded successfully!");
-  } catch (err) {
-    console.error(err);
-    alert(err.response?.data?.error || "Failed to upload file");
-  }
-};
-const handleSaveDraft = async () => {
-  if (isLocked && !isEditing) return alert("This form is locked.");
-  if (!form.company_id && !form.company_name_manual) 
-    return alert("Company is required");
-
-  if (!form.role_title || form.role_title.trim() === '') 
-    return alert("Role / Position is required");
-
-  if (!form.company_address || form.company_address.trim() === '') 
-    return alert("Company Address is required");
-
-  if (!form.company_city || form.company_city.trim() === '') 
-    return alert("City is required");
-
-  if (!form.company_state || form.company_state.trim() === '') 
-    return alert("State is required");
-
-  if (!form.company_country) return alert("Country is required");
-
-  if (!form.company_phone || form.company_phone.length !== 10) 
-    return alert("Phone number must be exactly 10 digits");
-
-  if (!form.tutor_email || !form.tutor_email.includes('@psgtech.ac.in')) 
-    return alert("Tutor email must end with @psgtech.ac.in");
-
-  if (!form.intern_type) 
-    return alert("Type of Internship is required");
-
-  if (!form.stipend && form.stipend !== 0) 
-    return alert("Stipend field is required (enter 0 if no stipend)");
-
-  if (!form.start_date) 
-    return alert("Start Date is required");
-
-  if (!form.end_date) 
-    return alert("End Date is required");
-
-  if (form.guide_allocation_status === 'allocated' && 
-    (!form.guide_name_industry || form.guide_name_industry.trim() === '')) {
-  return alert("Guide Name is required when Guide is Allocated");
-}
-
-  if (!form.parent_permission_url) 
-    return alert("Parent Permission Letter is required *");
-
-  if (!form.offer_letter_url) 
-    return alert("Offer Letter is required *");
-
-  if (!form.semester_completed) 
-    return alert("Semesters Completed is required");
-
-
-  
-  if (form.ra_courses_count > 0) {
-    if (!form.ra_courses_names || form.ra_courses_names.length !== form.ra_courses_count) {
-      return alert(`Please fill all ${form.ra_courses_count} RA/Arrear course names.`);
+  const handleOfferLetterUpload = async (e) => {
+    const file = e.target.files[0];
+    if (!file) return;
+    if (file.size > 5 * 1024 * 1024) {
+      return alert("File size must be less than 5MB");
     }
+
+    const formData = new FormData();
+    formData.append('offer_letter', file);
+
+    if (savedId || editId) {
+      formData.append('application_id', savedId || editId);
+    }
+
+    try {
+      const { data } = await api.post('/applications/upload-offer', formData, {
+        headers: { 'Content-Type': 'multipart/form-data' }
+      });
+      setForm(prev => ({ ...prev, offer_letter_url: data.url }));
+      alert("✅ Offer Letter uploaded successfully!");
+    } catch (err) {
+      console.error(err);
+      alert(err.response?.data?.error || "Upload failed");
+    }
+  };
+
+  const handleParentPermissionUpload = async (e) => {
+    const file = e.target.files[0];
+    if (!file) return;
+
+    if (file.size > 5 * 1024 * 1024) {
+      return alert("File size must be less than 5MB");
+    }
+
+    const formData = new FormData();
+    formData.append('parent_permission', file);
+
+    if (savedId || editId) {
+      formData.append('application_id', savedId || editId);
+    }
+
+    try {
+      const { data } = await api.post('/applications/upload-parent-permission', formData, {
+        headers: { 'Content-Type': 'multipart/form-data' }
+      });
+      setForm(prev => ({ ...prev, parent_permission_url: data.url }));
+      alert("✅ Parent Permission Letter uploaded successfully!");
+    } catch (err) {
+      console.error(err);
+      alert(err.response?.data?.error || "Failed to upload file");
+    }
+  };
+
+  const handleSaveDraft = async () => {
+    if (isLocked && !isEditing) return alert("This form is locked.");
+
+    if (!form.company_id && !form.company_name_manual)
+      return alert("Company is required");
+
+    if (!form.role_title || form.role_title.trim() === '')
+      return alert("Role / Position is required");
+
+    if (!form.company_address || form.company_address.trim() === '')
+      return alert("Company Address is required");
+
+    if (!form.company_city || form.company_city.trim() === '')
+      return alert("City is required");
+
+    if (!form.company_state || form.company_state.trim() === '')
+      return alert("State is required");
+
+    if (!form.company_country)
+      return alert("Country is required");
+
+    if (!form.company_phone || form.company_phone.length !== 10)
+      return alert("Phone number must be exactly 10 digits");
+
+    if (!form.tutor_email || !form.tutor_email.includes('@psgtech.ac.in'))
+      return alert("Tutor email must end with @psgtech.ac.in");
+
+    if (!form.intern_type)
+      return alert("Type of Internship is required");
+
+    if (!form.stipend && form.stipend !== 0)
+      return alert("Stipend field is required (enter 0 if no stipend)");
+
+    if (!form.start_date)
+      return alert("Start Date is required");
+
+    if (!form.end_date)
+      return alert("End Date is required");
+
+    // ✅ FIX 1: use guide_allocated (boolean) not guide_allocation_status
+    if (form.guide_allocated &&
+      (!form.guide_name_industry || form.guide_name_industry.trim() === '')) {
+      return alert("Guide Name is required when Guide is Allocated");
+    }
+
+    if (!form.parent_permission_url)
+      return alert("Parent Permission Letter is required *");
+
+    if (!form.offer_letter_url)
+      return alert("Offer Letter is required *");
+
+    if (!form.semester_completed)
+      return alert("Semesters Completed is required");
+
+    // ✅ FIX 2: RA courses validation — standalone block
+    if (form.ra_courses_count > 0) {
+      if (!form.ra_courses_names || form.ra_courses_names.length !== form.ra_courses_count) {
+        return alert(`Please fill all ${form.ra_courses_count} RA/Arrear course names.`);
+      }
+      if (form.ra_courses_names.some(name => !name || name.trim() === '')) {
+        return alert("All RA/Arrear course names must be filled.");
+      }
+    }
+
+    // ✅ FIX 2: Pending courses validation — separate block (was nested inside RA block before)
     if (form.pending_courses_count > 0) {
-            if (!form.pending_courses_names || form.pending_courses_names.length !== form.pending_courses_count) {
-              return alert(`Please fill all ${form.pending_courses_count} Pending course names.`);
-            }
-            if (form.pending_courses_names.some(name => !name || name.trim() === '')) {
-              return alert("All Pending course names must be filled.");
-            }
-          }
-    const emptyCourses = form.ra_courses_names.some(name => !name || name.trim() === '');
-    if (emptyCourses) {
-      return alert("All RA/Arrear course names must be filled.");
-    }
-  }
-
-
-  setLoading(true);
-  try {
-    const payload = {
-  ...form,
-  application_id: savedId || editId,
-  duration_type: 'six_month',
-
-  // ← Add these: convert arrays to comma-separated strings for DB
-  ra_courses: form.ra_courses_names?.length > 0 
-    ? form.ra_courses_names.join(', ') 
-    : null,
-  pending_courses: form.pending_courses_names?.length > 0 
-    ? form.pending_courses_names.join(', ') 
-    : null,
-
-  cgpa: form.cgpa ? Number(form.cgpa) : null,
-  semester_completed: form.semester_completed ? Number(form.semester_completed) : null,
-  stipend_amount: form.stipend ? Number(form.stipend) : null,
-  attendance_days: form.attendance_days ? Number(form.attendance_days) : null,
-};
-
-    console.log("Saving with application_id:", payload.application_id); // Debug
-
-    const { data } = await api.post('/applications/draft', payload);
-    
-    if (data.application_id) {
-      setSavedId(data.application_id);
+      if (!form.pending_courses_names || form.pending_courses_names.length !== form.pending_courses_count) {
+        return alert(`Please fill all ${form.pending_courses_count} Pending course names.`);
+      }
+      if (form.pending_courses_names.some(name => !name || name.trim() === '')) {
+        return alert("All Pending course names must be filled.");
+      }
     }
 
-    alert(`✅ Draft ${isEditing ? 'Updated' : 'Saved'} Successfully!\n\nApplication ID: ${data.application_id || savedId || editId}`);
-    
-  } catch (err) {
-    console.error("Save Draft Error:", err);
-    alert(err.response?.data?.error || "Failed to save draft. Check console (F12).");
-  } finally {
-    setLoading(false);
-  }
-};
+    setLoading(true);
+    try {
+      const payload = {
+        ...form,
+        application_id: savedId || editId,
+        duration_type: 'six_month',
 
-const handleSubmit = async () => {
-  if (isLocked && !isEditing) return alert("This form is locked.");
-  if (!savedId && !editId) return alert("❌ Please click 'Save Draft' first!");
-  if (!form.tutor_email) return alert("❌ Please enter Tutor Email");
+        ra_courses: form.ra_courses_names?.length > 0
+          ? form.ra_courses_names.join(', ')
+          : null,
+        pending_courses: form.pending_courses_names?.length > 0
+          ? form.pending_courses_names.join(', ')
+          : null,
 
-  setSubmitLoading(true);
-  try {
-    await api.post('/applications/submit', { 
-      application_id: savedId || editId,
-      tutor_email: form.tutor_email,        // ← add this
-      tutor_name: form.tutor_name || '',    // ← add this
-    });
-    alert("✅ Application Submitted Successfully!\nTutor has been notified.");
-    navigate('/student/applications');
-  } catch (err) {
-    alert(err.response?.data?.error || "Submission failed.");
-  } finally {
-    setSubmitLoading(false);
-  }
-};
- 
+        cgpa: form.cgpa ? Number(form.cgpa) : null,
+        semester_completed: form.semester_completed ? Number(form.semester_completed) : null,
+        stipend_amount: form.stipend ? Number(form.stipend) : null,
+        attendance_days: form.attendance_days ? Number(form.attendance_days) : null,
+      };
+
+      console.log("Saving with application_id:", payload.application_id);
+
+      const { data } = await api.post('/applications/draft', payload);
+
+      if (data.application_id) {
+        setSavedId(data.application_id);
+      }
+
+      alert(`✅ Draft ${isEditing ? 'Updated' : 'Saved'} Successfully!\n\nApplication ID: ${data.application_id || savedId || editId}`);
+
+    } catch (err) {
+      console.error("Save Draft Error:", err);
+      alert(err.response?.data?.error || "Failed to save draft. Check console (F12).");
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  const handleSubmit = async () => {
+    if (isLocked && !isEditing) return alert("This form is locked.");
+    if (!savedId && !editId) return alert("❌ Please click 'Save Draft' first!");
+    if (!form.tutor_email) return alert("❌ Please enter Tutor Email");
+
+    setSubmitLoading(true);
+    try {
+      await api.post('/applications/submit', {
+        application_id: savedId || editId,
+        tutor_email: form.tutor_email,
+        tutor_name: form.tutor_name || '',
+      });
+      alert("✅ Application Submitted Successfully!\nTutor has been notified.");
+      navigate('/student/applications');
+    } catch (err) {
+      alert(err.response?.data?.error || "Submission failed.");
+    } finally {
+      setSubmitLoading(false);
+    }
+  };
 
   const requestNewCompany = () => {
     const name = prompt("Enter the new company name to request from Admin:");
@@ -334,7 +336,6 @@ const handleSubmit = async () => {
         <ArrowLeft className="w-5 h-5" /> Back to Dashboard
       </button>
 
-      {/* Dynamic Heading Title based on duration_type */}
       <h1 className="text-3xl font-bold text-forest mb-1">
         {form.duration_type === 'summer' ? 'Summer Internship' : 'Final Semester Internship (6-Month)'}
       </h1>
@@ -361,26 +362,16 @@ const handleSubmit = async () => {
           </button>
         </div>
 
-        <Select 
-          options={companies} 
+        <Select
+          options={companies}
           value={companies.find(c => c.value === form.company_id) || null}
           onChange={opt => {
             setField('company_id', opt?.value || null);
             setField('company_name_manual', '');
-          }} 
-          placeholder="Search company..." 
+          }}
+          placeholder="Search company..."
           isDisabled={isLocked && !isEditing}
         />
-
-        {/* {!form.company_id && (
-          <input 
-            className="w-full px-4 py-3 border border-gray-300 rounded-2xl mt-3" 
-            value={form.company_name_manual} 
-            onChange={e => setField('company_name_manual', e.target.value)} 
-            placeholder="Enter Company Name Manually" 
-            disabled={isLocked && !isEditing}
-          />
-        )} */}
 
         <div className="mt-6 grid grid-cols-1 md:grid-cols-2 gap-6">
           <div>
@@ -404,6 +395,7 @@ const handleSubmit = async () => {
           <label className="block text-sm font-medium mb-2">Full Company Address <span className="text-red-500">*</span></label>
           <textarea className="w-full px-4 py-3 border border-gray-300 rounded-2xl h-24" value={form.company_address} onChange={e => setField('company_address', e.target.value)} placeholder="Full address as per offer letter" disabled={isLocked && !isEditing} />
         </div>
+
         <div className="grid grid-cols-1 md:grid-cols-3 gap-6 mt-6">
           <div>
             <label className="block text-sm font-medium mb-2">City</label>
@@ -415,84 +407,76 @@ const handleSubmit = async () => {
           </div>
           <div>
             <label className="block text-sm font-medium mb-2">Country <span className="text-red-500">*</span></label>
-            <input 
-              className="w-full px-4 py-3 border border-gray-300 rounded-2xl" 
-              value={form.company_country} 
-              onChange={e => setField('company_country', e.target.value)} 
-              placeholder="India" 
-              disabled={isLocked && !isEditing} 
-            />
+            <input className="w-full px-4 py-3 border border-gray-300 rounded-2xl" value={form.company_country} onChange={e => setField('company_country', e.target.value)} placeholder="India" disabled={isLocked && !isEditing} />
           </div>
         </div>
+
         <div className="mt-6">
           <label className="block text-sm font-medium mb-2">Phone Number <span className="text-red-500">*</span></label>
-          <input 
-            type="tel" 
-            className="w-full px-4 py-3 border border-gray-300 rounded-2xl" 
-            value={form.company_phone} 
-            onChange={e => setField('company_phone', e.target.value)} 
-            placeholder="9876543210" 
+          <input
+            type="tel"
+            className="w-full px-4 py-3 border border-gray-300 rounded-2xl"
+            value={form.company_phone}
+            onChange={e => setField('company_phone', e.target.value)}
+            placeholder="9876543210"
             maxLength={10}
-            disabled={isLocked && !isEditing} 
+            disabled={isLocked && !isEditing}
           />
         </div>
       </div>
 
-            {/* Offer Letter Upload */}
-      
-
-      {/* Internship Period */}
+      {/* Internship Details */}
       <div className="bg-white rounded-3xl shadow p-8 mb-6">
         <h3 className="text-xl font-semibold mb-6 flex items-center gap-3">
           <Calendar className="w-6 h-6 text-fern" /> Internship Details
         </h3>
+
         <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
           <div>
-            <label className="block text-sm font-medium mb-2">Type of Internship<span className="text-red-500">*</span></label>
+            <label className="block text-sm font-medium mb-2">Type of Internship <span className="text-red-500">*</span></label>
             <select className="w-full px-4 py-3 border border-gray-300 rounded-2xl" value={form.intern_type} onChange={e => setField('intern_type', e.target.value)} disabled={isLocked && !isEditing}>
               <option value="industry">Industry Internship</option>
               <option value="research">Research Internship</option>
             </select>
           </div>
           <div>
-            <label className="block text-sm font-medium mb-2">Stipend (if any) ₹ / month<span className="text-red-500">*</span></label>
-<input 
-  type="number" 
-  className="w-full px-4 py-3 border border-gray-300 rounded-2xl" 
-  value={form.stipend} 
-  onChange={e => setField('stipend', e.target.value)} 
-  placeholder="15000" 
-  disabled={isLocked && !isEditing} 
-/>
+            <label className="block text-sm font-medium mb-2">Stipend (if any) ₹ / month <span className="text-red-500">*</span></label>
+            <input
+              type="number"
+              className="w-full px-4 py-3 border border-gray-300 rounded-2xl"
+              value={form.stipend}
+              onChange={e => setField('stipend', e.target.value)}
+              placeholder="15000"
+              disabled={isLocked && !isEditing}
+            />
           </div>
         </div>
+
         <div className="grid grid-cols-1 md:grid-cols-2 gap-6 mt-6">
-          {/* Start Date */}
           <div>
             <label className="block text-sm font-medium mb-2">Start Date *</label>
-            <input 
-              type="date" 
-              className="w-full px-4 py-3 border border-gray-300 rounded-2xl" 
-              value={form.start_date} 
-              onChange={e => setField('start_date', e.target.value)} 
-              min={new Date().toISOString().split('T')[0]}   // ← Disable past dates
-              disabled={isLocked && !isEditing} 
+            <input
+              type="date"
+              className="w-full px-4 py-3 border border-gray-300 rounded-2xl"
+              value={form.start_date}
+              onChange={e => setField('start_date', e.target.value)}
+              min={new Date().toISOString().split('T')[0]}
+              disabled={isLocked && !isEditing}
             />
           </div>
-
-          {/* End Date */}
           <div>
             <label className="block text-sm font-medium mb-2">End Date *</label>
-            <input 
-              type="date" 
-              className="w-full px-4 py-3 border border-gray-300 rounded-2xl" 
-              value={form.end_date} 
-              onChange={e => setField('end_date', e.target.value)} 
-              min={form.start_date || new Date().toISOString().split('T')[0]}   // ← Cannot be before start date
-              disabled={isLocked && !isEditing} 
+            <input
+              type="date"
+              className="w-full px-4 py-3 border border-gray-300 rounded-2xl"
+              value={form.end_date}
+              onChange={e => setField('end_date', e.target.value)}
+              min={form.start_date || new Date().toISOString().split('T')[0]}
+              disabled={isLocked && !isEditing}
             />
           </div>
         </div>
+
         {form.attendance_days && (
           <p className="mt-4 text-emerald-600 font-medium">Expected Attendance: {form.attendance_days} days</p>
         )}
@@ -536,6 +520,7 @@ const handleSubmit = async () => {
                 className="w-full px-4 py-3 border border-gray-300 rounded-2xl"
                 value={form.guide_name_industry}
                 onChange={e => setField('guide_name_industry', e.target.value)}
+                placeholder="Enter guide name"
                 disabled={isLocked && !isEditing}
               />
             </div>
@@ -564,33 +549,33 @@ const handleSubmit = async () => {
         <h3 className="text-xl font-semibold mb-6 flex items-center gap-3">
           <User className="w-6 h-6 text-fern" /> Academic Details
         </h3>
+
         <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
           <div>
             <label className="block text-sm font-medium mb-2">CGPA <span className="text-red-500">*</span></label>
             <input type="number" step="0.01" className="w-full px-4 py-3 border border-gray-300 rounded-2xl" value={form.cgpa} onChange={e => setField('cgpa', e.target.value)} disabled={isLocked && !isEditing} />
           </div>
           <div>
-            <label className="block text-sm font-medium mb-2">Semesters Completed<span className="text-red-500">*</span></label>
+            <label className="block text-sm font-medium mb-2">Semesters Completed <span className="text-red-500">*</span></label>
             <input type="number" className="w-full px-4 py-3 border border-gray-300 rounded-2xl" value={form.semester_completed} onChange={e => setField('semester_completed', e.target.value)} disabled={isLocked && !isEditing} />
           </div>
         </div>
 
-       {/* RA / Arrear Courses - Dynamic Fields */}
-  <div className="mt-6">
-    <label className="block text-sm font-medium mb-2">Number of RA / Arrear Courses </label>
-    <input 
-      type="number" 
-      min="0" 
-      className="w-full px-4 py-3 border border-gray-300 rounded-2xl" 
-      value={form.ra_courses_count || ''} 
-      onChange={e => setField('ra_courses_count', parseInt(e.target.value) || 0)} 
-    />
-  </div>
+        {/* RA / Arrear Courses */}
+        <div className="mt-6">
+          <label className="block text-sm font-medium mb-2">Number of RA / Arrear Courses</label>
+          <input
+            type="number"
+            min="0"
+            className="w-full px-4 py-3 border border-gray-300 rounded-2xl"
+            value={form.ra_courses_count || ''}
+            onChange={e => setField('ra_courses_count', parseInt(e.target.value) || 0)}
+          />
+        </div>
 
-  {/* Dynamic RA Course Name Fields */}
         {form.ra_courses_count > 0 && (
           <div className="mt-6">
-            <label className="block text-sm font-medium mb-3">RA / Arrear Course Names<span className="text-red-500">*</span></label>
+            <label className="block text-sm font-medium mb-3">RA / Arrear Course Names <span className="text-red-500">*</span></label>
             <div className="space-y-3">
               {Array.from({ length: form.ra_courses_count }).map((_, index) => (
                 <input
@@ -610,20 +595,20 @@ const handleSubmit = async () => {
           </div>
         )}
 
-{/* Pending Courses */}
-      <div className="mt-8">
+        {/* Pending Courses */}
+        <div className="mt-8">
           <label className="block text-sm font-medium mb-2">Number of Pending Courses</label>
-          <input 
-            type="number" 
-            min="0" 
-            className="w-full px-4 py-3 border border-gray-300 rounded-2xl" 
-            value={form.pending_courses_count || 0} 
-            onChange={e => setField('pending_courses_count', parseInt(e.target.value) || 0)} 
+          <input
+            type="number"
+            min="0"
+            className="w-full px-4 py-3 border border-gray-300 rounded-2xl"
+            value={form.pending_courses_count || 0}
+            onChange={e => setField('pending_courses_count', parseInt(e.target.value) || 0)}
           />
 
           {form.pending_courses_count > 0 && (
             <div className="mt-4 space-y-3">
-              <label className="block text-sm font-medium mb-3">Pending Course Names</label>
+              <label className="block text-sm font-medium mb-3">Pending Course Names <span className="text-red-500">*</span></label>
               {Array.from({ length: form.pending_courses_count }).map((_, index) => (
                 <input
                   key={index}
@@ -643,26 +628,22 @@ const handleSubmit = async () => {
         </div>
       </div>
 
-      {/* Faculty Tutor */}
-
-
+      {/* Tutor Details */}
       <div className="bg-white rounded-3xl shadow p-8 mb-8">
         <h3 className="text-xl font-semibold mb-6 flex items-center gap-3">
           <User className="w-6 h-6 text-fern" /> Tutor Details
         </h3>
-      
-        {/* Tutor Name - Manual Input */}
+
         <label className="block text-sm font-medium mb-2">Tutor Name <span className="text-red-500">*</span></label>
         <input
           type="text"
           className="w-full px-4 py-3 border border-gray-300 rounded-2xl"
-          value={form.tutor_name || ''}           // Use tutor_name or adjust field name
-          onChange={e => setField('tutor_name', e.target.value)}   // or 'guide_name_industry' if you prefer
+          value={form.tutor_name || ''}
+          onChange={e => setField('tutor_name', e.target.value)}
           placeholder="Enter tutor full name"
           disabled={isLocked && !isEditing}
         />
-      
-        {/* Tutor Email */}
+
         <label className="block text-sm font-medium mb-2 mt-6">Tutor Email ID <span className="text-red-500">*</span></label>
         <input
           type="email"
@@ -674,15 +655,17 @@ const handleSubmit = async () => {
         />
         <p className="text-xs text-gray-500 mt-2">The application will be sent to this email</p>
       </div>
+
+      {/* Offer Letter */}
       <div className="bg-white rounded-3xl shadow p-8 mb-6">
         <h3 className="text-xl font-semibold mb-6 flex items-center gap-3">
-          <FileDown className="w-6 h-6 text-fern" /> Offer Letter<span className="text-red-500">*</span>
+          <FileDown className="w-6 h-6 text-fern" /> Offer Letter <span className="text-red-500">*</span>
         </h3>
         <p className="text-sm text-gray-600 mb-4">Upload your official offer letter (PDF, max 5MB)</p>
 
-        <input 
-          type="file" 
-          accept=".pdf" 
+        <input
+          type="file"
+          accept=".pdf"
           onChange={handleOfferLetterUpload}
           disabled={isLocked && !isEditing}
           className="block w-full text-sm text-gray-500 
@@ -695,10 +678,10 @@ const handleSubmit = async () => {
           <div className="mt-4 p-3 bg-green-50 border border-green-200 rounded-2xl flex items-center gap-3">
             <FileDown className="w-5 h-5 text-green-600" />
             <span className="text-sm">Offer Letter Uploaded</span>
-            <a 
-              href={`http://localhost:5001${form.offer_letter_url}`} 
-              target="_blank" 
-              rel="noopener noreferrer" 
+            <a
+              href={`http://localhost:5001${form.offer_letter_url}`}
+              target="_blank"
+              rel="noopener noreferrer"
               className="text-fern underline text-sm ml-auto flex items-center gap-1"
             >
               📄 View File
@@ -706,61 +689,68 @@ const handleSubmit = async () => {
           </div>
         )}
       </div>
+
       {/* Parent Permission Letter */}
-<div className="bg-white rounded-3xl shadow p-8 mb-6">
-  <h3 className="text-xl font-semibold mb-6 flex items-center gap-3">
-    <FileDown className="w-6 h-6 text-fern" /> 
-    Parent Permission Letter
-  </h3>
+      <div className="bg-white rounded-3xl shadow p-8 mb-6">
+        <h3 className="text-xl font-semibold mb-6 flex items-center gap-3">
+          <FileDown className="w-6 h-6 text-fern" /> Parent Permission Letter
+        </h3>
 
-  <p className="text-sm text-gray-600 mb-4">
-    Upload signed parent's consent letter (PDF, max 5MB)
-  </p>
+        <p className="text-sm text-gray-600 mb-4">Upload signed parent's consent letter (PDF, max 5MB)</p>
 
-  {/* Template Button - Corrected Path */}
-  <button
-    onClick={() => window.open('http://localhost:5001/uploads/parent_temp/Parent Consent Letter Template.pdf', '_blank')}
-    className="mb-6 w-full flex items-center justify-center gap-2 px-6 py-3.5 
-               bg-white border-2 border-dashed border-gray-300 hover:border-fern 
-               hover:bg-fern hover:text-white rounded-2xl text-sm font-medium 
-               transition-all"
-  >
-    📄 Show Parent Letter Template
-  </button>
+        <button
+          onClick={() => window.open('http://localhost:5001/uploads/parent_temp/Parent Consent Letter Template.pdf', '_blank')}
+          className="mb-6 w-full flex items-center justify-center gap-2 px-6 py-3.5 
+                     bg-white border-2 border-dashed border-gray-300 hover:border-fern 
+                     hover:bg-fern hover:text-white rounded-2xl text-sm font-medium 
+                     transition-all"
+        >
+          📄 Show Parent Letter Template
+        </button>
 
-  <input 
-    type="file" 
-    accept=".pdf" 
-    onChange={handleParentPermissionUpload}
-    disabled={isLocked && !isEditing}
-    className="block w-full text-sm text-gray-500 
-               file:mr-4 file:py-3 file:px-6 file:rounded-2xl 
-               file:border-0 file:text-sm file:font-semibold 
-               file:bg-fern file:text-white hover:file:bg-hunter cursor-pointer"
-  />
+        <input
+          type="file"
+          accept=".pdf"
+          onChange={handleParentPermissionUpload}
+          disabled={isLocked && !isEditing}
+          className="block w-full text-sm text-gray-500 
+                     file:mr-4 file:py-3 file:px-6 file:rounded-2xl 
+                     file:border-0 file:text-sm file:font-semibold 
+                     file:bg-fern file:text-white hover:file:bg-hunter cursor-pointer"
+        />
 
-  {form.parent_permission_url && (
-    <div className="mt-4 p-3 bg-green-50 border border-green-200 rounded-2xl flex items-center gap-3">
-      <FileDown className="w-5 h-5 text-green-600" />
-      <span className="text-sm">Parent Permission Letter Uploaded</span>
-      <a 
-        href={`http://localhost:5001${form.parent_permission_url}`} 
-        target="_blank" 
-        rel="noopener noreferrer" 
-        className="text-fern underline text-sm ml-auto flex items-center gap-1"
-      >
-        📄 View File
-      </a>
-    </div>
-  )}
-</div>
+        {form.parent_permission_url && (
+          <div className="mt-4 p-3 bg-green-50 border border-green-200 rounded-2xl flex items-center gap-3">
+            <FileDown className="w-5 h-5 text-green-600" />
+            <span className="text-sm">Parent Permission Letter Uploaded</span>
+            <a
+              href={`http://localhost:5001${form.parent_permission_url}`}
+              target="_blank"
+              rel="noopener noreferrer"
+              className="text-fern underline text-sm ml-auto flex items-center gap-1"
+            >
+              📄 View File
+            </a>
+          </div>
+        )}
+      </div>
 
+      {/* Action Buttons */}
       <div className="flex gap-4">
-        <button onClick={handleSaveDraft} disabled={loading || (isLocked && !isEditing)} className="flex-1 py-4 bg-gray-100 hover:bg-gray-200 rounded-2xl font-semibold">
+        <button
+          onClick={handleSaveDraft}
+          disabled={loading || (isLocked && !isEditing)}
+          className="flex-1 py-4 bg-gray-100 hover:bg-gray-200 rounded-2xl font-semibold"
+        >
           {loading ? 'Saving...' : 'Save Draft'}
         </button>
-        <button onClick={handleSubmit} disabled={submitLoading || !savedId || (isLocked && !isEditing)} className="flex-1 py-4 bg-gradient-to-r from-fern to-hunter text-white rounded-2xl font-semibold" style={{backgroundColor: '#2b5a2f'}}>
-          Submit for Tutor Approval
+        <button
+          onClick={handleSubmit}
+          disabled={submitLoading || !savedId || (isLocked && !isEditing)}
+          className="flex-1 py-4 bg-gradient-to-r from-fern to-hunter text-white rounded-2xl font-semibold"
+          style={{ backgroundColor: '#2b5a2f' }}
+        >
+          {submitLoading ? 'Submitting...' : 'Submit for Tutor Approval'}
         </button>
       </div>
     </div>

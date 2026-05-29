@@ -48,27 +48,44 @@ const MyApplications = () => {
   };
 
   // ── PDF download ──────────────────────────────────────────────────
-  const handlePDF = async (application_id) => {
-    try {
-      const { data } = await api.post('/applications/pdf-download', { application_id }, {
-        responseType: 'blob',
-      });
+ const handlePDF = async (application_id) => {
+  if (!application_id) return showToast('Application ID not found!', 'error');
+  setPdfLoading(application_id);
+  try {
+    const token = localStorage.getItem('token');
+    const response = await fetch('http://localhost:5001/api/generate-pdf', {
+      method: 'POST',
+      headers: {
+        'Content-Type': 'application/json',
+        'Authorization': `Bearer ${token}`,
+      },
+      body: JSON.stringify({ application_id }),
+    });
 
-      const url  = window.URL.createObjectURL(new Blob([data]));
-      const link = document.createElement('a');
-      link.href  = url;
-      link.setAttribute('download', `PSG_Internship_${application_id}.pdf`);
-      document.body.appendChild(link);
-      link.click();
-      link.remove();
-      window.URL.revokeObjectURL(url);
-
-      showToast('PDF Downloaded Successfully!');
-    } catch (err) {
-      console.error(err);
-      showToast('Failed to download PDF. Please try again.', 'error');
+    if (!response.ok) {
+      const errData = await response.json().catch(() => ({}));
+      throw new Error(errData.error || `Server error: ${response.status}`);
     }
-  };
+
+    const blob = await response.blob();
+    if (blob.size === 0) throw new Error('Received empty PDF from server.');
+
+    const url  = URL.createObjectURL(blob);
+    const link = document.createElement('a');
+    link.href  = url;
+    link.download = `Internship_${String(application_id).replace(/\//g, '_')}.pdf`;
+    document.body.appendChild(link);
+    link.click();
+    document.body.removeChild(link);
+    URL.revokeObjectURL(url);
+
+    showToast('PDF Downloaded Successfully!');
+  } catch (err) {
+    showToast(err.message || 'Failed to generate PDF', 'error');
+  } finally {
+    setPdfLoading(null);
+  }
+};
 
   // ── Edit: draft OR rejected ───────────────────────────────────────
   const handleEdit = (app) => {
