@@ -1,6 +1,6 @@
 import React, { useState, useEffect } from 'react';
 import Select from 'react-select';
-import { Save, Send, Building2, Calendar, User, ArrowLeft, Plus, FileDown } from 'lucide-react';
+import { Save, Send, Building2, Calendar, User, ArrowLeft, Plus, FileDown, XCircle } from 'lucide-react';
 import { useNavigate, useSearchParams } from 'react-router-dom';
 import api from '../../api.js';
 
@@ -44,10 +44,11 @@ const SixMonthInternshipForm = () => {
     pending_courses_count: 0,
     pending_courses_names: [],
     has_declined_other: false,
-    declined_company_name: '',
+    declined_company_details: '',
     declined_start_date: '',
     declined_end_date: '',
     declined_guide_name: '',
+    declined_dept_guide: '',
     tutor_id: '',
     tutor_name: '',
     tutor_email: '',
@@ -129,7 +130,10 @@ const SixMonthInternshipForm = () => {
 
             has_declined_other: data.has_declined_other || false,
             declined_company_details: data.declined_company_details || '',
-            student_note: data.student_note || '',
+            declined_start_date: data.declined_start_date || '',
+            declined_end_date: data.declined_end_date || '',
+            declined_guide_name: data.declined_guide_name || '',
+            declined_dept_guide: data.declined_dept_guide || '',
           });
         })
         .catch(err => {
@@ -231,7 +235,6 @@ const SixMonthInternshipForm = () => {
     if (!form.end_date)
       return alert("End Date is required");
 
-    // ✅ FIX 1: use guide_allocated (boolean) not guide_allocation_status
     if (form.guide_allocated &&
       (!form.guide_name_industry || form.guide_name_industry.trim() === '')) {
       return alert("Guide Name is required when Guide is Allocated");
@@ -246,7 +249,6 @@ const SixMonthInternshipForm = () => {
     if (!form.semester_completed)
       return alert("Semesters Completed is required");
 
-    // ✅ FIX 2: RA courses validation — standalone block
     if (form.ra_courses_count > 0) {
       if (!form.ra_courses_names || form.ra_courses_names.length !== form.ra_courses_count) {
         return alert(`Please fill all ${form.ra_courses_count} RA/Arrear course names.`);
@@ -256,7 +258,6 @@ const SixMonthInternshipForm = () => {
       }
     }
 
-    // ✅ FIX 2: Pending courses validation — separate block (was nested inside RA block before)
     if (form.pending_courses_count > 0) {
       if (!form.pending_courses_names || form.pending_courses_names.length !== form.pending_courses_count) {
         return alert(`Please fill all ${form.pending_courses_count} Pending course names.`);
@@ -627,6 +628,68 @@ const SixMonthInternshipForm = () => {
           )}
         </div>
       </div>
+      {/* Checkbox to enable Declined Offer Details */}
+<div className="mb-6 bg-white rounded-3xl shadow p-6">
+  <label className="flex items-center gap-3 cursor-pointer text-sm">
+    <input 
+      type="checkbox" 
+      checked={form.has_declined_other} 
+      onChange={e => setField('has_declined_other', e.target.checked)}
+      disabled={isLocked && !isEditing}
+      className="w-5 h-5 accent-fern"
+    />
+    <span>This student has declined another internship offer</span>
+  </label>
+</div>
+
+{/* Declined Other Offer Details Table - Shows only when checkbox is ticked */}
+{form.has_declined_other && (
+  <div className="bg-white rounded-3xl shadow p-8 mb-6">
+    <h3 className="text-xl font-semibold mb-6 flex items-center gap-3">
+      <XCircle className="w-6 h-6 text-red-500" /> Declined Other Offer Details
+    </h3>
+    <p className="text-sm text-gray-600 mb-6">
+      This student has accepted another internship but has declined the same due to academic/health/financial reasons. 
+      The company/institution is informed of his inability to accept the offer through letter/email. 
+      The details of the organization is given below.
+    </p>
+
+    <div className="overflow-x-auto">
+      <table className="w-full border border-gray-300 text-sm">
+        <thead>
+          <tr className="bg-gray-50">
+            <th className="border border-gray-300 px-4 py-3 text-left">Name & Address of the Industry / Institution</th>
+            <th className="border border-gray-300 px-4 py-3 text-left">From (Date)</th>
+            <th className="border border-gray-300 px-4 py-3 text-left">To (Date)</th>
+            <th className="border border-gray-300 px-4 py-3 text-left">Guide from the industry / institution with contact details</th>
+            <th className="border border-gray-300 px-4 py-3 text-left">Guide in the department</th>
+          </tr>
+        </thead>
+        <tbody>
+          <tr>
+            <td className="border border-gray-300 px-4 py-3">
+              <input type="text" className="w-full p-3 border border-gray-300 rounded-xl" value={form.declined_company_details || ''} onChange={e => setField('declined_company_details', e.target.value)} placeholder="Company Name & Address" disabled={isLocked && !isEditing} />
+            </td>
+            <td className="border border-gray-300 px-4 py-3">
+              <input type="date" className="w-full p-3 border border-gray-300 rounded-xl" value={form.declined_start_date || ''} onChange={e => setField('declined_start_date', e.target.value)} disabled={isLocked && !isEditing} />
+            </td>
+            <td className="border border-gray-300 px-4 py-3">
+              <input type="date" className="w-full p-3 border border-gray-300 rounded-xl" value={form.declined_end_date || ''} onChange={e => setField('declined_end_date', e.target.value)} disabled={isLocked && !isEditing} />
+            </td>
+            <td className="border border-gray-300 px-4 py-3">
+              <input type="text" className="w-full p-3 border border-gray-300 rounded-xl" value={form.declined_guide_name || ''} onChange={e => setField('declined_guide_name', e.target.value)} placeholder="Guide Name & Contact" disabled={isLocked && !isEditing} />
+            </td>
+            <td className="border border-gray-300 px-4 py-3">
+              <input type="text" className="w-full p-3 border border-gray-300 rounded-xl" value={form.declined_dept_guide || ''} onChange={e => setField('declined_dept_guide', e.target.value)} placeholder="Department Guide" disabled={isLocked && !isEditing} />
+            </td>
+          </tr>
+        </tbody>
+      </table>
+    </div>
+  </div>
+)}
+      {/* Declined Other Offer Details */}
+      
 
       {/* Tutor Details */}
       <div className="bg-white rounded-3xl shadow p-8 mb-8">
@@ -698,17 +761,6 @@ const SixMonthInternshipForm = () => {
 
         <p className="text-sm text-gray-600 mb-4">Upload signed parent's consent letter (PDF, max 5MB)</p>
 
-      {/* Template Button - Corrected Path */}
-      <button
-        onClick={() => window.open('http://localhost:5001/uploads/parent_temp/Parent Consent Letter Template.pdf', '_blank')}
-        className="mb-6 w-full flex items-center justify-center gap-2 px-6 py-3.5 
-                  bg-white border-2 border-dashed border-gray-300 hover:border-fern 
-                  hover:bg-fern hover:text-white rounded-2xl text-sm font-medium 
-                  transition-all"
-      >
-        📄 Show Parent Letter Template
-      </button>
-
         <input
           type="file"
           accept=".pdf"
@@ -749,7 +801,6 @@ const SixMonthInternshipForm = () => {
           onClick={handleSubmit}
           disabled={submitLoading || !savedId || (isLocked && !isEditing)}
           className="flex-1 py-4 bg-gradient-to-r from-fern to-hunter text-white rounded-2xl font-semibold"
-          style={{ backgroundColor: '#2b5a2f' }}
         >
           {submitLoading ? 'Submitting...' : 'Submit for Tutor Approval'}
         </button>
