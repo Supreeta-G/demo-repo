@@ -304,7 +304,7 @@ const AdminApplications = () => {
                       <th className="px-4 py-3 text-left font-medium whitespace-nowrap">Status</th>
                       <th className="px-4 py-3 text-left font-medium whitespace-nowrap">Offer Letter</th>
                       <th className="px-4 py-3 text-left font-medium whitespace-nowrap">Parent Form</th>
-                      <th className="px-4 py-3 text-left font-medium whitespace-nowrap">PDF</th>
+                      <th className="px-4 py-3 text-left font-medium whitespace-nowrap">UNDERTAKING</th>
                       <th className="px-4 py-3 text-left font-medium whitespace-nowrap">Actions</th>
                     </tr>
                   </thead>

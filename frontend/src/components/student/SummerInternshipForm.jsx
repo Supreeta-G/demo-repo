@@ -527,7 +527,7 @@ const handleParentPermissionUpload = async (e) => {
         <div className="grid grid-cols-1 md:grid-cols-2 gap-6 mt-6">
           {/* Start Date */}
           <div>
-            <label className="block text-sm font-medium mb-2">Start Date *</label>
+            <label className="block text-sm font-medium mb-2">Start Date <span className="text-red-500">*</span></label>
             <input 
               type="date" 
               className="w-full px-4 py-3 border border-gray-300 rounded-2xl" 
@@ -540,7 +540,7 @@ const handleParentPermissionUpload = async (e) => {
 
           {/* End Date */}
           <div>
-            <label className="block text-sm font-medium mb-2">End Date *</label>
+            <label className="block text-sm font-medium mb-2">End Date <span className="text-red-500">*</span></label>
             <input 
               type="date" 
               className="w-full px-4 py-3 border border-gray-300 rounded-2xl" 

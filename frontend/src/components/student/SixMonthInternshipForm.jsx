@@ -380,7 +380,7 @@ const SixMonthInternshipForm = () => {
             <input className="w-full px-4 py-3 border border-gray-300 rounded-2xl" value={form.role_title} onChange={e => setField('role_title', e.target.value)} placeholder="e.g. Software Engineering Intern" disabled={isLocked && !isEditing} />
           </div>
           <div>
-            <label className="block text-sm font-medium mb-2">How did you get this offer?</label>
+            <label className="block text-sm font-medium mb-2">How did you get this offer?<span className="text-red-500">*</span></label>
             <select className="w-full px-4 py-3 border border-gray-300 rounded-2xl" value={form.how_obtained} onChange={e => setField('how_obtained', e.target.value)} disabled={isLocked && !isEditing}>
               <option value="">Select Option</option>
               <option value="campus">Campus Placement</option>
@@ -399,11 +399,11 @@ const SixMonthInternshipForm = () => {
 
         <div className="grid grid-cols-1 md:grid-cols-3 gap-6 mt-6">
           <div>
-            <label className="block text-sm font-medium mb-2">City</label>
+            <label className="block text-sm font-medium mb-2">City<span className="text-red-500">*</span></label>
             <input className="w-full px-4 py-3 border border-gray-300 rounded-2xl" value={form.company_city} onChange={e => setField('company_city', e.target.value)} disabled={isLocked && !isEditing} />
           </div>
           <div>
-            <label className="block text-sm font-medium mb-2">State</label>
+            <label className="block text-sm font-medium mb-2">State<span className="text-red-500">*</span></label>
             <input className="w-full px-4 py-3 border border-gray-300 rounded-2xl" value={form.company_state} onChange={e => setField('company_state', e.target.value)} disabled={isLocked && !isEditing} />
           </div>
           <div>
@@ -455,7 +455,7 @@ const SixMonthInternshipForm = () => {
 
         <div className="grid grid-cols-1 md:grid-cols-2 gap-6 mt-6">
           <div>
-            <label className="block text-sm font-medium mb-2">Start Date *</label>
+            <label className="block text-sm font-medium mb-2">Start Date <span className="text-red-500">*</span></label>
             <input
               type="date"
               className="w-full px-4 py-3 border border-gray-300 rounded-2xl"
@@ -466,7 +466,7 @@ const SixMonthInternshipForm = () => {
             />
           </div>
           <div>
-            <label className="block text-sm font-medium mb-2">End Date *</label>
+            <label className="block text-sm font-medium mb-2">End Date <span className="text-red-500">*</span></label>
             <input
               type="date"
               className="w-full px-4 py-3 border border-gray-300 rounded-2xl"
@@ -564,7 +564,7 @@ const SixMonthInternshipForm = () => {
 
         {/* RA / Arrear Courses */}
         <div className="mt-6">
-          <label className="block text-sm font-medium mb-2">Number of RA / Arrear Courses</label>
+          <label className="block text-sm font-medium mb-2">Number of RA / Arrear Courses<span className="text-red-500">*</span></label>
           <input
             type="number"
             min="0"
@@ -598,7 +598,7 @@ const SixMonthInternshipForm = () => {
 
         {/* Pending Courses */}
         <div className="mt-8">
-          <label className="block text-sm font-medium mb-2">Number of Pending Courses</label>
+          <label className="block text-sm font-medium mb-2">Number of Pending Courses<span className="text-red-500">*</span></label>
           <input
             type="number"
             min="0"
