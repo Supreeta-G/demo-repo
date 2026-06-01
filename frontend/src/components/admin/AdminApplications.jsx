@@ -385,16 +385,7 @@ const AdminApplications = () => {
                           </td>
                           <td className="px-4 py-3 whitespace-nowrap" onClick={e => e.stopPropagation()}>
                             <div className="flex items-center gap-2">
-                              {app.status !== 'approved' && (
-                                <button
-                                  onClick={() => handleUnlock(app.application_id)}
-                                  disabled={actionLoading === app.application_id}
-                                  className="btn-secondary text-xs px-3 py-1.5 text-amber-600 hover:text-amber-700 disabled:opacity-50"
-                                  title="Unlock for editing"
-                                >
-                                  <Unlock className="w-3.5 h-3.5" />
-                                </button>
-                              )}
+                              
                               <button
                                 onClick={() => handleDelete(app.application_id)}
                                 disabled={actionLoading === app.application_id}
