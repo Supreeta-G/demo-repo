@@ -237,9 +237,9 @@
     </thead>
     <tbody>
       <tr style="height:40px;">
-        <td>{{#if redo_courses}}{{redo_courses}}{{else}}NIL{{/if}}</td>
-        <td>{{#if ra_courses}}{{ra_courses}}{{else}}NIL{{/if}}</td>
-        <td>{{#if pending_courses}}{{pending_courses}}{{else}}NIL{{/if}}</td>
+        <td style="text-align:center; vertical-align:middle;" >{{#if redo_courses}}{{redo_courses}}{{else}}NIL{{/if}}</td>
+        <td style="text-align:center; vertical-align:middle;">{{#if ra_courses}}{{ra_courses}}{{else}}NIL{{/if}}</td>
+        <td style="text-align:center; vertical-align:middle;">{{#if pending_courses}}{{pending_courses}}{{else}}NIL{{/if}}</td>
         <td></td>
       </tr>
       <tr style="height:38px;"><td></td><td></td><td></td><td></td></tr>
@@ -273,10 +273,10 @@
     </thead>
     <tbody>
       <tr style="height:42px;">
-        <td>{{#if has_declined_other}}{{#if declined_company_details}}{{declined_company_details}}{{else}}N/A{{/if}}{{else}}N/A{{/if}}</td>
+        <td style="text-align:center;">{{#if has_declined_other}}{{#if declined_company_details}}{{declined_company_details}}{{else}}N/A{{/if}}{{else}}N/A{{/if}}</td>
         <td style="text-align:center;">{{#if has_declined_other}}{{#if declined_start_date}}{{formatDate declined_start_date}}{{else}}N/A{{/if}}{{else}}N/A{{/if}}</td>
         <td style="text-align:center;">{{#if has_declined_other}}{{#if declined_end_date}}{{formatDate declined_end_date}}{{else}}N/A{{/if}}{{else}}N/A{{/if}}</td>
-        <td>{{#if has_declined_other}}{{#if declined_guide_name}}{{declined_guide_name}}{{else}}N/A{{/if}}{{else}}N/A{{/if}}</td>
+        <td style="text-align:center;">{{#if has_declined_other}}{{#if declined_guide_name}}{{declined_guide_name}}{{else}}N/A{{/if}}{{else}}N/A{{/if}}</td>
         <td style="text-align:center;">{{#if has_declined_other}}{{#if declined_dept_guide}}{{declined_dept_guide}}{{else}}N/A{{/if}}{{else}}N/A{{/if}}</td>
       </tr>
     </tbody>
